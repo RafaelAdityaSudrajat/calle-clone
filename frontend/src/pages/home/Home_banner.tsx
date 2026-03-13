@@ -1,0 +1,25 @@
+import bannerMobile from "@/assets/images/home_banner_mobile.webp";
+import bannerPc from "@/assets/images/home_banner_pc.webp";
+
+const Home_banner = () => {
+  return (
+    <div className="relative flex items-center justify-center w-full h-full overflow-hidden">
+      <img
+        src={bannerMobile}
+        alt="banner mobile"
+        className="object-cover w-full h-full md:hidden"
+      />
+      <img
+        src={bannerPc}
+        alt="banner mobile"
+        className="hidden object-cover w-full h-full md:block"
+      />
+
+      <button className="absolute px-4 py-2 text-white bg-secondary rounded-xl text-[.9rem] hover:text-opacity-80 transition-all duration-500">
+        SHOP HERE
+      </button>
+    </div>
+  );
+};
+
+export default Home_banner;
