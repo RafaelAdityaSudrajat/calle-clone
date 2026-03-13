@@ -12,7 +12,7 @@ const PopupRegister = () => {
   const [showConfirmPassword, setShowConfirmPassword] =
     useState<boolean>(false);
 
-  const { handleActiveAuthPopup } = useAuthModal();
+  const { handleActiveAuthPopup, onCloseActiveAuthPopup } = useAuthModal();
 
   const handleShowPassword = () => {
     setShowPassword((prev) => !prev);
@@ -33,6 +33,7 @@ const PopupRegister = () => {
 
   const onSubmit = (data: RegisterInput) => {
     console.log("Data valid:", data);
+    onCloseActiveAuthPopup();
   };
 
   return (

@@ -11,7 +11,7 @@ import { useAuthHooks } from "./useAuthHooks";
 
 const PopupLogin = () => {
   const [showPassword, setShowPassword] = useState<boolean>(false);
-  const { handleActiveAuthPopup } = useAuthModal();
+  const { handleActiveAuthPopup, onCloseActiveAuthPopup } = useAuthModal();
   const { login } = useAuthHooks();
 
   const {
@@ -37,6 +37,8 @@ const PopupLogin = () => {
     const fakeToken = "jwt_token_example";
 
     login(fakeToken, fakeUser);
+
+    onCloseActiveAuthPopup();
   };
 
   return (
