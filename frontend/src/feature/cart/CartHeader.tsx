@@ -1,5 +1,6 @@
 import React from "react";
-import IconPlaceholder from "../componentsShared/IconPlaceHolder";
+import { IoMdClose } from "react-icons/io";
+
 
 interface CartHeaderProps {
   onClose: () => void;
@@ -7,11 +8,11 @@ interface CartHeaderProps {
 
 const CartHeader = ({ onClose }: CartHeaderProps) => {
   return (
-    <div className="flex justify-between px-4 pt-4">
+    <div className="flex justify-between p-4">
       <h2>Cart</h2>
 
       <button aria-label="Close" onClick={onClose}>
-        <IconPlaceholder />
+        <IoMdClose />
       </button>
     </div>
   );

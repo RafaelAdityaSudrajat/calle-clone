@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { FiMenu } from "react-icons/fi";
-import { QuantityProvider } from "../../components/cart/cart-context/QuantityContext";
+import { QuantityProvider } from "../../feature/cart/cart-context/QuantityContext";
 
 import UseTrigger from "../../hooks/CustomHookShare";
 import SideNavHeader from "./SideNavHeader";
 import logo from "@/assets/images/logo_primary.webp";
-import SideCart from "../../components/cart/SideCart";
+import SideCart from "../../feature/cart/SideCart";
 import HeaderNav from "./HeaderNav";
 import HeaderActions from "./HeaderActions";
 

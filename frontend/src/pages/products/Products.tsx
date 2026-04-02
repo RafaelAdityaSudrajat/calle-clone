@@ -8,6 +8,7 @@ import DropdownSort from "../../components/products/DropdownSort";
 import FilterAndSortPopUp from "./FilterAndSortPopUp";
 import SideFilter from "./SideFilter";
 import { Link } from "react-router-dom";
+import ProductCard from "./ProductCard.";
 
 type ActiveSheet = "filter" | "sort" | null;
 
@@ -45,27 +46,7 @@ const Products = () => {
           {/* product list */}
           <div className="w-full">
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-              <Link to="/products/1">
-                <div className="px-3 rounded-md">
-                  <div className="flex flex-col p-0">
-                    <div className="flex justify-center">
-                      <img
-                        src="https://d2kchovjbwl1tk.cloudfront.net/vendor/9549/product/1_1766377064172_resized1024-jpg.webp"
-                        alt="products 1"
-                        className="w-full"
-                      />
-                    </div>
-                    <div className="text-[clamp(.5rem,2vw,.8rem)] text-zinc-800 flex flex-col gap-2 text-start items-center md:items-start md:px-5">
-                      <p className="text-center md:text-start">
-                        CALLE CREWNECK GRAY
-                      </p>
-                      <p className="items-start text-center md:text-start">
-                        Rp 100.000
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </Link>
+           <ProductCard id={"2"} title={"callee"} price={120000}/>
             </div>
           </div>
         </div>

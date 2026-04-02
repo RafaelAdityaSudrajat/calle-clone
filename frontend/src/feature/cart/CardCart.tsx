@@ -1,6 +1,9 @@
-import QuantityAction from "../componentsShared/QuantityAction";
+import { useCartStore } from "@/store/cartStore";
+import QuantityAction from "../../components/componentsShared/QuantityAction";
 
 const CardCart = () => {
+  const { removeFromCart } = useCartStore();
+
   return (
     <div className="flex flex-col">
       <div className="flex gap-5">
@@ -19,7 +22,10 @@ const CardCart = () => {
 
       <div className="flex items-center justify-between w-full mt-4">
         <div className="flex items-center gap-4">
-          <button className="text-sm text-gray-600 underline hover:text-gray-800">
+          <button
+            className="text-sm text-gray-600 underline hover:text-gray-800"
+            onClick={() => removeFromCart("1")}
+          >
             Remove
           </button>
         </div>

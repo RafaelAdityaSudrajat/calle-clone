@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import BackDrop from "../componentsShared/BackDrop";
+import BackDrop from "../../components/componentsShared/BackDrop";
 import CartItem from "./CartItem";
 import { useQuantity } from "./cart-context/QuantityContext";
 
