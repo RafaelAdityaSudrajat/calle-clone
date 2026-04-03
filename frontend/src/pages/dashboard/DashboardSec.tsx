@@ -1,9 +1,9 @@
 import { useState } from "react";
-import type { ModalMode } from "../../types/typeModalMode";
-import type { Product } from "../../types/typeProduct";
+import type { ModalMode } from "@/shared/types/typeModalMode";
+import type { Product } from "@/shared/types/typeProduct";
 
-import ProductModalDashboard from "../../components/dashboardSecondary/ProductModalDashboard";
-import DashboardLayout from "../../layout/DashboardLayout";
+import ProductModalDashboard from "../../widgets/dashboardSecondary/ProductModalDashboard";
+import DashboardLayout from "@/widgets/layout/DashboardLayout";
 import HeaderDashboard from "./HeaderDashboard";
 import MainDashboard from "./MainDashboard";
 

@@ -1,4 +1,4 @@
-import { useCartStore } from "@/store/cartStore";
+import { useCartStore } from "@/features/cart/model/cartStore";
 import { Link } from "react-router-dom";
 
 interface ProductCardProps {

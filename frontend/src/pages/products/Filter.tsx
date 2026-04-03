@@ -1,4 +1,4 @@
-import DropDownMenu from "../../components/products/DropDownMenu";
+import DropDownMenu from "../../widgets/products/DropDownMenu";
 
 interface FilterProps {
   trigger: boolean;

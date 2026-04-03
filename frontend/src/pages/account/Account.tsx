@@ -1,10 +1,10 @@
 
-import LayoutSecondary from "../../layout/LayoutSecondary";
+import LayoutSecondary from "@/widgets/layout/LayoutSecondary";
 import AccountAction from "./AccountAction";
 import TabsCard from "./TabsCard";
-import PopupLogin from "../../feature/auth/PopupLogin";
-import PopupRegister from "../../feature/auth/PopupRegister";
-import { useAuthModal } from "../../feature/auth/AuthModalContext";
+import PopupLogin from "@/features/auth/PopupLogin";
+import PopupRegister from "@/features/auth/PopupRegister";
+import { useAuthModal } from "@/features/auth/AuthModalContext";
 
 export default function Account() {
   

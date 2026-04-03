@@ -1,4 +1,4 @@
-import DropDownMenu from "../../components/products/DropDownMenu";
+import DropDownMenu from "../../widgets/products/DropDownMenu";
 import { IoSearchOutline } from "react-icons/io5";
 
 const SideFilter = () => {

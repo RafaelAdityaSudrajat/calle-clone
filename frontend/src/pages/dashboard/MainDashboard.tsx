@@ -1,10 +1,10 @@
 import { Package } from "lucide-react";
 
-import CardDashboardSecondary from "../../components/dashboardSecondary/CardDashboardSecondary";
-import MOCK_PRODUCTS from "../../datadummy/mockDataProducts";
+import CardDashboardSecondary from "../../widgets/dashboardSecondary/CardDashboardSecondary";
+import MOCK_PRODUCTS from "@/shared/mocks/mockDataProducts";
 import useSearchProduct from "./customHookDashboard/useSearchProduct";
-import ProductTable from "../../components/dashboardSecondary/ProductTable";
-import type { Product } from "../../types/typeProduct";
+import ProductTable from "../../widgets/dashboardSecondary/ProductTable";
+import type { Product } from "@/shared/types/typeProduct";
 import StatisticDashboard from "./StatisticDashboard";
 import SearchDashboard from "./SearchDashboard";
 

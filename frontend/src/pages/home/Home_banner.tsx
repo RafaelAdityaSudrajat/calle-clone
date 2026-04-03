@@ -1,5 +1,5 @@
-import bannerMobile from "@/assets/images/home_banner_mobile.webp";
-import bannerPc from "@/assets/images/home_banner_pc.webp";
+import bannerMobile from "@/shared/assets/images/home_banner_mobile.webp";
+import bannerPc from "@/shared/assets/images/home_banner_pc.webp";
 
 const Home_banner = () => {
   return (

@@ -1,9 +1,9 @@
-import LayoutPrimary from "../../layout/LayoutPrimary";
-import imageOne from "@/assets/images/communityImage/image_one.webp";
-import imageTwo from "@/assets/images/communityImage/image_two.webp";
-import imageThree from "@/assets/images/communityImage/image_three.webp";
-import imageFour from "@/assets/images/communityImage/image_four.webp";
-import imageFive from "@/assets/images/communityImage/image_five.webp";
+import LayoutPrimary from "@/widgets/layout/LayoutPrimary";
+import imageOne from "@/shared/assets/images/communityImage/image_one.webp";
+import imageTwo from "@/shared/assets/images/communityImage/image_two.webp";
+import imageThree from "@/shared/assets/images/communityImage/image_three.webp";
+import imageFour from "@/shared/assets/images/communityImage/image_four.webp";
+import imageFive from "@/shared/assets/images/communityImage/image_five.webp";
 
 const Comunity = () => {
   return (

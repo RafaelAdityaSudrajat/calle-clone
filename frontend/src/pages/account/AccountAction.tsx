@@ -1,4 +1,4 @@
-import { useAuthModal } from "../../feature/auth/AuthModalContext";
+import { useAuthModal } from "@/features/auth/AuthModalContext";
 
 
 const AccountAction = () => {

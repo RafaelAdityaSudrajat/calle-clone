@@ -1,5 +1,5 @@
 import { Plus, Package } from "lucide-react";
-import Button from "../../components/componentsShared/ButtonDashboard";
+import Button from "../../shared/ui/ButtonDashboard";
 
 interface HeaderDashboardProps {
   handleCreate: () => void;

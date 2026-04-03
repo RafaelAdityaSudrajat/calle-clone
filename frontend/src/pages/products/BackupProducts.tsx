@@ -1,4 +1,4 @@
-import LayoutPrimary from "../../layout/LayoutPrimary";
+import LayoutPrimary from "@/widgets/layout/LayoutPrimary";
 import { CiSearch } from "react-icons/ci";
 import { FaChevronUp } from "react-icons/fa";
 

@@ -1,4 +1,4 @@
-import BackDrop from "../../components/componentsShared/BackDrop";
+import BackDrop from "../../shared/ui/BackDrop";
 import Filter from "./Filter";
 import Sort from "./Sort";
 

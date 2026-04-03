@@ -1,4 +1,4 @@
-import DashboardLayout from "../../layout/DashboardLayout";
+import DashboardLayout from "@/widgets/layout/DashboardLayout";
 import DashboardSecondary from "./DashboardSecondary";
 import DashboardSec from "./DashboardSec";
 import EarningPage from "./EarningPage";

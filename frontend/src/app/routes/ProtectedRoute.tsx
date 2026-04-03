@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import { Navigate } from "react-router-dom"
-import { useAuthHooks } from "../../feature/auth/useAuthHooks"
+import { useAuthHooks } from "@/features/auth/useAuthHooks"
 
 type ProtectedRouteProps = {
   children: ReactNode

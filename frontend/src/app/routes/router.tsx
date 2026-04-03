@@ -10,7 +10,7 @@ import ProductDetails from "@/pages/productDetail/ProductDetail";
 import Dashboard from "@/pages/dashboard/Dashboard";
 import Account from "@/pages/account/Account";
 
-import { AuthModalProvider } from "../../feature/auth/AuthModalContext";
+import { AuthModalProvider } from "@/features/auth/AuthModalContext";
 import ProtectedRoute from "./ProtectedRoute";
 
 export function AppRouter() {

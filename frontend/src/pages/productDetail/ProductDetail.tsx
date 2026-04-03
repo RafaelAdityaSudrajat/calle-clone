@@ -1,4 +1,4 @@
-import LayoutPrimary from "@/layout/LayoutPrimary";
+import LayoutPrimary from "@/widgets/layout/LayoutPrimary";
 import ProductGallery from "./ProductGallery";
 import ProductInfo from "./ProductInfo";
 

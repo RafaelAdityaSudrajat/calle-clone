@@ -1,4 +1,4 @@
-import { useCartStore } from "@/store/cartStore";
+import { useCartStore } from "@/features/cart/model/cartStore";
 
 interface AddToCartProps {
   variant: string;

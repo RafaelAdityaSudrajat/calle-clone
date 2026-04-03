@@ -1,10 +1,10 @@
-import LayoutPrimary from "../../layout/LayoutPrimary";
-import UseTrigger from "../../hooks/CustomHookShare";
+import LayoutPrimary from "@/widgets/layout/LayoutPrimary";
+import UseTrigger from "@/shared/lib/hooks/CustomHookShare";
 
 import { useState } from "react";
 import FilterSortActions from "./FilterSortActions";
 
-import DropdownSort from "../../components/products/DropdownSort";
+import DropdownSort from "../../widgets/products/DropdownSort";
 import FilterAndSortPopUp from "./FilterAndSortPopUp";
 import SideFilter from "./SideFilter";
 import { Link } from "react-router-dom";
