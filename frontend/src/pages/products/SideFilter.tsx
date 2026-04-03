@@ -1,19 +1,24 @@
+import SearchProductByName from "@/features/products/searchByName/ui/SearchProductByName";
 import DropDownMenu from "../../widgets/products/DropDownMenu";
-import { IoSearchOutline } from "react-icons/io5";
 
-const SideFilter = () => {
+interface SideFilterProps {
+  searchQuery: string;
+  handleSearchQuery: (value: string) => void;
+}
+
+const SideFilter = ({
+  searchQuery,
+  handleSearchQuery,
+}: SideFilterProps) => {
   return (
     <div className="w-full">
       <div className="border rounded-lg border-zinc-200">
         <div className="border-b border-zinc-200">
-          <div className="flex items-center gap-2 px-2 py-3 m-2 border border-zinc-200 rounded-2xl">
-            <IoSearchOutline className="text-[1.3rem]" />
-            <input
-              type="text"
-              placeholder="Search"
-              className="placeholder:text-[.9rem] placeholder:text-zinc-500 outline-none"
-            />
-          </div>
+          <SearchProductByName
+            searchQuery={searchQuery}
+            handleSearchQuery={handleSearchQuery}
+            placeholder="Search product name"
+          />
         </div>
 
         <div className="">
