@@ -1,18 +1,36 @@
 import { useEffect, useState } from "react";
 import { FaChevronUp } from "react-icons/fa";
 
+interface DropDownOption {
+  label: string;
+  value: string;
+}
+
 interface DropDownMenuProps {
   trigger: boolean;
   label: string;
-  value: string[];
+  value: string[] | DropDownOption[];
+  selectedValue?: string;
+  onChange?: (value: string) => void;
 }
 
-const DropDownMenu = ({ trigger, label, value }: DropDownMenuProps) => {
-  const [productType, setProductType] = useState(null);
+const DropDownMenu = ({
+  trigger,
+  label,
+  value,
+  selectedValue,
+  onChange,
+}: DropDownMenuProps) => {
+  const [internalValue, setInternalValue] = useState("");
 
   // dropdown Product Type
   const [mounted, setMounted] = useState(false);
   const [expanded, setExpanded] = useState(false);
+
+  const options: DropDownOption[] = value.map((item) =>
+    typeof item === "string" ? { label: item, value: item } : item,
+  );
+  const activeValue = selectedValue ?? internalValue;
 
   const open = () => {
     setMounted(true);
@@ -32,10 +50,23 @@ const DropDownMenu = ({ trigger, label, value }: DropDownMenuProps) => {
   // kalau modal/filter ditutup, dropdown ikut reset biar aman
   useEffect(() => {
     if (!trigger) {
-      setExpanded(false);
-      setMounted(false);
+      const timeoutId = window.setTimeout(() => {
+        setExpanded(false);
+        setMounted(false);
+      }, 0);
+
+      return () => window.clearTimeout(timeoutId);
     }
   }, [trigger]);
+
+  const handleSelect = (optionValue: string) => {
+    if (onChange) {
+      onChange(optionValue);
+      return;
+    }
+
+    setInternalValue(optionValue);
+  };
 
   return (
     <div className="py-2 border-b border-zinc-200">
@@ -67,19 +98,20 @@ const DropDownMenu = ({ trigger, label, value }: DropDownMenuProps) => {
             style={{ transitionDuration: `${300}ms` }}
           >
             <div className="mt-2 space-y-2">
-              {value.map((item, i) => (
-                <label
+              {options.map((item) => (
+                <button
+                  type="button"
                   className="flex cursor-pointer items-center gap-2 text-[12px] font-medium text-primary"
-                  onClick={() => setProductType(i)}
-                  key={i}
+                  onClick={() => handleSelect(item.value)}
+                  key={item.value}
                 >
                   <span className="grid w-4 h-4 border rounded-full place-items-center border-zinc-400">
-                    {productType == i && (
+                    {activeValue === item.value && (
                       <span className="w-2 h-2 rounded-full bg-zinc-900" />
                     )}
                   </span>
-                  {item}
-                </label>
+                  {item.label}
+                </button>
               ))}
             </div>
           </div>

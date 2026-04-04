@@ -1,14 +1,33 @@
 import SearchProductByName from "@/features/products/searchByName/ui/SearchProductByName";
+import type { FilterOption } from "@/features/products/filterProducts/model/useProductFilters";
 import DropDownMenu from "../../widgets/products/DropDownMenu";
 
 interface SideFilterProps {
   searchQuery: string;
   handleSearchQuery: (value: string) => void;
+  categoryOptions: FilterOption[];
+  availabilityOptions: FilterOption[];
+  priceOptions: FilterOption[];
+  selectedCategory: string;
+  selectedAvailability: string;
+  selectedPriceRange: string;
+  handleCategoryChange: (value: string) => void;
+  handleAvailabilityChange: (value: string) => void;
+  handlePriceRangeChange: (value: string) => void;
 }
 
 const SideFilter = ({
   searchQuery,
   handleSearchQuery,
+  categoryOptions,
+  availabilityOptions,
+  priceOptions,
+  selectedCategory,
+  selectedAvailability,
+  selectedPriceRange,
+  handleCategoryChange,
+  handleAvailabilityChange,
+  handlePriceRangeChange,
 }: SideFilterProps) => {
   return (
     <div className="w-full">
@@ -24,20 +43,26 @@ const SideFilter = ({
         <div className="">
           <DropDownMenu
             trigger={true}
-            label="Product Type"
-            value={["Laptop", "Phone", "Tablet"]}
+            label="Category"
+            value={categoryOptions}
+            selectedValue={selectedCategory}
+            onChange={handleCategoryChange}
           />
 
           <DropDownMenu
             trigger={true}
-            label="Availabilty"
-            value={["All", "In Stock"]}
+            label="Availability"
+            value={availabilityOptions}
+            selectedValue={selectedAvailability}
+            onChange={handleAvailabilityChange}
           />
 
           <DropDownMenu
             trigger={true}
             label="Price"
-            value={["Rp 600.000", "Rp 1.000.000", "Rp 1.500.000"]}
+            value={priceOptions}
+            selectedValue={selectedPriceRange}
+            onChange={handlePriceRangeChange}
           />
         </div>
       </div>

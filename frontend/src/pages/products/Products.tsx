@@ -1,6 +1,6 @@
 import LayoutPrimary from "@/widgets/layout/LayoutPrimary";
+import useProductFilters from "@/features/products/filterProducts/model/useProductFilters";
 import SearchProductByName from "@/features/products/searchByName/ui/SearchProductByName";
-import useSearchProductByName from "@/features/products/searchByName/model/useSearchProductByName";
 import UseTrigger from "@/shared/lib/hooks/CustomHookShare";
 import MOCK_PRODUCTS from "@/shared/mocks/mockDataProducts";
 
@@ -17,8 +17,20 @@ type ActiveSheet = "filter" | "sort" | null;
 const Products = () => {
   const { trigger, handleTrigger } = UseTrigger();
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>(null);
-  const { searchQuery, filteredProducts, handleSearchQuery } =
-    useSearchProductByName(MOCK_PRODUCTS);
+  const {
+    searchQuery,
+    handleSearchQuery,
+    filteredProducts,
+    categoryOptions,
+    availabilityOptions,
+    priceOptions,
+    selectedCategory,
+    selectedAvailability,
+    selectedPriceRange,
+    handleCategoryChange,
+    handleAvailabilityChange,
+    handlePriceRangeChange,
+  } = useProductFilters(MOCK_PRODUCTS);
 
   function handleActiveeSheet(value: ActiveSheet) {
     setActiveSheet(value);
@@ -32,6 +44,15 @@ const Products = () => {
           <SideFilter
             searchQuery={searchQuery}
             handleSearchQuery={handleSearchQuery}
+            categoryOptions={categoryOptions}
+            availabilityOptions={availabilityOptions}
+            priceOptions={priceOptions}
+            selectedCategory={selectedCategory}
+            selectedAvailability={selectedAvailability}
+            selectedPriceRange={selectedPriceRange}
+            handleCategoryChange={handleCategoryChange}
+            handleAvailabilityChange={handleAvailabilityChange}
+            handlePriceRangeChange={handlePriceRangeChange}
           />
         </div>
 

@@ -10,7 +10,7 @@ const MOCK_PRODUCTS: Product[] = [
   { id: '3', name: 'Mechanical Keyboard', category: 'Accessories', price: 850000, stock: 28, description: 'RGB mechanical keyboard' },
   { id: '4', name: 'Monitor 27"', category: 'Electronics', price: 3500000, stock: 15, description: '4K UHD monitor' },
   { id: '5', name: 'Monitor 27"', category: 'Electronics', price: 3500000, stock: 15, description: '4K UHD monitor' },
-  { id: '6', name: 'Monitor 27"', category: 'Electronics', price: 3500000, stock: 15, description: '4K UHD monitor' },
+  { id: '6', name: 'Monitor 20"', category: 'Electronics', price: 3500000, stock: 0, description: '4K UHD monitor' },
 ];
 
 export default MOCK_PRODUCTS
