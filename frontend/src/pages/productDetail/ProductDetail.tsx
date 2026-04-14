@@ -1,6 +1,6 @@
 import LayoutPrimary from "@/widgets/layout/LayoutPrimary";
 import { useParams } from "react-router-dom";
-import MOCK_PRODUCTS from "@/shared/mocks/mockDataProducts";
+import { MOCK_PRODUCTS } from "@/entities/product";
 import ProductGallery from "./ProductGallery";
 import ProductInfo from "./ProductInfo";
 

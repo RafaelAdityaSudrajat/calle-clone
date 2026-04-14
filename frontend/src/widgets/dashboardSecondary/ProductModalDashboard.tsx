@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { Product } from "@/shared/types/typeProduct";
+import { useEffect, useState } from "react";
+import type { Product } from "@/entities/product";
 import type { ModalMode } from "@/shared/types/typeModalMode";
 import CardDashboardSecondary from "./CardDashboardSecondary";
 import Input from "./Input";
@@ -24,9 +24,6 @@ function ProductModal({
   onSave,
   onDelete,
 }: ProductModalProps) {
-
-
-  
   const [formData, setFormData] = useState<Partial<Product>>(
     product ?? {
       name: "",
@@ -36,6 +33,18 @@ function ProductModal({
       description: "",
     },
   );
+
+  useEffect(() => {
+    setFormData(
+      product ?? {
+        name: "",
+        category: "",
+        price: 0,
+        stock: 0,
+        description: "",
+      },
+    );
+  }, [product, isOpen]);
 
   if (!isOpen) return null;
 

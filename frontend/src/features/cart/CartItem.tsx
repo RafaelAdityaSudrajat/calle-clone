@@ -11,8 +11,6 @@ interface CartItemProps {
 const CartItem = ({ onClose }: CartItemProps) => {
   const { items, clearCart } = useCartStore();
 
-  console.log(items);
-
   return (
     <div className="flex flex-col h-screen max-h-screen overflow-hidden">
       <CartHeader onClose={onClose} />
@@ -24,8 +22,8 @@ const CartItem = ({ onClose }: CartItemProps) => {
       ) : (
         <div className="flex flex-col h-full">
           <div className="flex-1 p-4 overflow-y-scroll border-y">
-            {items.map((item, i) => (
-              <CardCart key={i} />
+            {items.map((_, index) => (
+              <CardCart key={index} />
             ))}
           </div>
 

@@ -1,15 +1,12 @@
 import { useState } from "react";
-import type { Product } from "@/shared/types/typeProduct";
+import type { Product } from "@/entities/product";
 
-
-
-
-const useSearchProduct = (products : Product[]) => {
+const useSearchProduct = (products: Product[]) => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleSearchQuery = (value: string) => {
-    setSearchQuery(value)
-  }
+    setSearchQuery(value);
+  };
 
   const filteredProducts = products.filter(
     (product) =>
@@ -17,7 +14,7 @@ const useSearchProduct = (products : Product[]) => {
       product.category.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
-  return {handleSearchQuery, filteredProducts, searchQuery}
+  return { handleSearchQuery, filteredProducts, searchQuery };
 };
 
 export default useSearchProduct;

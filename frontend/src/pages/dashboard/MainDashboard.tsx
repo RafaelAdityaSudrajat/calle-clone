@@ -1,10 +1,9 @@
 import { Package } from "lucide-react";
 
 import CardDashboardSecondary from "../../widgets/dashboardSecondary/CardDashboardSecondary";
-import MOCK_PRODUCTS from "@/shared/mocks/mockDataProducts";
+import { MOCK_PRODUCTS, type Product } from "@/entities/product";
 import useSearchProduct from "./customHookDashboard/useSearchProduct";
 import ProductTable from "../../widgets/dashboardSecondary/ProductTable";
-import type { Product } from "@/shared/types/typeProduct";
 import StatisticDashboard from "./StatisticDashboard";
 import SearchDashboard from "./SearchDashboard";
 
@@ -19,7 +18,8 @@ const MainDashboard = ({
   handleDelete,
   handleView,
 }: MainDashboardProps) => {
-  const { filteredProducts, searchQuery } = useSearchProduct(MOCK_PRODUCTS);
+  const { filteredProducts, searchQuery, handleSearchQuery } =
+    useSearchProduct(MOCK_PRODUCTS);
 
   // Stats
   return (
@@ -31,7 +31,7 @@ const MainDashboard = ({
       <CardDashboardSecondary>
         <SearchDashboard
           searchQuery={searchQuery}
-          handleSearchQuery={handleDelete}
+          handleSearchQuery={handleSearchQuery}
         />
 
         {/* Table */}

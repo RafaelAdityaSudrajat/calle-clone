@@ -1,14 +1,16 @@
-type Size = "S" | "M" | "L" | "XL" | "XXL";
+import type { ProductSize } from "@/entities/product";
 
 interface SizeProductDetailProps {
-  size:Size
-  handleSize: (value: Size) => void;
+  size: ProductSize;
+  sizes: ProductSize[];
+  handleSize: (value: ProductSize) => void;
 }
 
-const SIZES: Size[] = ["S", "M", "L", "XL", "XXL"];
-
-const SizeProductDetail = ({ size, handleSize }: SizeProductDetailProps) => {
-   
+const SizeProductDetail = ({
+  size,
+  sizes,
+  handleSize,
+}: SizeProductDetailProps) => {
   const base: string = "py-3 text-sm font-medium rounded-md";
 
   const variants = {
@@ -24,7 +26,7 @@ const SizeProductDetail = ({ size, handleSize }: SizeProductDetailProps) => {
       </div>
 
       <div className="grid grid-cols-6 gap-3">
-        {SIZES.map((valueSize) => (
+        {sizes.map((valueSize) => (
           <button
             key={valueSize}
             className={`${base} ${valueSize === size ? variants.active : variants.default}`}

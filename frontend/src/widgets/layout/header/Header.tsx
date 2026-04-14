@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { FiMenu } from "react-icons/fi";
 import { QuantityProvider } from "@/features/cart/cart-context/QuantityContext";
+import { Link } from "react-router-dom";
 
 import UseTrigger from "@/shared/lib/hooks/CustomHookShare";
 import SideNavHeader from "./SideNavHeader";
@@ -26,9 +27,9 @@ function Header() {
             <FiMenu className="w-6 h-6" />
           </button>
 
-          <a href="/" className="w-28" aria-label="CALLE home">
+          <Link to={"/"} className="w-28" aria-label="CALLE home">
             <img src={logo} alt="logo_primary class" />
-          </a>
+          </Link>
         </div>
 
         {/* header navigasi */}
@@ -38,10 +39,7 @@ function Header() {
         <HeaderActions handleCart={handleCartTrigger} />
       </div>
 
-      <SideNavHeader
-        triggerNav={trigger}
-        handleTriggerNav={handleTrigger}
-      />
+      <SideNavHeader triggerNav={trigger} handleTriggerNav={handleTrigger} />
 
       <QuantityProvider>
         <SideCart cartTrigger={cartTrigger} onClose={handleCartTrigger} />

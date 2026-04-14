@@ -1,9 +1,9 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type MouseEvent } from "react";
 
 export default function ProductImageZoom() {
   const [showZoom, setShowZoom] = useState(false);
   const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 });
-  const imageRef = useRef(null);
+  const imageRef = useRef<HTMLDivElement | null>(null);
 
   // Sample product images - ganti dengan images kamu
   const [selectedImage, setSelectedImage] = useState(
@@ -17,7 +17,7 @@ export default function ProductImageZoom() {
     "https://images.unsplash.com/photo-1511556820780-d912e42b4980?w=800&h=800&fit=crop",
   ];
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
     if (!imageRef.current) return;
 
     const rect = imageRef.current.getBoundingClientRect();

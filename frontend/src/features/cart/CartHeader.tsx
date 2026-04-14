@@ -1,6 +1,4 @@
-import React from "react";
 import { IoMdClose } from "react-icons/io";
-
 
 interface CartHeaderProps {
   onClose: () => void;

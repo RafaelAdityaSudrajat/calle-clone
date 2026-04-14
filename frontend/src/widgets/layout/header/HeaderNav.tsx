@@ -12,12 +12,11 @@ const HeaderNav = () => {
     <nav className="hidden lg:block text-[.9rem]">
       <ul className="flex items-center gap-2">
         {links.map((link) => (
-          <li
-            className="px-5 py-2 transition-all duration-500 cursor-pointer hover:bg-gray-300 rounded-xl"
-            key={link.href}
-          >
-            <Link to={link.href}>{link.label}</Link>
-          </li>
+          <Link to={link.href} key={link.href}>
+            <li className="px-5 py-2 transition-all duration-500 cursor-pointer hover:bg-gray-300 rounded-xl">
+              {link.label}
+            </li>
+          </Link>
         ))}
       </ul>
     </nav>

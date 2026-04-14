@@ -1,6 +1,5 @@
 import CardDashboardSecondary from "../../widgets/dashboardSecondary/CardDashboardSecondary";
-import MOCK_PRODUCTS from "@/shared/mocks/mockDataProducts";
-import { getProductStatistics } from "@/shared/lib/statisticProduct";
+import { getProductStatistics, MOCK_PRODUCTS } from "@/entities/product";
 
 const StatisticDashboard = () => {
   const { total, categories, lowStock } = getProductStatistics(MOCK_PRODUCTS);

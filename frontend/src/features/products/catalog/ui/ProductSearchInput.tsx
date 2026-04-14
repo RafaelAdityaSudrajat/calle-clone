@@ -1,23 +1,23 @@
 import { IoSearchOutline } from "react-icons/io5";
 
-interface SearchProductByNameProps {
+interface ProductSearchInputProps {
   searchQuery: string;
-  handleSearchQuery: (value: string) => void;
+  onSearchChange: (value: string) => void;
   placeholder?: string;
 }
 
-const SearchProductByName = ({
+const ProductSearchInput = ({
   searchQuery,
-  handleSearchQuery,
+  onSearchChange,
   placeholder = "Cari nama produk",
-}: SearchProductByNameProps) => {
+}: ProductSearchInputProps) => {
   return (
     <div className="flex items-center gap-2 px-2 py-3 m-2 border border-zinc-200 rounded-2xl">
       <IoSearchOutline className="text-[1.3rem]" />
       <input
         type="text"
         value={searchQuery}
-        onChange={(event) => handleSearchQuery(event.target.value)}
+        onChange={(event) => onSearchChange(event.target.value)}
         placeholder={placeholder}
         className="w-full bg-transparent placeholder:text-[.9rem] placeholder:text-zinc-500 outline-none"
       />
@@ -25,4 +25,5 @@ const SearchProductByName = ({
   );
 };
 
-export default SearchProductByName;
+export default ProductSearchInput;
+

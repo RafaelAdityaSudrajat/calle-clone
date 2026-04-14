@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ModalMode } from "@/shared/types/typeModalMode";
-import type { Product } from "@/shared/types/typeProduct";
+import type { Product } from "@/entities/product";
 
 import ProductModalDashboard from "../../widgets/dashboardSecondary/ProductModalDashboard";
 import DashboardLayout from "@/widgets/layout/DashboardLayout";
@@ -49,8 +49,6 @@ const Dashboard: React.FC = () => {
   const handleCloseModal = () => {
     setModalState({ isOpen: false, mode: null, product: null });
   };
-
-
   return (
     <DashboardLayout>
       <div className="min-h-screen text-white bg-black">

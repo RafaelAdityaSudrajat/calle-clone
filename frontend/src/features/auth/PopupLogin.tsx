@@ -27,7 +27,7 @@ const PopupLogin = () => {
     setShowPassword((prev) => !prev);
   };
 
-  const onSubmit = (data: LoginInput) => {
+  const onSubmit = (_data: LoginInput) => {
     const fakeUser = {
       id: "1",
       name: "Rafael",

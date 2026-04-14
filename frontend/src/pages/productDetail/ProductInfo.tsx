@@ -1,17 +1,23 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AddToCartButton } from "@/features/cart/addToCart";
-import type { Product } from "@/shared/types/typeProduct";
+import {
+  formatProductPrice,
+  type Product,
+  type ProductSize,
+} from "@/entities/product";
 import SizeProductDetail from "./SizeProductDetail";
-
-type ProductSize = "S" | "M" | "L" | "XL" | "XXL";
 
 interface ProductInfoProps {
   product: Product;
 }
 
 const ProductInfo = ({ product }: ProductInfoProps) => {
-  const [size, setSize] = useState<ProductSize>("S");
+  const [size, setSize] = useState<ProductSize>(product.size[0]);
   const [qty, setQty] = useState<number>(1);
+
+  useEffect(() => {
+    setSize(product.size[0]);
+  }, [product]);
 
   const handleSize = (value: ProductSize) => {
     setSize(value);
@@ -36,16 +42,18 @@ const ProductInfo = ({ product }: ProductInfoProps) => {
 
       <h1 className="text-xl font-semibold tracking-wide">{product.name}</h1>
 
-      <p className="text-lg font-medium">
-        Rp {product.price.toLocaleString("id-ID")}
-      </p>
+      <p className="text-lg font-medium">{formatProductPrice(product.price)}</p>
 
       <div className="p-4 text-sm border rounded-lg">
         <p className="mb-1 font-medium">Quantity Information</p>
         <p className="text-gray-500">Maximum Quantity: {product.stock}</p>
       </div>
 
-      <SizeProductDetail size={size} handleSize={handleSize} />
+      <SizeProductDetail
+        size={size}
+        sizes={product.size}
+        handleSize={handleSize}
+      />
 
       <div className="flex items-center justify-center gap-4">
         <div className="flex items-center overflow-hidden border rounded-full">

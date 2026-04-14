@@ -1,14 +1,12 @@
-import React, { type ReactNode } from "react";
-
+import type { ReactNode } from "react";
 
 interface BackDropProps {
-    trigger : boolean
-    onClose : () => void
-    children : ReactNode
-    
+  trigger: boolean;
+  onClose: () => void;
+  children: ReactNode;
 }
 
-const BackDrop = ({trigger, onClose , children} : BackDropProps) => {
+const BackDrop = ({ trigger, onClose, children }: BackDropProps) => {
   return (
     <div
       className={`fixed inset-0 z-40 bg-black/40 transition-opacity duration-100

@@ -1,6 +1,5 @@
-import type { Product } from "@/shared/types/typeProduct";
+import { formatProductPrice, type Product } from "@/entities/product";
 import { Trash2, Edit2 } from "lucide-react";
-
 
 type ProductTableProps = {
   products: Product[];
@@ -15,14 +14,6 @@ function ProductTable({
   onView,
   onDelete,
 }: ProductTableProps) {
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-    }).format(price);
-  };
-
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
@@ -64,7 +55,7 @@ function ProductTable({
                 </span>
               </td>
               <td className="px-6 py-4 font-medium text-white">
-                {formatPrice(product.price)}
+                {formatProductPrice(product.price)}
               </td>
               <td className="px-6 py-4">
                 <span

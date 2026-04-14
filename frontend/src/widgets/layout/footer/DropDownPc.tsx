@@ -1,4 +1,3 @@
-import React from "react";
 import dataDropDown from "@/shared/config/dataDropDown";
 
 const DropDownPc = () => {
