@@ -1,6 +1,6 @@
 // 1. Definisi Type untuk konsistensi Data
 
-import type StatItem from "../type/type-stat-item";
+import type StatItem from "../../type/type-stat-item";
 
 
 const StatCard: React.FC<{ item: StatItem }> = ({ item }) => {

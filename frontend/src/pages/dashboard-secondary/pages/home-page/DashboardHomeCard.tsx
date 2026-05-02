@@ -1,7 +1,7 @@
 // SalesCard.tsx
 import React from "react";
 import { HiOutlineClipboardList } from "react-icons/hi";
-import type { CardData } from "../type/type-card-data";
+import type { CardData } from "../../type/type-card-data";
 
 // Definisi properti komponen (meskipun kita tidak menggunakannya untuk data, ini adalah praktik terbaik TS untuk komponen yang dapat digunakan kembali)
 interface DashboardHomeCardProps {

@@ -5,7 +5,7 @@ import {
   HiOutlineCurrencyDollar, 
   HiOutlineDocumentText 
 } from 'react-icons/hi2';
-import type StatItem from '../type/type-stat-item';
+import type StatItem from '../../type/type-stat-item';
 import StatCard from './StatCard';
 
 

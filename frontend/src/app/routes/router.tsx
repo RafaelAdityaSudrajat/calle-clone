@@ -11,7 +11,8 @@ import Dashboard from "@/pages/dashboard/Dashboard";
 import Account from "@/pages/account/Account";
 import { AuthModalProvider } from "@/features/auth/AuthModalContext";
 import ProtectedRoute from "./ProtectedRoute";
-import DashboardHome from "@/pages/dashboard-secondary/pages/DashboardHome";
+import DashboardHome from "@/pages/dashboard-secondary/pages/home-page/DashboardHome";
+import AdminProduct from "@/pages/dashboard-secondary/pages/add-product-page/AdminProduct";
 
 export function AppRouter() {
   return (
@@ -25,6 +26,7 @@ export function AppRouter() {
         <Route path="/products/:id" element={<ProductDetails />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/dashboard-secondary" element={<DashboardHome />} />
+        <Route path="/dashboard-secondary/product" element={<AdminProduct />} />
         <Route
           path="/account"
           element={

@@ -18,7 +18,7 @@ interface DashboardLayoutProps {
   children: ReactNode;
 }
 
-const DashboardLayout = ({ children }: DashboardLayoutProps) => {
+const AdminLayout = ({ children }: DashboardLayoutProps) => {
   const menuItems: MenuItem[] = [
     { icon: HiOutlineViewGrid, label: "Dashboard", active: true },
     { icon: HiOutlineUsers, label: "Contacts" },
@@ -44,4 +44,4 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   );
 };
 
-export default DashboardLayout;
+export default AdminLayout;

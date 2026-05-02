@@ -3,7 +3,7 @@ import type { ModalMode } from "@/shared/types/typeModalMode";
 import type { Product } from "@/entities/product";
 
 import ProductModalDashboard from "../../widgets/dashboardSecondary/ProductModalDashboard";
-import DashboardLayout from "@/widgets/layout/DashboardLayout";
+import DashboardLayout from "@/widgets/layout/AdminLayout";
 import HeaderDashboard from "./HeaderDashboard";
 import MainDashboard from "./MainDashboard";
 
