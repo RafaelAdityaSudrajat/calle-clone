@@ -6,21 +6,18 @@ import { useState } from "react";
 import { useAuthModal } from "./AuthModalContext";
 import HeaderPopupAuth from "./HeaderPopupAuth";
 import FormRegister from "./FormRegister";
+import { useRegister } from "@/features/auth/model/use-register"; // ← tambah ini
 
 const PopupRegister = () => {
   const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [showConfirmPassword, setShowConfirmPassword] =
-    useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
 
   const { handleActiveAuthPopup, onCloseActiveAuthPopup } = useAuthModal();
+  const { register: registerUser, isLoading, error } = useRegister(); // ← tambah ini
 
-  const handleShowPassword = () => {
-    setShowPassword((prev) => !prev);
-  };
+  const handleShowPassword = () => setShowPassword((prev) => !prev);
+  const handleConfirmPassword = () => setShowConfirmPassword((prev) => !prev);
 
-  const handleConfirmPassword = () => {
-    setShowConfirmPassword((prev) => !prev);
-  };
 
   const {
     register,
@@ -28,33 +25,35 @@ const PopupRegister = () => {
     formState: { errors, isValid, isSubmitting },
   } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
-    mode: "onChange", // penting
+    mode: "onChange",
   });
 
-  const onSubmit = (data: RegisterInput) => {
-    console.log("Data valid:", data);
-    onCloseActiveAuthPopup();
+  // ← ubah jadi async
+  const onSubmit = async (data: RegisterInput) => {
+    console.log(data)
+    await registerUser(data);
   };
 
   return (
     <PopupAuthCardLayout>
-      {/* Modal */}
       <div className="w-full max-w-md bg-white rounded-xl">
-        {/* Header Register */}
         <HeaderPopupAuth label="Register" />
 
-        {/* Description */}
         <p className="mb-6 text-xs leading-relaxed text-black">
           Create account to be our member to earn points, get free vouchers, and
           hear our news earlier.
         </p>
 
-        {/* Form */}
+        {/* Global error dari server, misal email sudah terdaftar */}
+        {error && (
+          <p className="mb-4 text-xs text-center text-red-500">{error}</p>
+        )}
+
         <FormRegister
           register={register}
           errors={errors}
           isValid={isValid}
-          IsSubmit={isSubmitting}
+          IsSubmit={isSubmitting || isLoading} // ← merge dua loading state
           handleSubmit={handleSubmit}
           showPassword={showPassword}
           handleShowPassword={handleShowPassword}
@@ -62,7 +61,7 @@ const PopupRegister = () => {
           handleConfirmPassword={handleConfirmPassword}
           onSubmit={onSubmit}
         />
-        {/* Login Link */}
+
         <p className="pt-2 text-sm text-center text-gray-600">
           Already have account?{" "}
           <span

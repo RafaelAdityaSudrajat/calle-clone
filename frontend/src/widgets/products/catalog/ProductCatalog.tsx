@@ -81,10 +81,10 @@ const ProductCatalog = ({ products }: ProductCatalogProps) => {
           </div>
 
           <div className="mb-4">
-            <div className="my-4 flex w-full gap-3 px-padding_primary lg:hidden">
+            <div className="flex w-full gap-3 my-4 px-padding_primary lg:hidden">
               <button
                 type="button"
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-primary px-6 py-2"
+                className="flex items-center justify-center flex-1 gap-2 px-6 py-2 border rounded-xl border-primary"
                 onClick={() => setActiveSheet("filter")}
               >
                 <IoFilterSharp />
@@ -93,7 +93,7 @@ const ProductCatalog = ({ products }: ProductCatalogProps) => {
 
               <button
                 type="button"
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-primary px-6 py-2"
+                className="flex items-center justify-center flex-1 gap-2 px-6 py-2 border rounded-xl border-primary"
                 onClick={() => setActiveSheet("sort")}
               >
                 <FaSortAmountDown />
@@ -131,7 +131,7 @@ const ProductCatalog = ({ products }: ProductCatalogProps) => {
                 ))}
               </div>
             ) : (
-              <div className="rounded-lg border border-zinc-200 py-16 text-center">
+              <div className="py-16 text-center border rounded-lg border-zinc-200">
                 <p className="text-lg font-medium text-primary">
                   Product tidak ditemukan
                 </p>

@@ -9,28 +9,22 @@ import Test from "@/pages/test/Test";
 import ProductDetails from "@/pages/productDetail/ProductDetail";
 import Dashboard from "@/pages/dashboard/Dashboard";
 import Account from "@/pages/account/Account";
-
 import { AuthModalProvider } from "@/features/auth/AuthModalContext";
 import ProtectedRoute from "./ProtectedRoute";
+import DashboardHome from "@/pages/dashboard-secondary/pages/DashboardHome";
 
 export function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route
-          path="/community"
-          element={
-            <ProtectedRoute>
-              <Comunity />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/community" element={<Comunity />} />
         <Route path="/archives" element={<Archives />} />
         <Route path="/about" element={<About />} />
         <Route path="/products" element={<Products />} />
         <Route path="/products/:id" element={<ProductDetails />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard-secondary" element={<DashboardHome />} />
         <Route
           path="/account"
           element={

@@ -6,6 +6,8 @@ export default {
       colors: {
         primary: "#000000",
         secondary: "#202020",
+        dashboardPrimary: "#22a447",
+        dashboardTextPrimary: "#334155"
       },
       fontFamily: {
         primary: ["Freeman", "sans-serif"],

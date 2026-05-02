@@ -1,16 +1,16 @@
+import { useAuthStore } from "@/features/auth/model/auth.store"
 import type { ReactNode } from "react"
 import { Navigate } from "react-router-dom"
-import { useAuthHooks } from "@/features/auth/useAuthHooks"
 
 type ProtectedRouteProps = {
   children: ReactNode
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated } = useAuthHooks()
+  const {isAuthenticated} = useAuthStore()
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/account" replace />
   }
 
   return children

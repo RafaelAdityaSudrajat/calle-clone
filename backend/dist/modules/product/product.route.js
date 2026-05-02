@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const authenticate_1 = require("../../middlewares/authenticate");
+const upload_1 = require("../../middlewares/upload");
+const product_controller_1 = require("./product.controller");
+const router = (0, express_1.Router)();
+router.post('/', authenticate_1.authenticate, product_controller_1.createProduct);
+router.post('/:productId/images', authenticate_1.authenticate, upload_1.ensureMultipartFormData, upload_1.upload.fields(upload_1.productImageUploadFields), product_controller_1.uploadImages);
+exports.default = router;

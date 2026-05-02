@@ -7,12 +7,12 @@ import { useState } from "react";
 import { useAuthModal } from "./AuthModalContext";
 import HeaderPopupAuth from "./HeaderPopupAuth";
 import FormLogin from "./FormLogin";
-import { useAuthHooks } from "./useAuthHooks";
+import { useLogin } from "./model/use-login";
 
 const PopupLogin = () => {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const { handleActiveAuthPopup, onCloseActiveAuthPopup } = useAuthModal();
-  const { login } = useAuthHooks();
+  const { login, isLoading, error } = useLogin(); // ← tambah ini
 
   const {
     register,
@@ -27,19 +27,9 @@ const PopupLogin = () => {
     setShowPassword((prev) => !prev);
   };
 
-  const onSubmit = (_data: LoginInput) => {
-    const fakeUser = {
-      id: "1",
-      name: "Rafael",
-      email: "rafael@mail.com",
+  const onSubmit = async (data: LoginInput) => {
+      await login(data);
     };
-
-    const fakeToken = "jwt_token_example";
-
-    login(fakeToken, fakeUser);
-
-    onCloseActiveAuthPopup();
-  };
 
   return (
     <PopupAuthCardLayout>
@@ -50,7 +40,7 @@ const PopupLogin = () => {
         register={register}
         errors={errors}
         isValid={isValid}
-        IsSubmit={isSubmitting}
+        IsSubmit={isSubmitting || isLoading} // ← merge dua loading state
         handleSubmit={handleSubmit}
         showPassword={showPassword}
         handleShowPassword={handleShowPassword}
@@ -76,6 +66,10 @@ const PopupLogin = () => {
         <span className="underline cursor-pointer">Privacy Policy</span> and{" "}
         <span className="underline cursor-pointer">Terms of Service</span>.
       </p>
+
+      {error && (
+        <p className="mb-4 text-xs text-center text-red-500">{error}</p>
+      )}
     </PopupAuthCardLayout>
   );
 };
