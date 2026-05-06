@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import {
   HiOutlineViewGrid,
-  HiOutlineUsers,
   HiOutlineOfficeBuilding,
   HiOutlineTrendingUp,
   HiOutlineClipboardCheck,
@@ -10,6 +9,7 @@ import {
   HiOutlineCog,
   HiOutlineDocumentText,
 } from "react-icons/hi";
+import { FiPlus } from "react-icons/fi";
 import type { MenuItem } from "./type/type-menu-item";
 import DashboardSideNav from "./DashboardSideNav";
 import DashboardHeader from "./DashboardHeader";
@@ -20,15 +20,8 @@ interface DashboardLayoutProps {
 
 const AdminLayout = ({ children }: DashboardLayoutProps) => {
   const menuItems: MenuItem[] = [
-    { icon: HiOutlineViewGrid, label: "Dashboard", active: true },
-    { icon: HiOutlineUsers, label: "Contacts" },
-    { icon: HiOutlineOfficeBuilding, label: "Companies" },
-    { icon: HiOutlineTrendingUp, label: "Deals" },
-    { icon: HiOutlineClipboardCheck, label: "Tasks" },
-    { icon: HiOutlineChartBar, label: "Reports" },
-    { icon: HiOutlineCreditCard, label: "Billing" },
-    { icon: HiOutlineCog, label: "Settings" },
-    { icon: HiOutlineDocumentText, label: "Docs" },
+    { icon: HiOutlineViewGrid, label: "Dashboard", active: true, href: "/dashboard-secondary" },
+    { icon: FiPlus, label: "Add Product", href: "/dashboard-secondary/product" },
   ];
 
   return (

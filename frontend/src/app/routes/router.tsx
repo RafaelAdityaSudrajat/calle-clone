@@ -24,7 +24,6 @@ export function AppRouter() {
         <Route path="/about" element={<About />} />
         <Route path="/products" element={<Products />} />
         <Route path="/products/:id" element={<ProductDetails />} />
-        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/dashboard-secondary" element={<DashboardHome />} />
         <Route path="/dashboard-secondary/product" element={<AdminProduct />} />
         <Route

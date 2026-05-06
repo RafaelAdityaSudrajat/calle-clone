@@ -24,6 +24,7 @@ const DashboardSideNav = ({ menuItems }: DashboardSidebarItemProps) => {
             key={index}
             icon={item.icon}
             label={item.label}
+            href={item.href}
             isActive={item.active}
           />
         ))}
