@@ -1,6 +1,6 @@
 import DashboardSidebarItem from "./DashboardSidebarItem";
 import { HiChevronLeft } from "react-icons/hi";
-import type { MenuItem } from "./type/type-menu-item";
+import type { MenuItem } from "../../pages/dashboard-secondary/type/type-menu-item";
 
 interface DashboardSidebarItemProps {
   menuItems: MenuItem[];

@@ -1,7 +1,7 @@
 // Reusable Sidebar Item Component
 
 import { Link } from "react-router-dom";
-import type { MenuItem } from "./type/type-menu-item";
+import type { MenuItem } from "../../pages/dashboard-secondary/type/type-menu-item";
 
 const DashboardSidebarItem = ({
   icon: Icon,

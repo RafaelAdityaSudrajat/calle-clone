@@ -7,7 +7,6 @@ import About from "@/pages/about/About";
 import Products from "@/pages/products/Products";
 import Test from "@/pages/test/Test";
 import ProductDetails from "@/pages/productDetail/ProductDetail";
-import Dashboard from "@/pages/dashboard/Dashboard";
 import Account from "@/pages/account/Account";
 import { AuthModalProvider } from "@/features/auth/AuthModalContext";
 import ProtectedRoute from "./ProtectedRoute";
@@ -24,8 +23,8 @@ export function AppRouter() {
         <Route path="/about" element={<About />} />
         <Route path="/products" element={<Products />} />
         <Route path="/products/:id" element={<ProductDetails />} />
-        <Route path="/dashboard-secondary" element={<DashboardHome />} />
-        <Route path="/dashboard-secondary/product" element={<AdminProduct />} />
+        <Route path="/dashboard" element={<DashboardHome />} />
+        <Route path="/dashboard/product" element={<AdminProduct />} />
         <Route
           path="/account"
           element={

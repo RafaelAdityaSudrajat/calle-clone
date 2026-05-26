@@ -10,7 +10,7 @@ import {
   HiOutlineDocumentText,
 } from "react-icons/hi";
 import { FiPlus } from "react-icons/fi";
-import type { MenuItem } from "./type/type-menu-item";
+import type { MenuItem } from "../../pages/dashboard-secondary/type/type-menu-item";
 import DashboardSideNav from "./DashboardSideNav";
 import DashboardHeader from "./DashboardHeader";
 
@@ -20,8 +20,8 @@ interface DashboardLayoutProps {
 
 const AdminLayout = ({ children }: DashboardLayoutProps) => {
   const menuItems: MenuItem[] = [
-    { icon: HiOutlineViewGrid, label: "Dashboard", active: true, href: "/dashboard-secondary" },
-    { icon: FiPlus, label: "Add Product", href: "/dashboard-secondary/product" },
+    { icon: HiOutlineViewGrid, label: "Dashboard", active: true, href: "/dashboard" },
+    { icon: FiPlus, label: "Add Product", href: "/dashboard/product" },
   ];
 
   return (
