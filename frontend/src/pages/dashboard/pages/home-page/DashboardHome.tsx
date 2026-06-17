@@ -1,4 +1,4 @@
-import DashboardLayout from "../../../../widgets/dashboard/AdminLayout";
+import DashboardLayout from "../../../../app/layout/DashboardLayout";
 import DashboardAdvancedListHome from "./DashboardAdvancedListHome";
 import StatList from "./StatList";
 

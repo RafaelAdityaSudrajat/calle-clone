@@ -3,20 +3,23 @@ import { Link } from "react-router-dom";
 import { AddToCartButton } from "@/features/cart/addToCart";
 
 import { formatProductPrice } from "../lib/format-price";
-import type { Product } from "../model/types";
+import type { ProductResponse } from "../model/product.types";
 
 const PRODUCT_FALLBACK_IMAGE =
   "https://d2kchovjbwl1tk.cloudfront.net/vendor/9549/product/1_1766377064172_resized1024-jpg.webp";
 
 interface ProductCardProps {
-  product: Product;
+  product: ProductResponse;
 }
 
 const ProductCard = ({ product }: ProductCardProps) => {
+  const primaryImage = product.images[0]?.url ?? PRODUCT_FALLBACK_IMAGE;
+
   const cartProduct = {
     id: product.id,
     name: product.name,
-    price: product.price,
+    price: Number(product.price),
+    image: primaryImage,
   };
 
   return (
@@ -24,7 +27,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
       <div className="flex flex-col">
         <Link to={`/products/${product.id}`} className="flex justify-center">
           <img
-            src={PRODUCT_FALLBACK_IMAGE}
+            src={primaryImage}
             alt={product.name}
             className="w-full rounded-md"
           />
@@ -53,4 +56,3 @@ const ProductCard = ({ product }: ProductCardProps) => {
 };
 
 export default ProductCard;
-

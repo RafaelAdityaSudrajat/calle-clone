@@ -11,8 +11,8 @@ import { useLogin } from "./model/use-login";
 
 const PopupLogin = () => {
   const [showPassword, setShowPassword] = useState<boolean>(false);
-  const { handleActiveAuthPopup, onCloseActiveAuthPopup } = useAuthModal();
-  const { login, isLoading, error } = useLogin(); // ← tambah ini
+  const { handleActiveAuthPopup } = useAuthModal();
+  const { login, isLoading, error } = useLogin();
 
   const {
     register,
@@ -28,8 +28,8 @@ const PopupLogin = () => {
   };
 
   const onSubmit = async (data: LoginInput) => {
-      await login(data);
-    };
+    await login(data);
+  };
 
   return (
     <PopupAuthCardLayout>
@@ -40,7 +40,7 @@ const PopupLogin = () => {
         register={register}
         errors={errors}
         isValid={isValid}
-        IsSubmit={isSubmitting || isLoading} // ← merge dua loading state
+        IsSubmit={isSubmitting || isLoading}
         handleSubmit={handleSubmit}
         showPassword={showPassword}
         handleShowPassword={handleShowPassword}

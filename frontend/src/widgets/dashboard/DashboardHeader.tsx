@@ -1,7 +1,7 @@
 import { HiOutlineMenu, HiOutlineUser } from "react-icons/hi";
 import { RiArrowDropDownLine } from "react-icons/ri";
 
-import DashboardSearchHeader from "./DashboardSearchHeader";
+import DashboardSearchHeader from "../../entities/dashboard/ui/DashboardSearchHeader";
 
 // Komponen Header/Topbar yang berdiri sendiri
 const DashboardHeader = () => {

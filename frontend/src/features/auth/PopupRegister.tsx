@@ -10,14 +10,14 @@ import { useRegister } from "@/features/auth/model/use-register"; // ← tambah 
 
 const PopupRegister = () => {
   const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] =
+    useState<boolean>(false);
 
-  const { handleActiveAuthPopup, onCloseActiveAuthPopup } = useAuthModal();
-  const { register: registerUser, isLoading, error } = useRegister(); // ← tambah ini
+  const { handleActiveAuthPopup } = useAuthModal();
+  const { register: registerUser, isLoading, error } = useRegister();
 
   const handleShowPassword = () => setShowPassword((prev) => !prev);
   const handleConfirmPassword = () => setShowConfirmPassword((prev) => !prev);
-
 
   const {
     register,
@@ -28,9 +28,7 @@ const PopupRegister = () => {
     mode: "onChange",
   });
 
-  // ← ubah jadi async
   const onSubmit = async (data: RegisterInput) => {
-    console.log(data)
     await registerUser(data);
   };
 
@@ -53,7 +51,7 @@ const PopupRegister = () => {
           register={register}
           errors={errors}
           isValid={isValid}
-          IsSubmit={isSubmitting || isLoading} // ← merge dua loading state
+          IsSubmit={isSubmitting || isLoading}
           handleSubmit={handleSubmit}
           showPassword={showPassword}
           handleShowPassword={handleShowPassword}

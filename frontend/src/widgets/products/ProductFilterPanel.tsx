@@ -1,6 +1,6 @@
-import type { FilterOption } from "../model/types";
-import FilterAccordion from "./FilterAccordion";
-import ProductSearchInput from "./ProductSearchInput";
+import type { FilterOption } from "../../features/products/catalog/model/types";
+import FilterAccordion from "../../features/products/catalog/ui/FilterAccordion";
+import ProductSearchInput from "../../features/products/catalog/ui/ProductSearchInput";
 
 interface ProductFilterPanelProps {
   searchQuery: string;

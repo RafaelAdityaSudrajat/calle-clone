@@ -1,26 +1,24 @@
 import type { ReactNode } from "react";
 import {
   HiOutlineViewGrid,
-  HiOutlineOfficeBuilding,
-  HiOutlineTrendingUp,
-  HiOutlineClipboardCheck,
-  HiOutlineChartBar,
-  HiOutlineCreditCard,
-  HiOutlineCog,
-  HiOutlineDocumentText,
 } from "react-icons/hi";
 import { FiPlus } from "react-icons/fi";
-import type { MenuItem } from "../../pages/dashboard-secondary/type/type-menu-item";
-import DashboardSideNav from "./DashboardSideNav";
-import DashboardHeader from "./DashboardHeader";
+import type { MenuItem } from "../../pages/dashboard/type/type-menu-item";
+import DashboardSideNav from "../../widgets/dashboard/DashboardSideNav";
+import DashboardHeader from "../../widgets/dashboard/DashboardHeader";
 
 interface DashboardLayoutProps {
   children: ReactNode;
 }
 
-const AdminLayout = ({ children }: DashboardLayoutProps) => {
+const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const menuItems: MenuItem[] = [
-    { icon: HiOutlineViewGrid, label: "Dashboard", active: true, href: "/dashboard" },
+    {
+      icon: HiOutlineViewGrid,
+      label: "Dashboard",
+      active: true,
+      href: "/dashboard",
+    },
     { icon: FiPlus, label: "Add Product", href: "/dashboard/product" },
   ];
 
@@ -37,4 +35,4 @@ const AdminLayout = ({ children }: DashboardLayoutProps) => {
   );
 };
 
-export default AdminLayout;
+export default DashboardLayout;

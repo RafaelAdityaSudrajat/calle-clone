@@ -6,7 +6,7 @@ export default {
       colors: {
         primary: "#000000",
         secondary: "#202020",
-        dashboardPrimary: "#22a447",
+        dashboardPrimary: "#000000",
         dashboardTextPrimary: "#334155"
       },
       fontFamily: {

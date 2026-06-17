@@ -1,11 +1,7 @@
-export type ProductSize = "S" | "M" | "L" | "XL" | "XXL";
+import type {
+  ProductResponse,
+  ProductVariantResponse,
+} from "./product.types";
 
-export interface Product {
-  id: string;
-  name: string;
-  category: string;
-  price: number;
-  stock: number;
-  description: string;
-  size: ProductSize[];
-}
+export type Product = ProductResponse;
+export type ProductSize = ProductVariantResponse["size"];

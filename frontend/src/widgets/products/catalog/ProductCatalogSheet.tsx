@@ -1,7 +1,7 @@
 import { IoMdClose } from "react-icons/io";
 
 import BackDrop from "@/shared/ui/BackDrop";
-import ProductFilterPanel from "@/features/products/catalog/ui/ProductFilterPanel";
+import ProductFilterPanel from "@/widgets/products/ProductFilterPanel";
 import ProductSortSheet from "@/features/products/catalog/ui/ProductSortSheet";
 import type {
   FilterOption,
@@ -67,12 +67,12 @@ const ProductCatalogSheet = ({
         }`}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-200 bg-white px-4 py-4">
+        <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-4 bg-white border-b border-zinc-200">
           <h2 className="text-lg font-medium text-primary">{title}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-1 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
+            className="p-1 transition-colors rounded-full text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
           >
             <IoMdClose className="text-xl" />
           </button>

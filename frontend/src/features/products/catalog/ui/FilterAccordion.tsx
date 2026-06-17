@@ -16,7 +16,7 @@ const FilterAccordion = ({
   selectedValue,
   onChange,
 }: FilterAccordionProps) => {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <div className="py-2 border-b border-zinc-200">

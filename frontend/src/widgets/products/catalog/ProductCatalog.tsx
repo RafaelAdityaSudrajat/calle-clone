@@ -2,22 +2,22 @@ import { useEffect, useState } from "react";
 import { FaSortAmountDown } from "react-icons/fa";
 import { IoFilterSharp } from "react-icons/io5";
 
-import { ProductCard, type Product } from "@/entities/product";
+import { ProductCard } from "@/entities/product";
 import useProductCatalog from "@/features/products/catalog/model/useProductCatalog";
-import ProductFilterPanel from "@/features/products/catalog/ui/ProductFilterPanel";
+import ProductFilterPanel from "@/widgets/products/ProductFilterPanel";
 import ProductSearchInput from "@/features/products/catalog/ui/ProductSearchInput";
 import ProductSortSelect from "@/features/products/catalog/ui/ProductSortSelect";
 
 import ProductCatalogSheet from "./ProductCatalogSheet";
+import { useProducts } from "@/entities/product/hooks/use-products";
 
 type ActiveSheet = "filter" | "sort" | null;
 
-interface ProductCatalogProps {
-  products: Product[];
-}
-
-const ProductCatalog = ({ products }: ProductCatalogProps) => {
+const ProductCatalog = () => {
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>(null);
+  const { data, isLoading, isError } = useProducts();
+  const products = data ?? [];
+
   const {
     searchQuery,
     setSearchQuery,
@@ -47,6 +47,15 @@ const ProductCatalog = ({ products }: ProductCatalogProps) => {
       document.body.style.overflow = "auto";
     };
   }, [activeSheet]);
+
+  if (isLoading)
+    return <div className="py-10 text-center">Loading products...</div>;
+  if (isError)
+    return (
+      <div className="py-10 text-center">
+        Gagal memuat produk. Coba lagi sebentar.
+      </div>
+    );
 
   return (
     <>

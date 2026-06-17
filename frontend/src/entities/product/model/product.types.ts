@@ -6,6 +6,15 @@ export interface ProductCategoryResponse {
   slug: string;
 }
 
+export interface ProductImageResponse {
+  id: string;
+  url: string;
+  isPrimary: boolean;
+  order: number;
+  productId: string;
+  createdAt: string;
+}
+
 export interface ProductVariantResponse {
   id: string;
   size: string;
@@ -21,7 +30,7 @@ export interface ProductResponse {
   id: string;
   name: string;
   slug: string;
-  description: string;
+  description: string | null;
   price: string; // BE returns string
   stock: number;
   isActive: boolean;
@@ -30,11 +39,27 @@ export interface ProductResponse {
   updatedAt: string;
   category: ProductCategoryResponse;
   variants: ProductVariantResponse[];
-  images: string[];
+  images: ProductImageResponse[];
 }
 
 export interface AddProductApiResponse {
   status: string;
   message: string;
+  data: ProductResponse;
+}
+
+export interface GetProductsApiResponse {
+  status: string;
+  data: ProductResponse[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface GetProductByIdApiResponse {
+  status: string;
   data: ProductResponse;
 }

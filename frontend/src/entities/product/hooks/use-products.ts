@@ -14,7 +14,7 @@ export function useProducts() {
   })
 }
 
-export function useProduct(id: number) {
+export function useProduct(id: string) {
   return useQuery({
     queryKey: productKeys.detail(id),
     queryFn: () => productsApi.getById(id),

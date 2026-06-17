@@ -1,17 +1,39 @@
 import LayoutPrimary from "@/widgets/layout/LayoutPrimary";
 import { useParams } from "react-router-dom";
-import { MOCK_PRODUCTS } from "@/entities/product";
-import ProductGallery from "./ProductGallery";
-import ProductInfo from "./ProductInfo";
+import { useProduct } from "@/entities/product/hooks/use-products";
+import ProductGallery from "../../entities/product/ui/product-detail/ProductGallery";
+import ProductInfo from "../../entities/product/ui/product-detail/ProductInfo";
 
 const ProductDetail = () => {
   const { id } = useParams();
-  const product = MOCK_PRODUCTS.find((item) => item.id === id);
+  const { data: product, isLoading, isError } = useProduct(id ?? "");
+
+  if (isLoading) {
+    return (
+      <LayoutPrimary>
+        <div className="py-10 px-padding_primary">
+          <p className="text-lg font-medium">Loading product...</p>
+        </div>
+      </LayoutPrimary>
+    );
+  }
+
+  if (isError) {
+    return (
+      <LayoutPrimary>
+        <div className="py-10 px-padding_primary">
+          <p className="text-lg font-medium">
+            Gagal memuat detail produk. Coba lagi sebentar.
+          </p>
+        </div>
+      </LayoutPrimary>
+    );
+  }
 
   if (!product) {
     return (
       <LayoutPrimary>
-        <div className="px-padding_primary py-10">
+        <div className="py-10 px-padding_primary">
           <p className="text-lg font-medium">Product tidak ditemukan.</p>
         </div>
       </LayoutPrimary>
@@ -23,7 +45,7 @@ const ProductDetail = () => {
       <div className="w-full py-6 mx-auto px-padding_primary">
         <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-2">
           {/* LEFT - PRODUCT IMAGE */}
-          <ProductGallery />
+          <ProductGallery product={product} />
 
           {/* RIGHT - PRODUCT INFO */}
           <ProductInfo product={product} />

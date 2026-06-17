@@ -1,7 +1,7 @@
 import type { ProductSize } from "@/entities/product";
 
 interface SizeProductDetailProps {
-  size: ProductSize;
+  size: ProductSize | "";
   sizes: ProductSize[];
   handleSize: (value: ProductSize) => void;
 }

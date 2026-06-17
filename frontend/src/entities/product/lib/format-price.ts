@@ -1,7 +1,6 @@
-export const formatProductPrice = (price: number) =>
+export const formatProductPrice = (price: number | string) =>
   new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
     minimumFractionDigits: 0,
-  }).format(price);
-
+  }).format(typeof price === "string" ? Number(price) : price);

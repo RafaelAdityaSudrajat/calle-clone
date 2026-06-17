@@ -5,44 +5,26 @@ import imageThree from "@/shared/assets/images/communityImage/image_three.webp";
 import imageFour from "@/shared/assets/images/communityImage/image_four.webp";
 import imageFive from "@/shared/assets/images/communityImage/image_five.webp";
 
+const images = [
+  { src: imageOne, alt: "Community image 1" },
+  { src: imageTwo, alt: "Community image 2" },
+  { src: imageThree, alt: "Community image 3" },
+  { src: imageFour, alt: "Community image 4" },
+  { src: imageFive, alt: "Community image 5" },
+];
+
 const Comunity = () => {
   return (
     <LayoutPrimary>
-      <div className="w-full h-auto overflow-hidden">
-        <img
-          src={imageOne}
-          alt="imageOne"
-          className="object-cover w-full h-full"
-        />
-      </div>
-      <div className="w-full h-auto overflow-hidden">
-        <img
-          src={imageTwo}
-          alt="imageOne"
-          className="object-cover w-full h-full"
-        />
-      </div>
-      <div className="w-full h-auto overflow-hidden">
-        <img
-          src={imageThree}
-          alt="imageOne"
-          className="object-cover w-full h-full"
-        />
-      </div>
-      <div className="w-full h-auto overflow-hidden">
-        <img
-          src={imageFour}
-          alt="imageOne"
-          className="object-cover w-full h-full"
-        />
-      </div>
-      <div className="w-full h-auto overflow-hidden">
-        <img
-          src={imageFive}
-          alt="imageOne"
-          className="object-cover w-full h-full"
-        />
-      </div>
+      {images.map((img) => (
+        <div key={img.alt} className="w-full h-auto overflow-hidden">
+          <img
+            src={img.src}
+            alt={img.alt}
+            className="object-cover w-full h-full"
+          />
+        </div>
+      ))}
     </LayoutPrimary>
   );
 };

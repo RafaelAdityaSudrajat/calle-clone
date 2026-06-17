@@ -1,5 +1,6 @@
 import React from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
+import { NumericFormat } from "react-number-format";
 import {
   addProductSchema,
   type AddProductFormValues,
@@ -8,7 +9,7 @@ import InputField from "../../../../shared/ui/InputField";
 import CategorySelectField from "./CategorySelectField";
 import ProductVariantsField from "./ProductVariantsField";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useAddProduct } from "../model/use-add-product";
+import { useAddProduct } from "../hooks/use-add-product";
 
 const AddProductForm: React.FC = () => {
   const { mutate, isPending, isError, error } = useAddProduct();
@@ -18,6 +19,7 @@ const AddProductForm: React.FC = () => {
     handleSubmit,
     reset,
     control,
+    watch,
     formState: { errors },
   } = useForm<AddProductFormValues>({
     resolver: zodResolver(addProductSchema),
@@ -33,7 +35,7 @@ const AddProductForm: React.FC = () => {
 
   const onSubmit = (data: AddProductFormValues) => {
     console.log("Submitted:", data);
-    mutate(data);
+    // mutate(data);
   };
 
   const handleClear = () => reset();
@@ -60,11 +62,25 @@ const AddProductForm: React.FC = () => {
         {/* Row 2: Price & Stock */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
           <div>
-            <InputField
-              label="Price"
-              placeholder="0.00"
-              type="number"
-              {...register("price", { valueAsNumber: true })}
+            <Controller
+              name="price"
+              control={control}
+              render={({ field }) => (
+                <NumericFormat
+                  customInput={InputField}
+                  label="Price"
+                  placeholder="0"
+                  thousandSeparator="."
+                  decimalSeparator=","
+                  prefix={'Rp '}
+                  allowNegative={false}
+                  value={field.value}
+                  onValueChange={(values) => {
+                    field.onChange(values.floatValue ?? 0);
+                    console.log(values)
+                  }}
+                />
+              )}
             />
             {errors.price && (
               <p className="mb-4 -mt-4 text-xs text-red-500">
@@ -73,11 +89,27 @@ const AddProductForm: React.FC = () => {
             )}
           </div>
           <div>
-            <InputField
+            {/* <InputField
               label="Stock Quantity"
               placeholder="0"
               type="number"
               {...register("stock", { valueAsNumber: true })}
+            /> */}
+            <Controller
+              name="stock"
+              control={control}
+              render={({ field }) => (
+                <NumericFormat
+                  customInput={InputField}
+                  label="Stock Quantity"
+                  placeholder="0"
+                  allowNegative={false}
+                  value={field.value}
+                  onValueChange={(values) => {
+                    field.onChange(values.floatValue ?? 0);
+                  }}
+                />
+              )}
             />
             {errors.stock && (
               <p className="mb-4 -mt-4 text-xs text-red-500">

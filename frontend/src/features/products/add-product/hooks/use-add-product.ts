@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { addProductApi } from "../api/add-product.api";
 import { productKeys } from "../api/product.query-keys";
-import type { AddProductFormValues } from "./product.schema";
+import type { AddProductFormValues } from "../model/product.schema";
 import type { AddProductApiResponse } from "@/entities/product/model/product.types";
 
 export const useAddProduct = () => {

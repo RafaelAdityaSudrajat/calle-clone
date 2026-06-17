@@ -9,9 +9,9 @@ import Test from "@/pages/test/Test";
 import ProductDetails from "@/pages/productDetail/ProductDetail";
 import Account from "@/pages/account/Account";
 import { AuthModalProvider } from "@/features/auth/AuthModalContext";
-import ProtectedRoute from "./ProtectedRoute";
-import DashboardHome from "@/pages/dashboard-secondary/pages/home-page/DashboardHome";
-import AdminProduct from "@/pages/dashboard-secondary/pages/add-product-page/AdminProduct";
+import DashboardHome from "@/pages/dashboard/pages/home-page/DashboardHome";
+import Checkout from "@/pages/checkout/Checkout";
+import DashboardAddProduct from "@/pages/dashboard/pages/add-product-page/DashboardAddProduct";
 
 export function AppRouter() {
   return (
@@ -23,8 +23,9 @@ export function AppRouter() {
         <Route path="/about" element={<About />} />
         <Route path="/products" element={<Products />} />
         <Route path="/products/:id" element={<ProductDetails />} />
+        <Route path="/checkout" element={<Checkout />} />
         <Route path="/dashboard" element={<DashboardHome />} />
-        <Route path="/dashboard/product" element={<AdminProduct />} />
+        <Route path="/dashboard/product" element={<DashboardAddProduct />} />
         <Route
           path="/account"
           element={

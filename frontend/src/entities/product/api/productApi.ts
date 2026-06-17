@@ -1,15 +1,24 @@
-import type { ProductsResponse, ProductItem } from "@/entities/product/model/typesProducts";
-import fetcher from "@/shared/api/fetcher";
-
-const BASE_URL = "https://dummyjson.com";
+import type {
+  GetProductByIdApiResponse,
+  GetProductsApiResponse,
+  ProductResponse,
+} from "@/entities/product/model/product.types";
+import { axiosInstance } from "@/shared/api/axios.instance";
 
 
 export const productsApi = {
-  getAll: () => {
-    return fetcher<ProductsResponse>(`${BASE_URL}/products`);
+  getAll: async (): Promise<ProductResponse[]> => {
+    const response = await axiosInstance.get<GetProductsApiResponse>("/products");
+
+    return response.data.data;
   },
 
-  getById: (id: number) =>
-    fetcher<ProductItem>(`${BASE_URL}/products/${id}`),
+  getById: async (id: string): Promise<ProductResponse> => {
+    const response = await axiosInstance.get<GetProductByIdApiResponse>(
+      `/products/${id}`,
+    );
+
+    return response.data.data;
+  },
 
 };

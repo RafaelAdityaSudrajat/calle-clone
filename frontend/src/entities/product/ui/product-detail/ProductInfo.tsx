@@ -1,59 +1,48 @@
-import { useEffect, useState } from "react";
 import { AddToCartButton } from "@/features/cart/addToCart";
 import {
   formatProductPrice,
-  type Product,
-  type ProductSize,
+  type ProductResponse,
 } from "@/entities/product";
 import SizeProductDetail from "./SizeProductDetail";
+import { useProductInfo } from "../../hooks/use-productInfo";
 
 interface ProductInfoProps {
-  product: Product;
+  product: ProductResponse;
 }
 
 const ProductInfo = ({ product }: ProductInfoProps) => {
-  const [size, setSize] = useState<ProductSize>(product.size[0]);
-  const [qty, setQty] = useState<number>(1);
-
-  useEffect(() => {
-    setSize(product.size[0]);
-  }, [product]);
-
-  const handleSize = (value: ProductSize) => {
-    setSize(value);
-  };
-
-  const increaseQty = () =>
-    setQty((prev) => (prev >= product.stock ? prev : prev + 1));
-  const decreaseQty = () =>
-    setQty((prev) => (prev <= 1 ? prev : prev - 1));
-
-  const cartProduct = {
-    id: product.id,
-    name: product.name,
-    price: product.price,
-  };
+  const {
+    sizes,
+    size,
+    qty,
+    displayedPrice,
+    availableStock,
+    handleSize,
+    increaseQty,
+    decreaseQty,
+    cartProduct,
+  } = useProductInfo({ product });
 
   return (
     <div className="flex flex-col gap-2">
       <div className="px-3 text-[.8500rem] text-white bg-gray-700 rounded-xs w-fit">
-        {product.stock > 0 ? "Low Stock" : "Out of Stock"}
+        {availableStock > 0 ? "Low Stock" : "Out of Stock"}
       </div>
 
       <h1 className="text-xl font-semibold tracking-wide">{product.name}</h1>
 
-      <p className="text-lg font-medium">{formatProductPrice(product.price)}</p>
+      <p className="text-lg font-medium">
+        {formatProductPrice(displayedPrice)}
+      </p>
 
       <div className="p-4 text-sm border rounded-lg">
         <p className="mb-1 font-medium">Quantity Information</p>
-        <p className="text-gray-500">Maximum Quantity: {product.stock}</p>
+        <p className="text-gray-500">Maximum Quantity: {availableStock}</p>
       </div>
 
-      <SizeProductDetail
-        size={size}
-        sizes={product.size}
-        handleSize={handleSize}
-      />
+      {sizes.length > 0 && (
+        <SizeProductDetail size={size} sizes={sizes} handleSize={handleSize} />
+      )}
 
       <div className="flex items-center justify-center gap-4">
         <div className="flex items-center overflow-hidden border rounded-full">
@@ -79,7 +68,7 @@ const ProductInfo = ({ product }: ProductInfoProps) => {
             product={cartProduct}
             quantity={qty}
             className="w-full py-3 font-medium text-white bg-black rounded-lg"
-            disabled={product.stock <= 0}
+            disabled={availableStock <= 0}
           />
         </div>
 
@@ -88,7 +77,7 @@ const ProductInfo = ({ product }: ProductInfoProps) => {
             product={cartProduct}
             quantity={qty}
             className="w-full py-3 font-medium text-black bg-white border border-black rounded-full hover:text-white hover:bg-black"
-            disabled={product.stock <= 0}
+            disabled={availableStock <= 0}
           />
         </div>
 
