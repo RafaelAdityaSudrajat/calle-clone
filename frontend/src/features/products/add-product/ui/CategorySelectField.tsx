@@ -1,9 +1,8 @@
 import React from "react";
-import { useQuery } from "@tanstack/react-query";
-import { categoryApi } from "@/entities/category";
 import type { UseFormRegister, FieldErrors } from "react-hook-form";
-import type { AddProductFormValues } from "../model/product.schema";
+import type { AddProductFormValues } from "../../../../entities/product/model/product.schema";
 import InputField from "@/shared/ui/InputField";
+import { useGetCategory } from "@/entities/category/hooks/useCategory";
 
 interface Props {
   register: UseFormRegister<AddProductFormValues>;
@@ -11,14 +10,7 @@ interface Props {
 }
 
 const CategorySelectField: React.FC<Props> = ({ register, errors }) => {
-  const {
-    data: categoriesRes,
-    isLoading,
-    isError,
-  } = useQuery({
-    queryKey: ["categories"],
-    queryFn: categoryApi.getAll,
-  });
+  const { data: categoriesRes, isLoading, isError } = useGetCategory();
 
   return (
     <div>

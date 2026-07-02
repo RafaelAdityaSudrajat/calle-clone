@@ -25,11 +25,15 @@ const ProductCard = ({ product }: ProductCardProps) => {
   return (
     <article className="px-3 rounded-md">
       <div className="flex flex-col">
-        <Link to={`/products/${product.id}`} className="flex justify-center">
+        <Link
+          to={`/products/${product.id}`}
+          className="flex justify-center overflow-hidden aspect-[4/5]"
+        >
+
           <img
             src={primaryImage}
             alt={product.name}
-            className="w-full rounded-md"
+            className="object-cover w-full h-full rounded-md"
           />
         </Link>
 

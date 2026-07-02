@@ -7,7 +7,7 @@ export default {
         primary: "#000000",
         secondary: "#202020",
         dashboardPrimary: "#000000",
-        dashboardTextPrimary: "#334155"
+        dashboardTextPrimary: "#334155",
       },
       fontFamily: {
         primary: ["Freeman", "sans-serif"],

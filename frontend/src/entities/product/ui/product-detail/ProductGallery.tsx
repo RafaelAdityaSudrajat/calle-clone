@@ -22,7 +22,7 @@ const ProductGallery = ({ product }: ProductGalleryProps) => {
     <div className="flex flex-col w-full gap-2">
       <div
         ref={imageRef}
-        className="aspect-[1/1] min-h-[20rem] bg-gray-100 rounded-lg flex items-center justify-center lg:max-h-[29rem] relative overflow-hidden cursor-crosshair"
+        className="aspect-[1/1] bg-gray-100 rounded-lg flex items-center justify-center relative overflow-hidden cursor-crosshair"
         onMouseMove={handleMouseMove}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
@@ -39,7 +39,7 @@ const ProductGallery = ({ product }: ProductGalleryProps) => {
             className="absolute inset-0 pointer-events-none"
             style={{
               backgroundImage: `url(${primaryImage})`,
-              backgroundSize: "200%",
+              backgroundSize: "150%",
               backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
               backgroundRepeat: "no-repeat",
             }}

@@ -12,6 +12,8 @@ import { AuthModalProvider } from "@/features/auth/AuthModalContext";
 import DashboardHome from "@/pages/dashboard/pages/home-page/DashboardHome";
 import Checkout from "@/pages/checkout/Checkout";
 import DashboardAddProduct from "@/pages/dashboard/pages/add-product-page/DashboardAddProduct";
+import ProtectedRoute from "./ProtectedRoute";
+import DashboardAddCategory from "@/pages/dashboard/pages/add-category-page/DashboardAddCategory";
 
 export function AppRouter() {
   return (
@@ -20,12 +22,20 @@ export function AppRouter() {
         <Route path="/" element={<Home />} />
         <Route path="/community" element={<Comunity />} />
         <Route path="/archives" element={<Archives />} />
-        <Route path="/about" element={<About />} />
+        <Route
+          path="/about"
+          element={
+            <ProtectedRoute>
+              <About />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/products" element={<Products />} />
         <Route path="/products/:id" element={<ProductDetails />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/dashboard" element={<DashboardHome />} />
         <Route path="/dashboard/product" element={<DashboardAddProduct />} />
+        <Route path="/dashboard/category" element={<DashboardAddCategory />} />
         <Route
           path="/account"
           element={

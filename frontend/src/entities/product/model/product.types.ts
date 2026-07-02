@@ -63,3 +63,14 @@ export interface GetProductByIdApiResponse {
   status: string;
   data: ProductResponse;
 }
+
+export interface AddImagesResponse {
+  status: string;
+  message: string;
+  data: ProductResponse;
+}
+
+export interface UploadImagesInput {
+  productId: string;
+  formData: FormData;
+};

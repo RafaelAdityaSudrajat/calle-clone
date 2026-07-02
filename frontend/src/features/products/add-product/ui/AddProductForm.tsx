@@ -4,22 +4,29 @@ import { NumericFormat } from "react-number-format";
 import {
   addProductSchema,
   type AddProductFormValues,
-} from "@/features/products/add-product/model/product.schema";
+} from "@/entities/product/model/product.schema";
 import InputField from "../../../../shared/ui/InputField";
 import CategorySelectField from "./CategorySelectField";
 import ProductVariantsField from "./ProductVariantsField";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useAddProduct } from "../hooks/use-add-product";
+import {
+  useAddProduct,
+  useUploadMutation,
+} from "@/entities/product/hooks/use-products";
+import axios from "axios";
 
 const AddProductForm: React.FC = () => {
-  const { mutate, isPending, isError, error } = useAddProduct();
+  const [files, setFiles] = React.useState<File[]>([]);
+
+  const { mutateAsync, isPending, isError, error } = useAddProduct();
+
+  const uploadMutation = useUploadMutation();
 
   const {
     register,
     handleSubmit,
     reset,
     control,
-    watch,
     formState: { errors },
   } = useForm<AddProductFormValues>({
     resolver: zodResolver(addProductSchema),
@@ -27,15 +34,51 @@ const AddProductForm: React.FC = () => {
       name: "",
       description: "",
       price: 0,
-      stock: 0,
       categoryId: "",
       variants: [],
     },
   });
 
-  const onSubmit = (data: AddProductFormValues) => {
-    console.log("Submitted:", data);
-    // mutate(data);
+  const onSubmit = async (data: AddProductFormValues) => {
+    const totalVariantStock = data.variants.reduce(
+      (sum, variant) => sum + variant.stock,
+      0,
+    );
+
+    
+
+    const datas = {
+      ...data,
+      stock: totalVariantStock,
+    };
+
+    try {
+      console.log(JSON.stringify(datas, null, 2));
+
+      const product = await mutateAsync(datas);
+
+      if (files.length > 0) {
+        const formData = new FormData();
+        files.forEach((file) => {
+          formData.append("images", file);
+        });
+        for (const pair of formData.entries()) {
+          console.log(pair);
+        }
+
+        await uploadMutation.mutateAsync({
+          productId: product.data.id,
+          formData,
+        });
+      }
+
+      reset();
+      setFiles([]);
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.log(error.response?.data);
+      }
+    }
   };
 
   const handleClear = () => reset();
@@ -72,12 +115,11 @@ const AddProductForm: React.FC = () => {
                   placeholder="0"
                   thousandSeparator="."
                   decimalSeparator=","
-                  prefix={'Rp '}
+                  prefix={"Rp "}
                   allowNegative={false}
                   value={field.value}
                   onValueChange={(values) => {
                     field.onChange(values.floatValue ?? 0);
-                    console.log(values)
                   }}
                 />
               )}
@@ -85,35 +127,6 @@ const AddProductForm: React.FC = () => {
             {errors.price && (
               <p className="mb-4 -mt-4 text-xs text-red-500">
                 {errors.price.message}
-              </p>
-            )}
-          </div>
-          <div>
-            {/* <InputField
-              label="Stock Quantity"
-              placeholder="0"
-              type="number"
-              {...register("stock", { valueAsNumber: true })}
-            /> */}
-            <Controller
-              name="stock"
-              control={control}
-              render={({ field }) => (
-                <NumericFormat
-                  customInput={InputField}
-                  label="Stock Quantity"
-                  placeholder="0"
-                  allowNegative={false}
-                  value={field.value}
-                  onValueChange={(values) => {
-                    field.onChange(values.floatValue ?? 0);
-                  }}
-                />
-              )}
-            />
-            {errors.stock && (
-              <p className="mb-4 -mt-4 text-xs text-red-500">
-                {errors.stock.message}
               </p>
             )}
           </div>
@@ -130,10 +143,21 @@ const AddProductForm: React.FC = () => {
           <div className="mt-1.5 flex items-center border border-slate-200 rounded-lg overflow-hidden">
             <label className="bg-slate-100 px-5 py-3 text-[14px] font-medium text-dashboardTextPrimary border-r border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors">
               Choose File
-              <input type="file" className="hidden" />
+              <input
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files) {
+                    setFiles(Array.from(e.target.files));
+                  }
+                }}
+              />
             </label>
             <span className="px-4 text-[14px] text-slate-400">
-              No file chosen
+              {files.length > 0
+                ? `${files.length} file selected`
+                : "No file chosen"}
             </span>
           </div>
         </div>
@@ -164,6 +188,12 @@ const AddProductForm: React.FC = () => {
           <div className="p-3 mb-4 text-sm text-red-600 bg-red-100 rounded-lg">
             {(error as Error)?.message || "Failed to add product"}
           </div>
+        )}
+
+        {errors.variants?.message && (
+          <p className="p-3 mb-4 text-sm text-red-600 bg-red-100 rounded-lg">
+            {errors.variants.message}
+          </p>
         )}
 
         {/* Actions */}

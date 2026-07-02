@@ -9,13 +9,13 @@ import ProductSearchInput from "@/features/products/catalog/ui/ProductSearchInpu
 import ProductSortSelect from "@/features/products/catalog/ui/ProductSortSelect";
 
 import ProductCatalogSheet from "./ProductCatalogSheet";
-import { useProducts } from "@/entities/product/hooks/use-products";
+import { useGetProducts } from "@/entities/product/hooks/use-products";
 
 type ActiveSheet = "filter" | "sort" | null;
 
 const ProductCatalog = () => {
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>(null);
-  const { data, isLoading, isError } = useProducts();
+  const { data, isLoading, isError } = useGetProducts();
   const products = data ?? [];
 
   const {

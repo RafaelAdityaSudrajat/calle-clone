@@ -6,12 +6,26 @@ export interface Category {
   updatedAt: string
 }
 
-export interface CategoryResponse {
+
+export interface CreateCategoryResponse {
   status: string
+  message: string
   data: Category
+
+
 }
 
-export interface CategoriesResponse {
+export interface CategoryResponse {
   status: string
   data: Category[]
+}
+
+export interface DeleteCategoryByIdResponse {
+  status: string
+  message: string
+}
+
+export interface UpdateCategoryResponse {
+  status: string
+  message: string
 }

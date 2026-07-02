@@ -20,6 +20,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       href: "/dashboard",
     },
     { icon: FiPlus, label: "Add Product", href: "/dashboard/product" },
+    { icon: FiPlus, label: "Add Category", href: "/dashboard/category" },
   ];
 
   return (

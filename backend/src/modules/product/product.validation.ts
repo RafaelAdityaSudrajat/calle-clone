@@ -12,11 +12,11 @@ export const createProductSchema = z.object({
         size: z.string().min(1, "Size is required"),
         color: z.string().min(1, "Color is required"),
         stock: z.number().int().nonnegative("Stock must be non-negative"),
-        price: z.number().positive("Price must be positive").optional(),
       }),
     )
-    .optional(),
 });
+
+
 
 export const updateProductSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters').optional(),

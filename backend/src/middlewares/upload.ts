@@ -7,6 +7,8 @@ const MAX_SIZE = 2 * 1024 * 1024; // 2MB
 
 const storage = multer.memoryStorage();
 
+
+//buat validasi file dari request kalo misalnya file != ALLOWED_TYPES maka error
 const fileFilter = (
   req: Express.Request,
   file: Express.Multer.File,

@@ -1,20 +1,25 @@
-import React from "react"
-import { useFieldArray } from "react-hook-form"
-import type { Control, UseFormRegister, FieldErrors } from "react-hook-form"
-import type { AddProductFormValues } from "../model/product.schema";
-import InputField from "@/shared/ui/InputField"
+import React from "react";
+import { Controller, useFieldArray } from "react-hook-form";
+import type { Control, UseFormRegister, FieldErrors } from "react-hook-form";
+import type { AddProductFormValues } from "../../../../entities/product/model/product.schema";
+import InputField from "@/shared/ui/InputField";
+import { NumericFormat } from "react-number-format";
 
 interface Props {
-  control: Control<AddProductFormValues>
-  register: UseFormRegister<AddProductFormValues>
-  errors: FieldErrors<AddProductFormValues>
+  control: Control<AddProductFormValues>;
+  register: UseFormRegister<AddProductFormValues>;
+  errors: FieldErrors<AddProductFormValues>;
 }
 
-const ProductVariantsField: React.FC<Props> = ({ control, register, errors }) => {
+const ProductVariantsField: React.FC<Props> = ({
+  control,
+  register,
+  errors,
+}) => {
   const { fields, append, remove } = useFieldArray({
     control,
     name: "variants",
-  })
+  });
 
   return (
     <div className="mb-5">
@@ -45,9 +50,13 @@ const ProductVariantsField: React.FC<Props> = ({ control, register, errors }) =>
           <div>
             <InputField
               label="Size"
-              placeholder="M, L, XL..."
-              {...register(`variants.${index}.size`)}
+              placeholder="Size..."
+              type="text"
+              {...register(`variants.${index}.size`, {
+                setValueAs: (value) => value.toUpperCase(),
+              })}
             />
+
             {errors.variants?.[index]?.size && (
               <p className="mb-2 -mt-4 text-xs text-red-500">
                 {errors.variants[index].size?.message}
@@ -67,11 +76,27 @@ const ProductVariantsField: React.FC<Props> = ({ control, register, errors }) =>
             )}
           </div>
           <div className="relative">
-            <InputField
+            {/* <InputField
               label="Stock"
               placeholder="0"
               type="number"
               {...register(`variants.${index}.stock`, { valueAsNumber: true })}
+            /> */}
+            <Controller
+              name={`variants.${index}.stock`}
+              control={control}
+              render={({ field }) => (
+                <NumericFormat
+                  customInput={InputField}
+                  label="Stock"
+                  placeholder="0"
+                  allowNegative={false}
+                  value={field.value}
+                  onValueChange={(values) => {
+                    field.onChange(values.floatValue ?? 0);
+                  }}
+                />
+              )}
             />
             {errors.variants?.[index]?.stock && (
               <p className="mb-2 -mt-4 text-xs text-red-500">
@@ -89,7 +114,7 @@ const ProductVariantsField: React.FC<Props> = ({ control, register, errors }) =>
         </div>
       ))}
     </div>
-  )
-}
+  );
+};
 
-export default ProductVariantsField
+export default ProductVariantsField;

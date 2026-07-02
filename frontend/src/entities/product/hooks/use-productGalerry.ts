@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import type { ProductResponse } from "../model/product.types";
 import type { MouseEvent } from "react";
 
-
 const IMAGE_URLS = [
   "https://d2kchovjbwl1tk.cloudfront.net/vendor/9549/product/1_1766377064172_resized1024-jpg.webp",
   "https://d2kchovjbwl1tk.cloudfront.net/vendor/9549/product/2_1766377064220_resized256-jpg.webp",
@@ -20,7 +19,7 @@ type ZoomPosition = {
   y: number;
 };
 
-export function useProductGalerry ({ product }: ProductGalleryProps) {
+export function useProductGalerry({ product }: ProductGalleryProps) {
   const imageUrls = product.images.map((image) => image.url);
   const galleryImages = imageUrls.length > 0 ? imageUrls : IMAGE_URLS;
   const [showZoom, setShowZoom] = useState(false);
@@ -33,10 +32,6 @@ export function useProductGalerry ({ product }: ProductGalleryProps) {
   );
 
   const imageRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    setPrimaryImage(galleryImages[0] ?? INITIAL_IMAGE);
-  }, [product.id, galleryImages]);
 
   const handlePrimaryImage = (value: string) => {
     setPrimaryImage(value);
@@ -69,7 +64,6 @@ export function useProductGalerry ({ product }: ProductGalleryProps) {
     showZoom,
     zoomPosition,
     galleryImages,
-    handlePrimaryImage
+    handlePrimaryImage,
   };
-};
-
+}

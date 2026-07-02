@@ -1,12 +1,12 @@
 import LayoutPrimary from "@/widgets/layout/LayoutPrimary";
 import { useParams } from "react-router-dom";
-import { useProduct } from "@/entities/product/hooks/use-products";
+import { useGetProductDetail } from "@/entities/product/hooks/use-products";
 import ProductGallery from "../../entities/product/ui/product-detail/ProductGallery";
 import ProductInfo from "../../entities/product/ui/product-detail/ProductInfo";
 
 const ProductDetail = () => {
   const { id } = useParams();
-  const { data: product, isLoading, isError } = useProduct(id ?? "");
+  const { data: product, isLoading, isError } = useGetProductDetail(id ?? "");
 
   if (isLoading) {
     return (

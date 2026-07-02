@@ -35,15 +35,14 @@ export const createCategory = async (
   }
 };
 
-
 export const getCategories = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const result = await getCategoriesService();
-    res.status(200).json({ status: 'success', data: result });
+    res.status(200).json({ status: "success", data: result });
   } catch (error) {
     next(error);
   }
@@ -52,11 +51,11 @@ export const getCategories = async (
 export const getCategoryById = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const result = await getCategoryByIdService(req.params.id);
-    res.status(200).json({ status: 'success', data: result });
+    res.status(200).json({ status: "success", data: result });
   } catch (error) {
     next(error);
   }
@@ -65,21 +64,22 @@ export const getCategoryById = async (
 export const updateCategory = async (
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const parsed = createCategorySchema.safeParse(req.body);
+
+    console.log(req.params.id)
 
     if (!parsed.success) {
       const message = parsed.error.issues[0].message;
       throw new ValidationError(message);
     }
 
-    const result = await updateCategoryService(req.params.id, parsed.data);
+    await updateCategoryService(req.params.id, parsed.data);
     res.status(200).json({
-      status: 'success',
-      message: 'Category updated successfully',
-      data: result,
+      status: "success",
+      message: "Category updated successfully",
     });
   } catch (error) {
     next(error);
@@ -89,13 +89,13 @@ export const updateCategory = async (
 export const deleteCategory = async (
   req: AuthRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
     await deleteCategoryService(req.params.id);
     res.status(200).json({
-      status: 'success',
-      message: 'Category deleted successfully',
+      status: "success",
+      message: "Category deleted successfully",
     });
   } catch (error) {
     next(error);
