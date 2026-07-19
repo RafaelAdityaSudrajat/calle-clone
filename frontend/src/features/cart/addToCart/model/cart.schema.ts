@@ -6,4 +6,4 @@ export const updateCartSchema = z.object({
     quantity: z.number()
 })
 
-export type updateCartInputFormValues = z.infer<typeof updateCartSchema>;
+export type updateCartInputValues = z.infer<typeof updateCartSchema>;

@@ -26,3 +26,9 @@ export interface CartResponse {
   success: boolean;
   message: string;
 }
+
+export interface UpdateCartResponse {
+  data: CartItem;
+  success: boolean;
+  message: string;
+}
