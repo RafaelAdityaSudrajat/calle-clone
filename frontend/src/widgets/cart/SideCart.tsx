@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import BackDrop from "../../shared/ui/BackDrop";
-import CartList from "./Cartlist";
+import CartList from "../../features/cart/ui/Cartlist";
 
 interface SideCartProps {
   cartTrigger: boolean;

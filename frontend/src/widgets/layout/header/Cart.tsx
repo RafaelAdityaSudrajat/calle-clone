@@ -1,4 +1,4 @@
-import { useGetCart } from "@/features/cart/hooks/useCartNew";
+import { useGetCart } from "@/entities/cart/model/UseCart";
 import { RiShoppingBagLine } from "react-icons/ri";
 
 interface CartProps {

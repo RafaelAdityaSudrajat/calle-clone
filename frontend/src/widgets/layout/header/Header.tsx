@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import UseTrigger from "@/shared/lib/hooks/CustomHookShare";
 import SideNavHeader from "./SideNavHeader";
 import logo from "@/shared/assets/images/logo_primary.webp";
-import SideCart from "@/features/cart/SideCart";
+import SideCart from "@/widgets/cart/SideCart";
 import HeaderNav from "./HeaderNav";
 import HeaderActions from "./HeaderActions";
 

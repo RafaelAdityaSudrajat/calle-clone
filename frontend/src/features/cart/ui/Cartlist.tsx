@@ -1,22 +1,17 @@
-import { useCartStore } from "@/features/cart/model/cartStore";
-import CardCart from "./ui/CardCart";
-import CartHeader from "./CartHeader";
+import CardItemRow from "./CardItemRow";
+import CartHeader from "../../../entities/cart/ui/CartHeader";
 
 import { GoTrash } from "react-icons/go";
-import { useGetCart } from "./hooks/useCartNew";
+import { useGetCart } from "../../../entities/cart/model/UseCart";
 
 interface CartItemProps {
   onClose: () => void;
 }
 
 const CartList = ({ onClose }: CartItemProps) => {
-  const { clearCart } = useCartStore();
   const { data: cartResponse } = useGetCart();
 
   const cartList = cartResponse?.data?.cartItems ?? [];
-
-
-
 
   return (
     <div className="flex flex-col h-screen max-h-screen overflow-hidden">
@@ -29,14 +24,14 @@ const CartList = ({ onClose }: CartItemProps) => {
       ) : (
         <div className="flex flex-col h-full">
           <div className="flex-1 p-4 overflow-y-scroll border-y">
-            {cartList.map((item , index) => (
-              <CardCart key={index} cartItem = {item}/>
+            {cartList.map((item, index) => (
+              <CardItemRow key={index} cartItem={item} />
             ))}
           </div>
 
           <div className="flex items-center p-4">
             <div className="flex items-center gap-2 p-2 transition-all border-2 rounded-md cursor-pointer duration-5000 border-zinc-400 hover:bg-black hover:text-white hover:border-black">
-              <button onClick={clearCart}>Remove All</button>
+              <button>Remove All</button>
               <GoTrash />
             </div>
           </div>
