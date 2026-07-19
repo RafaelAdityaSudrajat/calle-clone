@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import BackDrop from "../../shared/ui/BackDrop";
 import CartList from "../../features/cart/ui/Cartlist";
 
@@ -8,18 +7,6 @@ interface SideCartProps {
 }
 
 function SideCart({ cartTrigger, onClose }: SideCartProps) {
-  useEffect(() => {
-    if (cartTrigger) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "auto";
-    }
-
-    // cleanup (penting!)
-    return () => {
-      document.body.style.overflow = "auto";
-    };
-  }, [cartTrigger]);
 
   return (
     <BackDrop trigger={cartTrigger} onClose={onClose}>

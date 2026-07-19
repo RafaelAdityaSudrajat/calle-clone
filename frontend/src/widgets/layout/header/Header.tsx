@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { FiMenu } from "react-icons/fi";
-import { QuantityProvider } from "@/features/cart/cart-context/QuantityContext";
 import { Link } from "react-router-dom";
 
 import UseTrigger from "@/shared/lib/hooks/CustomHookShare";
@@ -41,9 +40,7 @@ function Header() {
 
       <SideNavHeader triggerNav={trigger} handleTriggerNav={handleTrigger} />
 
-      <QuantityProvider>
-        <SideCart cartTrigger={cartTrigger} onClose={handleCartTrigger} />
-      </QuantityProvider>
+      <SideCart cartTrigger={cartTrigger} onClose={handleCartTrigger} />
     </header>
   );
 }

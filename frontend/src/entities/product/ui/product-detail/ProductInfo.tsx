@@ -1,4 +1,3 @@
-import { AddToCartButton } from "@/features/cart/addToCart";
 import { formatProductPrice, type ProductResponse } from "@/entities/product";
 import SizeProductDetail from "./SizeProductDetail";
 import { useProductInfo } from "../../hooks/use-productInfo";
@@ -17,7 +16,6 @@ const ProductInfo = ({ product }: ProductInfoProps) => {
     handleSize,
     increaseQty,
     decreaseQty,
-    cartProduct,
   } = useProductInfo({ product });
 
   return (
@@ -66,21 +64,15 @@ const ProductInfo = ({ product }: ProductInfoProps) => {
 
         <div className="flex-col gap-3 mt-4 lg:flex">
           <div className="fixed left-0 w-full px-4 bottom-3 lg:hidden">
-            <AddToCartButton
-              product={cartProduct}
-              quantity={qty}
-              className="w-full py-3 font-medium text-white bg-black rounded-lg"
-              disabled={availableStock <= 0}
-            />
+            <button className="w-full py-3 font-medium text-white bg-black rounded-lg">
+              Add to cart
+            </button>
           </div>
 
           <div className="hidden lg:block">
-            <AddToCartButton
-              product={cartProduct}
-              quantity={qty}
-              className="w-full py-3 font-medium text-black bg-white border border-black rounded-full hover:text-white hover:bg-black"
-              disabled={availableStock <= 0}
-            />
+            <button className="w-full py-3 font-medium text-white bg-black rounded-lg">
+              Add to cart
+            </button>
           </div>
 
           <button className="hidden w-full py-3 font-medium text-white bg-black rounded-full lg:block">

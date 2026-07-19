@@ -1,7 +1,4 @@
 import { Link } from "react-router-dom";
-
-import { AddToCartButton } from "@/features/cart/addToCart";
-
 import { formatProductPrice } from "../lib/format-price";
 import type { ProductResponse } from "../model/product.types";
 
@@ -15,13 +12,6 @@ interface ProductCardProps {
 const ProductCard = ({ product }: ProductCardProps) => {
   const primaryImage = product.images[0]?.url ?? PRODUCT_FALLBACK_IMAGE;
 
-  const cartProduct = {
-    id: product.id,
-    name: product.name,
-    price: Number(product.price),
-    image: primaryImage,
-  };
-
   return (
     <article className="px-3 rounded-md">
       <div className="flex flex-col">
@@ -29,7 +19,6 @@ const ProductCard = ({ product }: ProductCardProps) => {
           to={`/products/${product.id}`}
           className="flex justify-center overflow-hidden aspect-[4/5]"
         >
-
           <img
             src={primaryImage}
             alt={product.name}
@@ -44,14 +33,6 @@ const ProductCard = ({ product }: ProductCardProps) => {
             <p className="text-center md:text-start">
               {formatProductPrice(product.price)}
             </p>
-
-            <AddToCartButton
-              product={cartProduct}
-              disabled={product.stock <= 0}
-              className="px-2 py-1 text-white transition-all duration-300 bg-black rounded-md hover:bg-white hover:text-black hover:border disabled:cursor-not-allowed disabled:border disabled:bg-zinc-200 disabled:text-zinc-500"
-            >
-              {product.stock > 0 ? "Add to Cart" : "Sold Out"}
-            </AddToCartButton>
           </div>
         </div>
       </div>

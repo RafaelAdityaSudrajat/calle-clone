@@ -1,13 +1,11 @@
 import IncreaseQuantity from "./IncreaseQuantity";
 import DecreaseQuantity from "./DecreaseQuantity";
-import { useCart } from "../../hooks/useCart";
 
 type QuantityActionProps = {
-  productId?: string;
-  quantity;
+  quantity: number;
 };
 
-const QuantityAction = ({ productId = "1", quantity }: QuantityActionProps) => {
+const QuantityAction = ({ quantity }: QuantityActionProps) => {
   const qty = quantity ?? 0;
 
   return (
@@ -16,7 +14,7 @@ const QuantityAction = ({ productId = "1", quantity }: QuantityActionProps) => {
       <span className="px-4 py-1 text-xs text-center border-gray-300">
         {qty}
       </span>
-      <IncreaseQuantity productId={productId} />
+      <IncreaseQuantity />
     </div>
   );
 };
