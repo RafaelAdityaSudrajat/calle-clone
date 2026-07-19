@@ -26,20 +26,30 @@ export interface ProductVariantResponse {
   updatedAt: string;
 }
 
+
 export interface ProductResponse {
   id: string;
   name: string;
   slug: string;
   description: string | null;
-  price: string; // BE returns string
-  stock: number;
-  isActive: boolean;
+  price: string; // Menggunakan string karena pada JSON nilainya dibungkus string "900000"
+  status: "ACTIVE" | "INACTIVE"; // Menggunakan literal type untuk status yang lebih aman
+  images: ProductImageResponse[];
   categoryId: string;
+  deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
-  category: ProductCategoryResponse;
-  variants: ProductVariantResponse[];
-  images: ProductImageResponse[];
+}
+
+export interface ProductVariant {
+  id: string;
+  size: string;
+  color: string;
+  stock: number;
+  productId: string;
+  createdAt: string;
+  updatedAt: string;
+  product: ProductResponse;
 }
 
 export interface AddProductApiResponse {
@@ -73,4 +83,4 @@ export interface AddImagesResponse {
 export interface UploadImagesInput {
   productId: string;
   formData: FormData;
-};
+}

@@ -5,6 +5,7 @@ import cors from "cors";
 import authRoute from "./modules/auth/auth.route";
 import productRoute from "./modules/product/product.route";
 import categoryRoute from "./modules/category/category.route";
+import cartRoute from "./modules/cart/cart.route";
 
 import { errorHandler, notFoundHandler } from "./middlewares/errorHandler";
 
@@ -23,6 +24,7 @@ app.use(cookieParser());
 app.use("/api/auth", authRoute);
 app.use("/api/products", productRoute);
 app.use("/api/category", categoryRoute);
+app.use("/api/cart", cartRoute);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

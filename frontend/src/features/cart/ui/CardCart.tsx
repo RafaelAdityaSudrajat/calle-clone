@@ -1,13 +1,18 @@
 import CartDescription from "../entities/CartDescription";
-import CartAction from "../entities/CartAction";
+import CartAction from "../addToCart/ui/CartAction";
+import type { CartItem } from "../model/cart.types";
 
-const CardCart = () => {
+interface CardCartProps {
+  cartItem: CartItem
+}
 
+
+const CardCart = ({cartItem} : CardCartProps) => {
   return (
     <div className="flex flex-col">
-      <CartDescription />
+      <CartDescription cartItem={cartItem}/>
 
-      <CartAction />
+      <CartAction quantity={cartItem.quantity}/>
     </div>
   );
 };

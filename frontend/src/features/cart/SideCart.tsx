@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import BackDrop from "../../shared/ui/BackDrop";
-import CartItem from "./CartItem";
+import CartList from "./Cartlist";
 
 interface SideCartProps {
   cartTrigger: boolean;
@@ -8,7 +8,6 @@ interface SideCartProps {
 }
 
 function SideCart({ cartTrigger, onClose }: SideCartProps) {
-
   useEffect(() => {
     if (cartTrigger) {
       document.body.style.overflow = "hidden";
@@ -32,7 +31,8 @@ function SideCart({ cartTrigger, onClose }: SideCartProps) {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Panel */}
-        <CartItem onClose={onClose} />
+
+        <CartList onClose={onClose} />
       </div>
     </BackDrop>
   );

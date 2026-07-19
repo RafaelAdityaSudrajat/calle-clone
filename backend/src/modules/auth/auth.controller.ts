@@ -16,7 +16,7 @@ export const register = async (
     const parsed = registerSchema.safeParse(req.body);
 
     if (!parsed.success) {
-      const message = parsed.error.issues[0]?.message
+      const message = parsed.error.issues[0]?.message;
       throw new ValidationError(message);
     }
 
@@ -41,23 +41,23 @@ export const login = async (
     const parsed = loginSchema.safeParse(req.body);
 
     if (!parsed.success) {
-      const message = parsed.error.issues[0]?.message
+      const message = parsed.error.issues[0]?.message;
       throw new ValidationError(message);
     }
 
     const { user, token } = await loginService(parsed.data);
 
-    res.cookie('token', token, {
+    res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     res.status(200).json({
-      status: 'success',
-      message: 'Login successful',
-      data: { user },
+      status: "success",
+      message: "Login successful",
+      data: { user, token },
     });
   } catch (error) {
     next(error);
@@ -67,18 +67,18 @@ export const login = async (
 export const logout = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): Promise<void> => {
   try {
-    res.clearCookie('token', {
+    res.clearCookie("token", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
     });
 
     res.status(200).json({
-      status: 'success',
-      message: 'Logout successful',
+      status: "success",
+      message: "Logout successful",
     });
   } catch (error) {
     next(error);

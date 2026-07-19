@@ -40,22 +40,8 @@ const AddProductForm: React.FC = () => {
   });
 
   const onSubmit = async (data: AddProductFormValues) => {
-    const totalVariantStock = data.variants.reduce(
-      (sum, variant) => sum + variant.stock,
-      0,
-    );
-
-    
-
-    const datas = {
-      ...data,
-      stock: totalVariantStock,
-    };
-
     try {
-      console.log(JSON.stringify(datas, null, 2));
-
-      const product = await mutateAsync(datas);
+      const product = await mutateAsync(data);
 
       if (files.length > 0) {
         const formData = new FormData();

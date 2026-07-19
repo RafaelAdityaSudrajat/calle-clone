@@ -43,7 +43,6 @@ export const createProductService = async (input: CreateProductInput) => {
         slug,
         description: input.description,
         price: input.price,
-        stock: input.stock,
         categoryId: input.categoryId,
         variants: input.variants ? { create: input.variants } : undefined,
       },
