@@ -1,6 +1,5 @@
 import BackDrop from "../../shared/ui/BackDrop";
 import CartList from "../../features/cart/ui/Cartlist";
-import { useGetCart } from "@/entities/cart/model/UseCart";
 
 interface SideCartProps {
   cartTrigger: boolean;
@@ -8,9 +7,7 @@ interface SideCartProps {
 }
 
 function SideCart({ cartTrigger, onClose }: SideCartProps) {
-  const { data: cartResponse } = useGetCart();
-
-  const cartItems = cartResponse?.data?.cartItems ?? [];
+  
 
   return (
     <BackDrop trigger={cartTrigger} onClose={onClose}>
@@ -22,7 +19,7 @@ function SideCart({ cartTrigger, onClose }: SideCartProps) {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Panel */}
-        <CartList onClose={onClose} cartItems={cartItems} />
+        <CartList onClose={onClose} />
       </div>
     </BackDrop>
   );
