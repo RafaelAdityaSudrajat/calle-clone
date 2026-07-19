@@ -23,5 +23,6 @@ export interface CartList {
 
 export interface CartResponse {
   data: CartList;
-  status : string
+  success: boolean;
+  message: string;
 }

@@ -2,7 +2,6 @@ import { NextFunction, Response } from "express";
 import { AuthRequest } from "../../middlewares/authenticate";
 import { addToCartSchema } from "./cart.validation";
 import { addToCartService, getCartByUserId } from "./cart.service";
-import { getCategoryByIdService } from "../category/category.service";
 
 export const addToCartController = async (
   req: AuthRequest,
@@ -41,13 +40,14 @@ export const getCartByUserIdController = async (
   try {
     const userId = req.userId;
 
-    console.log(userId)
+    console.log(userId);
 
-    const result = await getCartByUserId({userId});
+    const result = await getCartByUserId({ userId });
 
     res.status(200).json({
-      status: "success",
-      data: result,
+      success: true,
+      message: result.message,
+      data: result.data,
     });
   } catch (error) {
     next(error);

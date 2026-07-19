@@ -37,7 +37,10 @@ export const getCartByUserId = async ({ userId }: getCartByIdArgs) => {
     throw new NotFoundError("cart not found");
   }
 
-  return cart;
+  return {
+    message: cart && "Get Cart Successfully",
+    data: cart,
+  };
 };
 
 export const addToCartService = async ({

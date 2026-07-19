@@ -1,30 +1,26 @@
 import CardItemRow from "./CardItemRow";
 import CartHeader from "../../../entities/cart/ui/CartHeader";
-
 import { GoTrash } from "react-icons/go";
-import { useGetCart } from "../../../entities/cart/model/UseCart";
+import type { CartItem } from "@/entities/cart/model/cart.types";
 
 interface CartItemProps {
   onClose: () => void;
+  cartItems: CartItem[];
 }
 
-const CartList = ({ onClose }: CartItemProps) => {
-  const { data: cartResponse } = useGetCart();
-
-  const cartList = cartResponse?.data?.cartItems ?? [];
-
+const CartList = ({ onClose, cartItems }: CartItemProps) => {
   return (
     <div className="flex flex-col h-screen max-h-screen overflow-hidden">
       <CartHeader onClose={onClose} />
 
-      {cartList.length <= 0 ? (
+      {cartItems.length <= 0 ? (
         <div className="flex items-center justify-center w-full h-full">
           <span>Ngga ada Barang !!!</span>
         </div>
       ) : (
         <div className="flex flex-col h-full">
           <div className="flex-1 p-4 overflow-y-scroll border-y">
-            {cartList.map((item, index) => (
+            {cartItems.map((item, index) => (
               <CardItemRow key={index} cartItem={item} />
             ))}
           </div>
