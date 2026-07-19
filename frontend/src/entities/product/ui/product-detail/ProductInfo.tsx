@@ -1,6 +1,8 @@
-import { formatProductPrice, type ProductResponse } from "@/entities/product";
+import { type ProductResponse } from "@/entities/product";
 import SizeProductDetail from "./SizeProductDetail";
 import { useProductInfo } from "../../hooks/use-productInfo";
+import ButtonAddToCart from "@/features/cart/addToCart/ui/ButtonAddToCart";
+import { formatRupiah } from "@/shared/utils/formatRupiah";
 
 interface ProductInfoProps {
   product: ProductResponse;
@@ -16,7 +18,15 @@ const ProductInfo = ({ product }: ProductInfoProps) => {
     handleSize,
     increaseQty,
     decreaseQty,
+    selectedVariant,
   } = useProductInfo({ product });
+
+  console.log(selectedVariant);
+
+  const valueCart = {
+    productVariantId: selectedVariant.id,
+    quantity: qty,
+  };
 
   return (
     <div className="sticky self-start top-28">
@@ -28,7 +38,7 @@ const ProductInfo = ({ product }: ProductInfoProps) => {
         <h1 className="text-xl font-semibold tracking-wide">{product.name}</h1>
 
         <p className="text-lg font-medium">
-          {formatProductPrice(displayedPrice)}
+          {formatRupiah(Number(displayedPrice))}
         </p>
 
         <div className="p-4 text-sm border rounded-lg">
@@ -64,18 +74,14 @@ const ProductInfo = ({ product }: ProductInfoProps) => {
 
         <div className="flex-col gap-3 mt-4 lg:flex">
           <div className="fixed left-0 w-full px-4 bottom-3 lg:hidden">
-            <button className="w-full py-3 font-medium text-white bg-black rounded-lg">
-              Add to cart
-            </button>
+            <ButtonAddToCart valueAddToCart={valueCart} />
           </div>
 
           <div className="hidden lg:block">
-            <button className="w-full py-3 font-medium text-white bg-black rounded-lg">
-              Add to cart
-            </button>
+            <ButtonAddToCart valueAddToCart={valueCart} />
           </div>
 
-          <button className="hidden w-full py-3 font-medium text-white bg-black rounded-full lg:block">
+          <button className="hidden w-full py-3 font-medium text-white bg-black rounded-lg lg:block">
             Buy It Now
           </button>
         </div>

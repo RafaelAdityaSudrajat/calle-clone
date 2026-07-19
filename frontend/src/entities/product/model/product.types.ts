@@ -39,6 +39,7 @@ export interface ProductResponse {
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  variants : ProductVariant[]
 }
 
 export interface ProductVariant {

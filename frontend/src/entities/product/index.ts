@@ -1,4 +1,3 @@
-export { formatProductPrice } from "./lib/format-price";
 export { getProductStatistics } from "./lib/get-statistics";
 export type { Product, ProductSize } from "./model/types";
 export type {

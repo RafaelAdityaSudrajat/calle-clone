@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
-import { formatProductPrice } from "../lib/format-price";
 import type { ProductResponse } from "../model/product.types";
+import { formatRupiah } from "@/shared/utils/formatRupiah";
 
 const PRODUCT_FALLBACK_IMAGE =
   "https://d2kchovjbwl1tk.cloudfront.net/vendor/9549/product/1_1766377064172_resized1024-jpg.webp";
@@ -31,7 +31,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
 
           <div className="flex items-center justify-between w-full gap-3">
             <p className="text-center md:text-start">
-              {formatProductPrice(product.price)}
+              {formatRupiah(Number(product.price))}
             </p>
           </div>
         </div>
