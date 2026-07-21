@@ -6,7 +6,6 @@ import Archives from "@/pages/archives/Archives";
 import About from "@/pages/about/About";
 import Products from "@/pages/products/Products";
 import Test from "@/pages/test/Test";
-import ProductDetails from "@/pages/productDetail/ProductDetail";
 import Account from "@/pages/account/Account";
 import { AuthModalProvider } from "@/features/auth/AuthModalContext";
 import DashboardHome from "@/pages/dashboard/pages/home-page/DashboardHome";
@@ -14,6 +13,7 @@ import Checkout from "@/pages/checkout/Checkout";
 import DashboardAddProduct from "@/pages/dashboard/pages/add-product-page/DashboardAddProduct";
 import ProtectedRoute from "./ProtectedRoute";
 import DashboardAddCategory from "@/pages/dashboard/pages/add-category-page/DashboardAddCategory";
+import ProductDetailPage from "@/pages/productDetail/ProductDetailPage";
 
 export function AppRouter() {
   return (
@@ -31,7 +31,7 @@ export function AppRouter() {
           }
         />
         <Route path="/products" element={<Products />} />
-        <Route path="/products/:id" element={<ProductDetails />} />
+        <Route path="/products/:id" element={<ProductDetailPage />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/dashboard" element={<DashboardHome />} />
         <Route path="/dashboard/product" element={<DashboardAddProduct />} />

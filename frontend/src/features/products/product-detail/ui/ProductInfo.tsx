@@ -1,6 +1,6 @@
 import { type ProductResponse } from "@/entities/product";
-import SizeProductDetail from "./SizeProductDetail";
-import { useProductInfo } from "../../hooks/use-productInfo";
+import SizeProductDetail from "../../../../entities/product/ui/SizeProductDetail";
+import { useProductInfo } from "../../../../entities/product/hooks/use-productInfo";
 import ButtonAddToCart from "@/features/cart/addToCart/ui/ButtonAddToCart";
 import { formatRupiah } from "@/shared/utils/formatRupiah";
 

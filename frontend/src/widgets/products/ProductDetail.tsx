@@ -1,8 +1,8 @@
 import LayoutPrimary from "@/widgets/layout/LayoutPrimary";
 import { useParams } from "react-router-dom";
 import { useGetProductDetail } from "@/entities/product/hooks/use-products";
-import ProductGallery from "../../entities/product/ui/product-detail/ProductGallery";
-import ProductInfo from "../../entities/product/ui/product-detail/ProductInfo";
+import ProductInfo from "../../features/products/product-detail/ui/ProductInfo";
+import ProductGallery from "@/entities/product/ui/ProductGallery";
 
 const ProductDetail = () => {
   const { id } = useParams();
