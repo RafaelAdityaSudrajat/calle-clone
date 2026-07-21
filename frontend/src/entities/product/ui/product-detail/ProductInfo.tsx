@@ -19,12 +19,13 @@ const ProductInfo = ({ product }: ProductInfoProps) => {
     increaseQty,
     decreaseQty,
     selectedVariant,
+    product: productItem,
   } = useProductInfo({ product });
 
-  console.log(selectedVariant);
+  console.log(productItem.variants[0].id);
 
   const valueCart = {
-    productVariantId: selectedVariant.id,
+    productVariantId: selectedVariant?.id ?? productItem.variants[0].id,
     quantity: qty,
   };
 
@@ -32,7 +33,11 @@ const ProductInfo = ({ product }: ProductInfoProps) => {
     <div className="sticky self-start top-28">
       <div className="flex flex-col gap-2">
         <div className="px-3 text-[.8500rem] text-white bg-gray-700 rounded-xs w-fit">
-          {availableStock > 0 ? "Low Stock" : "Out of Stock"}
+          {availableStock > 10
+            ? "Stock Ready"
+            : availableStock <= 0
+              ? "out of stock"
+              : "low stock"}
         </div>
 
         <h1 className="text-xl font-semibold tracking-wide">{product.name}</h1>

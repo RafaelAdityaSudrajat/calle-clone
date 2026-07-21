@@ -9,8 +9,6 @@ interface ButtonAddToCartProps {
 const ButtonAddToCart = ({ valueAddToCart }: ButtonAddToCartProps) => {
   const { mutateAsync: AddTocart } = useAddCart();
 
-  console.log(valueAddToCart)
-
   const handleAddToCart = async (data: updateCartInputValues) => {
     console.log(data);
     try {

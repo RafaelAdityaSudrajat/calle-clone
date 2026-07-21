@@ -6,6 +6,7 @@ type useProductInfoProps = {
 };
 
 export function useProductInfo({ product }: useProductInfoProps) {
+
   const sizes = useMemo(
     () => Array.from(new Set(product.variants.map((variant) => variant.size))),
     [product],
@@ -17,7 +18,7 @@ export function useProductInfo({ product }: useProductInfoProps) {
 
   const selectedVariant = useMemo(
     () => product.variants.find((variant) => variant.size === size),
-    [product, size],
+    [product, size]
   );
 
   const availableStock = selectedVariant?.stock ?? 0;
@@ -56,6 +57,7 @@ export function useProductInfo({ product }: useProductInfoProps) {
     availableStock,
     displayedPrice,
     cartProduct,
+    product,
 
     setQty,
     handleSize,
