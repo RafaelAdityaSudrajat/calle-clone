@@ -3,6 +3,7 @@ import SizeProductDetail from "../../../../entities/product/ui/SizeProductDetail
 import { useProductInfo } from "../../../../entities/product/hooks/use-productInfo";
 import ButtonAddToCart from "@/features/cart/addToCart/ui/ButtonAddToCart";
 import { formatRupiah } from "@/shared/utils/formatRupiah";
+import QuantityPicker from "@/shared/ui/QuantityPicker";
 
 interface ProductInfoProps {
   product: ProductResponse;
@@ -60,21 +61,7 @@ const ProductInfo = ({ product }: ProductInfoProps) => {
         )}
 
         <div className="flex items-center justify-center gap-4">
-          <div className="flex items-center overflow-hidden border rounded-full">
-            <button
-              className="flex items-center justify-center w-10 h-10"
-              onClick={decreaseQty}
-            >
-              -
-            </button>
-            <span className="w-10 text-sm text-center">{qty}</span>
-            <button
-              className="flex items-center justify-center w-10 h-10"
-              onClick={increaseQty}
-            >
-              +
-            </button>
-          </div>
+         <QuantityPicker increaseQty={increaseQty} decreaseQty={decreaseQty} availableStock={availableStock} qty={qty}/>
         </div>
 
         <div className="flex-col gap-3 mt-4 lg:flex">

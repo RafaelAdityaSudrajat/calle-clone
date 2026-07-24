@@ -1,5 +1,5 @@
 import type { ProductResponse } from "@/entities/product";
-import { useProductGalerry } from "../../hooks/use-productGalerry";
+import { useProductGalerry } from "../hooks/use-productGalerry";
 
 interface ProductGalleryProps {
   product: ProductResponse;

@@ -1,10 +1,14 @@
-import QuantityAction from "./QuantityAction";
+import QuantityPicker from "@/shared/ui/QuantityPicker";
 
 interface CartActionProps {
   quantity: number;
 }
 
 const CartAction = ({ quantity }: CartActionProps) => {
+  const increaseQty = () => {};
+
+  const decreaseQty = () => {};
+
   return (
     <div className="flex items-center justify-between w-full mt-4">
       <div className="flex items-center gap-4">
@@ -15,7 +19,12 @@ const CartAction = ({ quantity }: CartActionProps) => {
         </div>
       </div>
 
-      <QuantityAction quantity={quantity} />
+      <QuantityPicker
+        qty={quantity}
+        increaseQty={increaseQty}
+        decreaseQty={decreaseQty}
+        availableStock={9}
+      />
     </div>
   );
 };
