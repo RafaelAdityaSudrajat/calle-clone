@@ -8,20 +8,45 @@ import {
 import {
   createProduct,
   deleteProduct,
+  getAdminProductById,
+  getAdminProducts,
   getProductById,
+  getProductForOrderHistory,
   getProducts,
+  getPublicProductBySlug,
+  getPublicProducts,
   updateProduct,
   uploadImages,
 } from "./product.controller";
+import { handleProductImageUpload } from "./product.middleware";
 
 const router = Router();
 
-router.post("/", authenticate, createProduct);
-router.patch("/:id", authenticate, updateProduct);
-router.get("/", getProducts);
-router.get("/:id", getProductById);
-router.delete('/:id', authenticate, deleteProduct);
+// create product
+router.post(
+  "/",
+  authenticate,
+  ensureMultipartFormData,
+  upload.fields(productImageUploadFields),
+  handleProductImageUpload,
+  createProduct,
+);
 
+// get products public
+router.get("/", getPublicProducts);
+router.get("/:slug", getPublicProductBySlug);
+router.get("/history/:id", authenticate, getProductForOrderHistory);
+
+router.get('/admin', getAdminProducts);
+router.get('/admin/:id', getAdminProductById);
+
+// update product
+router.patch("/:id", authenticate, updateProduct);
+
+// delete product
+router.delete("/:id", authenticate, deleteProduct);
+
+// update images product
 router.post(
   "/:productId/images",
   authenticate,
