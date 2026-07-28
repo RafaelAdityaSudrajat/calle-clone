@@ -1,12 +1,16 @@
 import { CreateProductInput } from "./product.validation";
 import { GetProductsQuery } from "./product.validation";
-import { UpdateProductInput } from "./product.validation";
 import { NotFoundError, ConflictError } from "../../lib/errors";
 import { slugify, withUniqueSuffix } from "./product.utils";
 import { prisma } from "../../lib/prisma";
 import { Prisma, ProductStatus } from "../../generated/prisma";
 import { uploadManyToCloudinary } from "../../middlewares/upload";
-import { AdminProductFilter, BuyerProductFilter } from "./product.type";
+import {
+  AdminProductFilter,
+  BuyerProductFilter,
+  UpdateProductInput,
+  UpdateVariantInput,
+} from "./product.type";
 
 const MAX_SLUG_RETRY = 3;
 const MAX_IMAGES_PER_PRODUCT = 8;
@@ -101,7 +105,7 @@ export async function createProductService(input: CreateProductInput) {
   }
 }
 
-// get products
+// GET PRODUCT PUBLIK
 
 export const getPublicProductsService = async (filter: BuyerProductFilter) => {
   const page = Number(filter.page) || 1;
@@ -112,7 +116,7 @@ export const getPublicProductsService = async (filter: BuyerProductFilter) => {
   const whereCondition: Prisma.ProductWhereInput = {
     isDeleted: false,
     status: {
-      in: [ProductStatus.ACTIVE, ProductStatus.OUT_OF_STOCK],
+      in: [ProductStatus.DRAFT, ProductStatus.OUT_OF_STOCK],
     },
   };
 
@@ -158,7 +162,7 @@ export const getPublicProductsService = async (filter: BuyerProductFilter) => {
         // Hitung total stok dari semua varian yang aktif
         variants: {
           where: { isActive: true },
-          select: { stock: true, priceOverride: true },
+          select: { stock: true, priceOverride: true, id: true },
         },
       },
     }),
@@ -241,7 +245,7 @@ export const getProductByIdForOrderHistoryService = async (id: string) => {
 };
 
 // ==========================================
-// ADMIN ENDPOINTS
+// GET PRODUCT ADMIN
 // ==========================================
 
 /**
@@ -328,102 +332,364 @@ export const getAdminProductByIdService = async (id: string) => {
   return product;
 };
 
+// export const updateProductService = async (
+//   id: string,
+//   input: UpdateProductInput,
+// ) => {
+//   const product = await prisma.product.findUnique({ where: { id } });
+
+//   if (!product) {
+//     throw new NotFoundError("Product not found");
+//   }
+
+//   if (input.categoryId) {
+//     const category = await prisma.category.findUnique({
+//       where: { id: input.categoryId },
+//     });
+//     if (!category) throw new NotFoundError("Category not found");
+//   }
+
+//   let slug = product.slug;
+//   if (input.name && input.name !== product.name) {
+//     slug = await slugify(input.name);
+//   }
+
+//   return prisma.product.update({
+//     where: { id },
+//     data: { ...input, slug },
+//     include: {
+//       category: { select: { id: true, name: true, slug: true } },
+//       images: { orderBy: { sortOrder: "asc" } },
+//       variants: true,
+//     },
+//   });
+// };
+
+/**
+ * FR-08, FR-09: Update Produk Induk (Non-variant data & images)
+ */
 export const updateProductService = async (
-  id: string,
+  productId: string,
   input: UpdateProductInput,
 ) => {
-  const product = await prisma.product.findUnique({ where: { id } });
-
-  if (!product) {
-    throw new NotFoundError("Product not found");
-  }
-
-  if (input.categoryId) {
-    const category = await prisma.category.findUnique({
-      where: { id: input.categoryId },
+  return await prisma.$transaction(async (tx) => {
+    // 1. Cek eksistensi produk
+    const existingProduct = await tx.product.findUnique({
+      where: { id: productId },
+      include: { variants: true },
     });
-    if (!category) throw new NotFoundError("Category not found");
-  }
 
-  let slug = product.slug;
-  if (input.name && input.name !== product.name) {
-    slug = await slugify(input.name);
-  }
+    if (!existingProduct) {
+      throw new NotFoundError("Produk tidak ditemukan");
+    }
 
-  return prisma.product.update({
-    where: { id },
-    data: { ...input, slug },
-    include: {
-      category: { select: { id: true, name: true, slug: true } },
-      images: { orderBy: { sortOrder: "asc" } },
-      variants: true,
-    },
-  });
-};
+    if (existingProduct.isDeleted) {
+      throw new ConflictError(
+        "Produk yang sudah di-soft-delete tidak dapat diubah. Restore terlebih dahulu.",
+      );
+    }
 
-export const getProductsService = async (query: GetProductsQuery) => {
-  const { page, limit, search, categoryId, isActive } = query;
-  const skip = (page - 1) * limit;
+    // 2. Validasi State Machine (Section 5 Business Rules)
+    if (input.status) {
+      if (
+        existingProduct.status === ProductStatus.ARCHIVED &&
+        input.status === ProductStatus.ACTIVE
+      ) {
+        throw new ConflictError(
+          "Transisi ilegal: Produk ARCHIVED tidak boleh langsung ke ACTIVE. Harap ubah ke DRAFT terlebih dahulu.",
+        );
+      }
 
-  const where = {
-    ...(search && {
-      name: { contains: search, mode: "insensitive" as const },
-    }),
-    ...(categoryId && { categoryId }),
-    ...(isActive !== undefined && { isActive }),
-  };
+      // Cek kelengkapan jika ingin Publish ke ACTIVE (Section 3.2)
+      if (input.status === ProductStatus.ACTIVE) {
+        const activeVariants = existingProduct.variants.filter(
+          (v) => v.isActive && v.stock > 0,
+        );
+        if (activeVariants.length === 0) {
+          throw new Error(
+            "Produk tidak dapat dipublish (ACTIVE) karena tidak memiliki variant dengan stok > 0",
+          );
+        }
+      }
+    }
 
-  const [products, total] = await Promise.all([
-    prisma.product.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy: { createdAt: "desc" },
-      include: {
-        category: { select: { id: true, name: true, slug: true } },
-        images: { where: { isPrimary: true }, take: 1 },
-        variants: true,
+    // 3. Generate Slug baru jika nama produk diubah (FR-04)
+    let newSlug = undefined;
+    if (input.name && input.name !== existingProduct.name) {
+      const baseSlug = input.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)+/g, "");
+      newSlug = `${baseSlug}-${Date.now().toString().slice(-4)}`;
+    }
+
+    // 4. Lakukan Update Data Produk
+    await tx.product.update({
+      where: { id: productId },
+      data: {
+        name: input.name,
+        slug: newSlug,
+        categoryId: input.categoryId,
+        description: input.description,
+        basePrice:
+          input.basePrice !== undefined
+            ? new Prisma.Decimal(input.basePrice)
+            : undefined,
+        status: input.status,
       },
-    }),
-    prisma.product.count({ where }),
-  ]);
+    });
 
-  return {
-    data: products,
-    meta: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
+    // 5. Update Images (Jika dilampirkan)
+    if (input.images && input.images.length > 0) {
+      // Hapus gambar lama dan replace dengan urutan baru (Cara terbersih untuk re-order image)
+      await tx.productImage.deleteMany({
+        where: { productId: productId },
+      });
+
+      await tx.productImage.createMany({
+        data: input.images.map((img, idx) => ({
+          productId: productId,
+          url: img.url,
+          isPrimary: img.isPrimary !== undefined ? img.isPrimary : idx === 0,
+          sortOrder: img.sortOrder !== undefined ? img.sortOrder : idx,
+        })),
+      });
+    }
+
+    // 6. Return data terbaru
+    return await tx.product.findUnique({
+      where: { id: productId },
+      include: {
+        category: true,
+        images: { orderBy: { sortOrder: "asc" } },
+        variants: { orderBy: { sku: "asc" } },
+      },
+    });
+  });
 };
 
-export const getProductByIdService = async (id: string) => {
-  const product = await prisma.product.findUnique({
-    where: { id },
-    include: {
-      category: { select: { id: true, name: true, slug: true } },
-      images: { orderBy: { sortOrder: "asc" } },
-      variants: true,
-    },
+export const updateProductVariantService = async (
+  variantId: string,
+  input: UpdateVariantInput,
+) => {
+  return await prisma.$transaction(async (tx) => {
+    // 1. Cek eksistensi varian
+    const existingVariant = await tx.productVariant.findUnique({
+      where: { id: variantId },
+      include: { product: true },
+    });
+
+    if (!existingVariant) {
+      throw new NotFoundError("Variant produk tidak ditemukan");
+    }
+
+    // 2. Validasi Stok Tidak Boleh Negatif (Section 3.2)
+    if (input.stock !== undefined && input.stock < 0) {
+      throw new ConflictError("Stok tidak boleh bernilai negatif");
+    }
+
+    // 3. Lakukan Update pada Variant
+    const updatedVariant = await tx.productVariant.update({
+      where: { id: variantId },
+      data: {
+        sku: input.sku,
+        size: input.size,
+        color: input.color,
+        priceOverride:
+          input.priceOverride !== undefined
+            ? input.priceOverride === null
+              ? null
+              : new Prisma.Decimal(input.priceOverride)
+            : undefined,
+        stock: input.stock,
+        isActive: input.isActive,
+      },
+    });
+
+    // 4. SYSTEM AUTOMATION (FR-14, FR-15, FR-16)
+    await runStockAutomation(tx, existingVariant.productId);
+
+    return updatedVariant;
+  });
+};
+
+/**
+ * Helper Private: System Automation untuk Stok & Status Produk Induk
+ */
+const runStockAutomation = async (
+  tx: Prisma.TransactionClient,
+  productId: string,
+) => {
+  // Ambil seluruh varian aktif untuk produk ini
+  const activeVariants = await tx.productVariant.findMany({
+    where: { productId: productId, isActive: true },
   });
 
-  if (!product) {
-    throw new NotFoundError("Product not found");
-  }
+  const totalStock = activeVariants.reduce((sum, v) => sum + v.stock, 0);
+  const parentProduct = await tx.product.findUnique({
+    where: { id: productId },
+  });
 
-  return product;
+  if (!parentProduct) return;
+
+  // FR-15: Saat semua varian aktif dari 1 produk stoknya habis (0) -> Ubah status produk jadi OUT_OF_STOCK
+  if (totalStock === 0 && parentProduct.status === ProductStatus.ACTIVE) {
+    await tx.product.update({
+      where: { id: productId },
+      data: { status: ProductStatus.OUT_OF_STOCK },
+    });
+  }
+  // FR-16: Saat produk sedang OUT_OF_STOCK dan stok di-restock (>0) -> Otomatis kembali ke ACTIVE
+  else if (
+    totalStock > 0 &&
+    parentProduct.status === ProductStatus.OUT_OF_STOCK
+  ) {
+    await tx.product.update({
+      where: { id: productId },
+      data: { status: ProductStatus.ACTIVE },
+    });
+  }
 };
 
-export const deleteProductService = async (id: string) => {
-  const product = await prisma.product.findUnique({ where: { id } });
+/**
+ * FR-11 & FR-12: Delete Product Induk
+ * - Soft-delete (ARCHIVED) jika sudah pernah bertransaksi.
+ * - Hard-delete jika belum pernah ada histori transaksi sama sekali.
+ */
+export const deleteProductService = async (productId: string) => {
+  return await prisma.$transaction(async (tx) => {
+    // 1. Cek eksistensi produk
+    const product = await tx.product.findUnique({
+      where: { id: productId },
+      include: {
+        variants: {
+          include: {
+            _count: {
+              select: { cartItems: true }, // Menggunakan cartItems sebagai acuan histori order/cart
+            },
+          },
+        },
+      },
+    });
 
-  if (!product) {
-    throw new NotFoundError("Product not found");
-  }
+    if (!product) {
+      throw new NotFoundError("Produk tidak ditemukan");
+    }
 
-  await prisma.product.delete({ where: { id } });
+    if (product.isDeleted) {
+      throw new ConflictError(
+        "Produk sudah dalam status terhapus (soft-deleted)",
+      );
+    }
+
+    // 2. Hitung total transaksi/histori order dari seluruh varian produk ini
+    const totalOrderHistory = product.variants.reduce(
+      (total, variant) => total + variant._count.cartItems,
+      0,
+    );
+
+    // 3. Apply Business Rules FR-11 & FR-12
+    if (totalOrderHistory > 0) {
+      // FR-11: Sudah ada histori order -> Wajib Soft-Delete (ARCHIVED)
+      const updatedProduct = await tx.product.update({
+        where: { id: productId },
+        data: {
+          isDeleted: true,
+          status: ProductStatus.ARCHIVED,
+          deletedAt: new Date(),
+          // Nonaktifkan semua varian agar tidak bisa dibeli lagi (FR-13 & Section 3.2)
+          variants: {
+            updateMany: {
+              where: {},
+              data: { isActive: false },
+            },
+          },
+        },
+      });
+
+      return {
+        deleteType: "SOFT_DELETE",
+        message:
+          "Produk berhasil di-soft-delete (diarsipkan) karena memiliki histori transaksi.",
+        data: updatedProduct,
+      };
+    } else {
+      // FR-12: Belum pernah ada transaksi -> Boleh Hard-Delete permanen dari DB
+      // Catatan: relasi images dan variants akan otomatis terhapus karena aturan onDelete: Cascade di schema
+      await tx.product.delete({
+        where: { id: productId },
+      });
+
+      return {
+        deleteType: "HARD_DELETE",
+        message: "Produk berhasil dihapus permanen dari sistem.",
+        data: null,
+      };
+    }
+  });
+};
+
+/**
+ * FR-13 & Section 3.2: Delete/Disable Product Variant (Level SKU)
+ * - Variant yang pernah di-order TIDAK BOLEH dihapus, hanya dinonaktifkan (isActive: false).
+ * - Variant yang belum pernah di-order boleh di-hard-delete.
+ */
+export const deleteProductVariantService = async (variantId: string) => {
+  return await prisma.$transaction(async (tx) => {
+    // 1. Cek eksistensi varian beserta hitungan historinya
+    const variant = await tx.productVariant.findUnique({
+      where: { id: variantId },
+      include: {
+        _count: {
+          select: { cartItems: true },
+        },
+      },
+    });
+
+    if (!variant) {
+      throw new NotFoundError("Variant produk tidak ditemukan");
+    }
+
+    // 2. Apply Business Rules FR-13
+    if (variant._count.cartItems > 0) {
+      if (!variant.isActive) {
+        throw new ConflictError(
+          "Variant produk ini sudah dalam keadaan nonaktif",
+        );
+      }
+
+      // Sudah pernah di-order -> Hanya boleh di-nonaktifkan
+      const disabledVariant = await tx.productVariant.update({
+        where: { id: variantId },
+        data: { isActive: false },
+      });
+
+      // Cek Automation FR-15: Apakah setelah variant ini dinonaktifkan, semua varian produk induknya mati?
+      await checkAndSyncParentProductStatus(tx, variant.productId);
+
+      return {
+        deleteType: "SOFT_DISABLE",
+        message:
+          "Variant telah dinonaktifkan karena sudah memiliki histori transaksi.",
+        data: disabledVariant,
+      };
+    } else {
+      // Belum pernah di-order -> Hard delete
+      const productId = variant.productId;
+      await tx.productVariant.delete({
+        where: { id: variantId },
+      });
+
+      // Sync status produk induk setelah deletion
+      await checkAndSyncParentProductStatus(tx, productId);
+
+      return {
+        deleteType: "HARD_DELETE",
+        message: "Variant produk berhasil dihapus permanen.",
+        data: null,
+      };
+    }
+  });
 };
 
 export const uploadProductImages = async (
@@ -481,4 +747,28 @@ export const uploadProductImages = async (
   );
 
   return images;
+};
+
+/**
+ * Helper Private: Automation (FR-15)
+ * Mengubah status produk induk ke OUT_OF_STOCK / INACTIVE jika semua variannya habis/nonaktif.
+ */
+const checkAndSyncParentProductStatus = async (
+  tx: Prisma.TransactionClient,
+  productId: string,
+) => {
+  const activeVariants = await tx.productVariant.findMany({
+    where: {
+      productId: productId,
+      isActive: true,
+    },
+  });
+
+  if (activeVariants.length === 0) {
+    // Jika tidak ada lagi varian yang aktif, ubah produk induk menjadi OUT_OF_STOCK
+    await tx.product.update({
+      where: { id: productId },
+      data: { status: ProductStatus.OUT_OF_STOCK },
+    });
+  }
 };

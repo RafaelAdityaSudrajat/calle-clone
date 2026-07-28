@@ -1,10 +1,12 @@
 import { Response, NextFunction, Request } from "express";
 import {
+  deleteProductVariantService,
   getAdminProductByIdService,
   getAdminProductsService,
   getProductByIdForOrderHistoryService,
   getPublicProductBySlugService,
   getPublicProductsService,
+  updateProductVariantService,
   uploadProductImages,
 } from "./product.service";
 import { ValidationError } from "../../lib/errors";
@@ -48,10 +50,11 @@ export const createProduct = async (
   }
 };
 
+// GET PUBLIC
+
 export const getPublicProducts = catchAsync(
   async (req: Request, res: Response) => {
     const result = await getPublicProductsService(req.query);
-
 
     res.status(200).json({
       status: "success",
@@ -114,88 +117,87 @@ export const getAdminProductById = catchAsync(
   },
 );
 
-export const getProducts = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  try {
-    const parsed = getProductsQuerySchema.safeParse(req.query);
+// DELETE
 
-    if (!parsed.success) {
-      const message = parsed.error.issues[0]?.message || "Validation error";
-      throw new ValidationError(message);
-    }
+/**
+ * FR-11 & FR-12: Endpoint Delete Product Induk oleh Admin
+ */
+export const deleteProduct = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
 
-    const result = await getProductsService(parsed.data);
+  const result = await deleteProductService(id);
 
-    res.status(200).json({
-      status: "success",
-      ...result,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+  res.status(200).json({
+    status: "success",
+    deleteType: result.deleteType,
+    message: result.message,
+    data: result.data,
+  });
+});
 
-export const updateProduct = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  try {
-    const parsed = updateProductSchema.safeParse(req.body);
+export const deleteProductVariant = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
 
-    if (!parsed.success) {
-      const message = parsed.error.issues[0]?.message || "Validation error";
-      throw new ValidationError(message);
-    }
-
-    const result = await updateProductService(req.params.id, parsed.data);
+    const result = await deleteProductVariantService(id);
 
     res.status(200).json({
       status: "success",
-      message: "Product updated successfully",
-      data: result,
+      deleteType: result.deleteType,
+      message: result.message,
+      data: result.data,
     });
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const getProductById = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  try {
-    const result = await getProductByIdService(req.params.id);
+export const updateProduct = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const updatedData = await updateProductService(id, req.body);
+
+  res.status(200).json({
+    status: "success",
+    message: "Berhasil memperbarui data produk",
+    data: updatedData,
+  });
+});
+
+export const updateProductVariant = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const updatedVariant = await updateProductVariantService(id, req.body);
 
     res.status(200).json({
       status: "success",
-      data: result,
+      message: "Berhasil memperbarui varian produk dan sinkronisasi stok",
+      data: updatedVariant,
     });
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const deleteProduct = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  try {
-    await deleteProductService(req.params.id);
+// export const updateProduct = async (
+//   req: AuthRequest,
+//   res: Response,
+//   next: NextFunction,
+// ): Promise<void> => {
+//   try {
+//     const parsed = updateProductSchema.safeParse(req.body);
 
-    res.status(200).json({
-      status: "success",
-      message: "Product deleted successfully",
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+//     if (!parsed.success) {
+//       const message = parsed.error.issues[0]?.message || "Validation error";
+//       throw new ValidationError(message);
+//     }
+
+//     const result = await updateProductService(req.params.id, parsed.data);
+
+//     res.status(200).json({
+//       status: "success",
+//       message: "Product updated successfully",
+//       data: result,
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 
 export const uploadImages = async (
   req: AuthRequest & { params: Params },

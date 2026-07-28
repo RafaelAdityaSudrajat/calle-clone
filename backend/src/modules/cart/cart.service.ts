@@ -1,3 +1,4 @@
+import { ProductStatus } from "../../generated/prisma";
 import { ConflictError, NotFoundError } from "../../lib/errors";
 import { prisma } from "../../lib/prisma";
 
@@ -66,7 +67,7 @@ export const addToCartService = async ({
     }
 
     // Product harus ACTIVE
-    if (productVariant.product.status !== "ACTIVE") {
+    if (productVariant.product.status !== ProductStatus.ACTIVE) {
       throw new ConflictError("Product tidak tersedia");
     }
 

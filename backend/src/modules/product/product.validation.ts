@@ -78,7 +78,7 @@ export const updateProductSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
-export type UpdateProductInput = z.infer<typeof updateProductSchema>;
+export type UpdateProductInputZod = z.infer<typeof updateProductSchema>;
 
 export const getProductsQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),

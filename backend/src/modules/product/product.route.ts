@@ -8,14 +8,14 @@ import {
 import {
   createProduct,
   deleteProduct,
+  deleteProductVariant,
   getAdminProductById,
   getAdminProducts,
-  getProductById,
   getProductForOrderHistory,
-  getProducts,
   getPublicProductBySlug,
   getPublicProducts,
   updateProduct,
+  updateProductVariant,
   uploadImages,
 } from "./product.controller";
 import { handleProductImageUpload } from "./product.middleware";
@@ -32,19 +32,27 @@ router.post(
   createProduct,
 );
 
-// get products public
+// GET PRODUCT PUBLIC
 router.get("/", getPublicProducts);
 router.get("/:slug", getPublicProductBySlug);
 router.get("/history/:id", authenticate, getProductForOrderHistory);
 
+// GET PRODUCT ADMIN
 router.get('/admin', getAdminProducts);
 router.get('/admin/:id', getAdminProductById);
 
-// update product
+// UPDATE PRODUCT
 router.patch("/:id", authenticate, updateProduct);
 
-// delete product
+// UPDATE PRODUCT VARINATS
+router.patch("/variants/:id", authenticate, updateProductVariant);
+
+
+// DELETE PRODUCT
 router.delete("/:id", authenticate, deleteProduct);
+
+//DELETE PRODUCT VARIANT
+router.delete("/variants/:id", authenticate, deleteProductVariant);
 
 // update images product
 router.post(
