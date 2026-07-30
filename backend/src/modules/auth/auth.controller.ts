@@ -1,36 +1,47 @@
 import { Request, Response, NextFunction } from "express";
 import { AuthRequest } from "../../middlewares/authenticate";
-
-import { registerSchema } from "./auth.validation";
-import { registerService, getMeService } from "./auth.service";
-import { loginSchema } from "./auth.validation";
+import { RegisterBuyerInput } from "./auth.validation";
+import {
+  registerBuyerService,
+  getMeService,
+  verifyEmailService,
+} from "./auth.service";
 import { loginService } from "./auth.service";
 import { ValidationError } from "../../lib/errors";
+import catchAsync from "../../lib/catchAsync";
 
-export const register = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  try {
-    const parsed = registerSchema.safeParse(req.body);
-
-    if (!parsed.success) {
-      const message = parsed.error.issues[0]?.message;
-      throw new ValidationError(message);
-    }
-
-    const result = await registerService(parsed.data);
+export const registerBuyerController = catchAsync(
+  async (req: Request, res: Response) => {
+    const user = await registerBuyerService(req.body);
 
     res.status(201).json({
       status: "success",
-      message: "Register successful",
+
+      message:
+        "Registrasi berhasil. Silakan cek email untuk melakukan verifikasi.",
+
+      data: user,
+    });
+  },
+);
+
+export const verifyEmailController = catchAsync(
+  async (req: Request, res: Response) => {
+    const { token } = req.body;
+
+    const result = await verifyEmailService({
+      token,
+    });
+
+    res.status(200).json({
+      status: "success",
+
+      message: "Email berhasil diverifikasi.",
+
       data: result,
     });
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
 export const login = async (
   req: Request,

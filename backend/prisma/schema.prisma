@@ -7,10 +7,20 @@ datasource db {
   provider = "postgresql"
 }
 
-
 // ================================================
 // ENUM
 // ================================================
+
+enum Role {
+  BUYER
+  ADMIN
+}
+
+enum AccountStatus {
+  UNVERIFIED
+  ACTIVE
+  SUSPENDED
+}
 
 enum ProductStatus {
   DRAFT
@@ -20,22 +30,76 @@ enum ProductStatus {
   ARCHIVED
 }
 
-
 enum CartStatus {
   ACTIVE
   CHECKOUT_IN_PROGRESS
 }
 
 model User {
-  id       String @id @default(uuid())
-  fullName String
-  email    String @unique
-  password String
+  id String @id @default(uuid())
+
+  // BR-22: Email unique & case-insensitive (pastikan lowercase sebelum save/query di service layer)
+  email String @unique
+
+  // BR-04: Password wajib di-hash (bcrypt/argon2) & tidak boleh plaintext
+  passwordHash String
+
+  // BR-02: Default role BUYER
+  role Role @default(BUYER)
+
+  // BR-03: Default status UNVERIFIED saat register
+  status AccountStatus @default(UNVERIFIED)
 
   cart Cart?
 
+  // BR-29: Rate limiting login (max 5 gagal dalam 15 menit)
+  failedLoginAttempts Int       @default(0)
+  lockoutUntil        DateTime?
+
+  // BR-05 & BR-30: Token verifikasi email (single-use & expired 24 jam)
+  emailVerifyTokenHash   String?   @unique
+  emailVerifyExpires DateTime?
+
+  // BR-15 & BR-30: Token reset password (single-use & expired 15-30 menit)
+  resetPasswordTokenHash   String?   @unique
+  resetPasswordExpires DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Relasi: 1 User bisa punya banyak Refresh Token (Multi-device login)
+  refreshTokens RefreshToken[]
+}
+
+model RefreshToken {
+  id String @id @default(uuid())
+
+  // Menyimpan hash dari refresh token, bukan plaintext-nya, demi keamanan ekstra
+  tokenHash String @unique
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // BR-27: Auto-expire ±7 hari
+  expiresAt DateTime
+
+  // --- FIELD KHUSUS ROTATION & REUSE DETECTION (BR-27 & BR-28) ---
+  // Jika null = token aktif. Jika terisi = token sudah di-rotate / dicabut
+  revokedAt DateTime?
+
+  // Menyimpan tokenHash baru yang menggantikan token ini (chaining)
+  replacedByToken String?
+  // ---------------------------------------------------------------
+
+  // Metadata untuk audit log & manajemen sesi device (Opsional tapi recommended)
+  userAgent String?
+  ipAddress String?
+
+  createdAt DateTime @default(now())
+
+  // Index untuk mempercepat query pengecekan validitas token & cleanup cron job
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Category {
@@ -48,71 +112,66 @@ model Category {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-    @@index([slug])
+  @@index([slug])
 }
 
 model Product {
-  id          String  @id @default(uuid())
-    categoryId  String
+  id          String        @id @default(uuid())
+  categoryId  String
   name        String
-  slug        String  @unique
+  slug        String        @unique
   description String?
-   basePrice   Decimal       @db.Decimal(12, 2)
-     status      ProductStatus @default(DRAFT)
+  basePrice   Decimal       @db.Decimal(12, 2)
+  status      ProductStatus @default(DRAFT)
 
-      // Soft-delete: produk yang sudah pernah di-order tidak boleh hard-delete
-  isDeleted   Boolean       @default(false)
-  deletedAt   DateTime?
+  // Soft-delete: produk yang sudah pernah di-order tidak boleh hard-delete
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
 
-
-  category   Category @relation(fields: [categoryId], references: [id])
+  category Category @relation(fields: [categoryId], references: [id])
 
   images   ProductImage[]
   variants ProductVariant[]
 
-
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
- @@index([status])
+  @@index([status])
   @@index([isDeleted, status])
   @@index([categoryId])
 }
 
 model ProductImage {
-  id  String @id @default(uuid())
+  id        String @id @default(uuid())
   productId String
-  url String
+  url       String
 
   isPrimary Boolean @default(false)
 
   sortOrder Int @default(0)
 
-
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
-   updatedAt DateTime @updatedAt
+  updatedAt DateTime @updatedAt
 
-     @@index([productId])
+  @@index([productId])
 }
 
 model ProductVariant {
-  id String @id @default(uuid())
+  id        String  @id @default(uuid())
   productId String
-  sku           String   @unique
-    size String?
-      color String?
+  sku       String  @unique
+  size      String?
+  color     String?
 
-
- // Nullable: kalau null, harga ikut basePrice dari Product
+  // Nullable: kalau null, harga ikut basePrice dari Product
   priceOverride Decimal? @db.Decimal(12, 2)
   stock         Int      @default(0)
-  
-// Soft-disable: variant yang sudah pernah di-order tidak boleh dihapus,
+
+  // Soft-disable: variant yang sudah pernah di-order tidak boleh dihapus,
   // hanya dinonaktifkan
-  isActive      Boolean  @default(true)
+  isActive Boolean @default(true)
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
@@ -122,7 +181,7 @@ model ProductVariant {
 
   updatedAt DateTime @updatedAt
 
-    @@unique([productId, size, color], name: "idx_variant_combo")
+  @@unique([productId, size, color], name: "idx_variant_combo")
   @@index([sku])
   @@index([productId])
 }

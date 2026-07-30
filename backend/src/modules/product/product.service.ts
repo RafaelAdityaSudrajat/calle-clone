@@ -331,40 +331,6 @@ export const getAdminProductByIdService = async (id: string) => {
 
   return product;
 };
-
-// export const updateProductService = async (
-//   id: string,
-//   input: UpdateProductInput,
-// ) => {
-//   const product = await prisma.product.findUnique({ where: { id } });
-
-//   if (!product) {
-//     throw new NotFoundError("Product not found");
-//   }
-
-//   if (input.categoryId) {
-//     const category = await prisma.category.findUnique({
-//       where: { id: input.categoryId },
-//     });
-//     if (!category) throw new NotFoundError("Category not found");
-//   }
-
-//   let slug = product.slug;
-//   if (input.name && input.name !== product.name) {
-//     slug = await slugify(input.name);
-//   }
-
-//   return prisma.product.update({
-//     where: { id },
-//     data: { ...input, slug },
-//     include: {
-//       category: { select: { id: true, name: true, slug: true } },
-//       images: { orderBy: { sortOrder: "asc" } },
-//       variants: true,
-//     },
-//   });
-// };
-
 /**
  * FR-08, FR-09: Update Produk Induk (Non-variant data & images)
  */

@@ -2,6 +2,8 @@ import express from "express";
 import "dotenv/config";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import morgan from "morgan";
+
 import authRoute from "./modules/auth/auth.route";
 import productRoute from "./modules/product/product.route";
 import categoryRoute from "./modules/category/category.route";
@@ -11,6 +13,7 @@ import { errorHandler, notFoundHandler } from "./middlewares/errorHandler";
 
 const app = express();
 
+app.use(morgan("dev"));
 app.use(
   cors({
     origin: "http://localhost:5173",
