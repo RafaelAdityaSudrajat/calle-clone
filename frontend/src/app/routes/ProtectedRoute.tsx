@@ -1,4 +1,4 @@
-import { useAuthStore } from "@/features/auth/model/auth.store"
+import { useAuthStore } from "@/entities/user/store/auth.store"
 import type { ReactNode } from "react"
 import { Navigate } from "react-router-dom"
 

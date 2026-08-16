@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { authApi } from "../api/auth.api";
-import { useAuthStore } from "@/features/auth/model/auth.store";
+import { authApi } from "@/entities/user/api/auth.api";
+import { useAuthStore } from "@/entities/user/store/auth.store";
 
 export function useAuthInit() {
   const setUser = useAuthStore((state) => state.setUser);
@@ -15,8 +15,8 @@ export function useAuthInit() {
   });
 
   useEffect(() => {
-    if (data?.user) {
-      setUser(data.user);
+    if (data?.data) {
+      setUser(data.data);
     } else if (isError) {
       clearUser();
     }

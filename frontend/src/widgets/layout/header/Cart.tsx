@@ -1,4 +1,3 @@
-import { useGetCart } from "@/entities/cart/model/UseCart";
 import { RiShoppingBagLine } from "react-icons/ri";
 
 interface CartProps {
@@ -6,10 +5,6 @@ interface CartProps {
 }
 
 const Cart = ({ handleCart }: CartProps) => {
-  const { data: cartResponse } = useGetCart();
-
-  const cartList = cartResponse?.data?.cartItems ?? [];
-
   return (
     <div className="relative flex items-center">
       <button className="md:hidden">
@@ -19,7 +14,7 @@ const Cart = ({ handleCart }: CartProps) => {
         CART
       </button>
       <div className="w-[23px] h-[23px] flex items-center justify-center text-white bg-black rounded-full text-[.9em] absolute top-[-10px] right-[-15px] p-[.5rem]">
-        {cartList.length}
+        0
       </div>
     </div>
   );

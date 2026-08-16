@@ -29,6 +29,22 @@ export const verifyEmailBodySchema = z
   })
   .strict();
 
+export const loginBodySchema = z
+  .object({
+    email: z
+      .string()
+      .trim()
+      .max(254, "Email terlalu panjang")
+      .email("Format email tidak valid")
+      .transform((email) => email.toLowerCase()),
+
+    password: z
+      .string()
+      .min(1, "Password wajib diisi")
+      .max(72, "Password terlalu panjang"),
+  })
+  .strict();
+
 export const verifyEmailSchema = z.object({
   body: verifyEmailBodySchema,
 });
@@ -37,6 +53,12 @@ export const registerBuyerSchema = z.object({
   body: registerBuyerBodySchema,
 });
 
+export const loginSchema = z.object({
+  body: loginBodySchema,
+});
+
 export type RegisterBuyerInput = z.infer<typeof registerBuyerBodySchema>;
 
 export type VerifyEmailInput = z.infer<typeof verifyEmailBodySchema>;
+
+export type LoginInput = z.infer<typeof loginBodySchema>;

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import BackdropAuth from "@/features/auth/BackdropAuth";
-import { useAuthModal } from "@/features/auth/AuthModalContext";
+import BackdropAuth from "@/features/auth/ui/BackdropAuth";
+import { useAuthModal } from "@/features/auth/ui/AuthModalContext";
 
 interface BackdropAuthProps {
   children: ReactNode;

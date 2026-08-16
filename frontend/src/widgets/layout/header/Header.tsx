@@ -40,7 +40,9 @@ function Header() {
 
       <SideNavHeader triggerNav={trigger} handleTriggerNav={handleTrigger} />
 
-      <SideCart cartTrigger={cartTrigger} onClose={handleCartTrigger} />
+      {cartTrigger && (
+        <SideCart cartTrigger={cartTrigger} onClose={handleCartTrigger} />
+      )}
     </header>
   );
 }

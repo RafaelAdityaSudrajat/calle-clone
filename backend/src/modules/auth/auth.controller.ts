@@ -1,14 +1,21 @@
 import { Request, Response, NextFunction } from "express";
 import { AuthRequest } from "../../middlewares/authenticate";
-import { RegisterBuyerInput } from "./auth.validation";
 import {
   registerBuyerService,
-  getMeService,
   verifyEmailService,
+  loginService,
+  refreshSessionService,
+  logoutService,
+  getCurrentUserService,
 } from "./auth.service";
-import { loginService } from "./auth.service";
-import { ValidationError } from "../../lib/errors";
+import { UnauthorizedError } from "../../lib/errors";
 import catchAsync from "../../lib/catchAsync";
+import {
+  accessTokenCookieOptions,
+  clearAuthCookies,
+  refreshTokenCookieOptions,
+  setAuthCookies,
+} from "./auth.cookie";
 
 export const registerBuyerController = catchAsync(
   async (req: Request, res: Response) => {
@@ -43,74 +50,146 @@ export const verifyEmailController = catchAsync(
   },
 );
 
-export const login = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  try {
-    const parsed = loginSchema.safeParse(req.body);
+export const loginController = catchAsync(
+  async (req: Request, res: Response) => {
+    const { email, password } = req.body;
 
-    if (!parsed.success) {
-      const message = parsed.error.issues[0]?.message;
-      throw new ValidationError(message);
+    const result = await loginService({
+      email,
+      password,
+
+      userAgent: req.get("user-agent") ?? undefined,
+
+      ipAddress: req.ip,
+    });
+
+    res.cookie("accessToken", result.accessToken, accessTokenCookieOptions);
+
+    res.cookie("refreshToken", result.refreshToken, refreshTokenCookieOptions);
+
+    res.status(200).json({
+      status: "success",
+
+      message: "Login berhasil",
+
+      data: {
+        user: result.user,
+      },
+    });
+  },
+);
+
+export const refreshSessionController = catchAsync(
+  async (req: Request, res: Response) => {
+    const refreshToken = req.cookies?.refreshToken;
+
+    /*
+     * Token hanya diterima dari cookie,
+     * bukan request body.
+     */
+    if (typeof refreshToken !== "string" || !refreshToken) {
+      clearAuthCookies(res);
+
+      throw new UnauthorizedError("Sesi tidak valid. Silakan login kembali.");
     }
 
-    const { user, token } = await loginService(parsed.data);
+    try {
+      const result = await refreshSessionService({
+        refreshToken,
 
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+        userAgent: req.get("user-agent") ?? undefined,
+
+        ipAddress: req.ip,
+      });
+
+      /*
+       * Replace kedua cookie.
+       */
+      setAuthCookies(res, {
+        accessToken: result.accessToken,
+
+        refreshToken: result.refreshToken,
+      });
+
+      res.status(200).json({
+        status: "success",
+
+        message: "Sesi berhasil diperbarui",
+
+        data: {
+          user: result.user,
+        },
+      });
+    } catch (error) {
+      /*
+       * Refresh invalid, expired, revoked,
+       * reused, atau akun suspended.
+       *
+       * Browser tidak boleh terus menyimpan
+       * cookie session lama.
+       */
+      clearAuthCookies(res);
+
+      throw error;
+    }
+  },
+);
+
+export const logoutController = catchAsync(
+  async (req: Request, res: Response) => {
+    const refreshToken = req.cookies?.refreshToken;
+
+    /*
+     * Kalau cookie tersedia, cabut token
+     * dari database terlebih dahulu.
+     */
+    if (typeof refreshToken === "string" && refreshToken.length > 0) {
+      await logoutService({
+        refreshToken,
+      });
+    }
+
+    /*
+     * Cookie baru dihapus setelah operasi
+     * database berhasil.
+     *
+     * Kalau database error, global error handler
+     * menangani error dan client bisa mencoba
+     * logout kembali.
+     */
+    clearAuthCookies(res);
 
     res.status(200).json({
       status: "success",
-      message: "Login successful",
-      data: { user, token },
+      message: "Logout berhasil",
     });
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const logout = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  try {
-    res.clearCookie("token", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-    });
+export const getCurrentUserController = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = req.auth?.userId;
+
+    /*
+     * Secara normal kondisi ini tidak terjadi
+     * karena route sudah melewati authenticate.
+     *
+     * Tetap dicek sebagai defense in depth.
+     */
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
+
+    const user = await getCurrentUserService(userId);
 
     res.status(200).json({
       status: "success",
-      message: "Logout successful",
+
+      message: "Berhasil mengambil data user",
+
+      data: {
+        user,
+      },
     });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// user
-
-export const getMe = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  try {
-    const result = await getMeService(req.userId!);
-
-    res.status(200).json({
-      status: "success",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);

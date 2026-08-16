@@ -7,7 +7,7 @@ import About from "@/pages/about/About";
 import Products from "@/pages/products/Products";
 import Test from "@/pages/test/Test";
 import Account from "@/pages/account/Account";
-import { AuthModalProvider } from "@/features/auth/AuthModalContext";
+import { AuthModalProvider } from "@/features/auth/ui/AuthModalContext";
 import DashboardHome from "@/pages/dashboard/pages/home-page/DashboardHome";
 import Checkout from "@/pages/checkout/Checkout";
 import DashboardAddProduct from "@/pages/dashboard/pages/add-product-page/DashboardAddProduct";

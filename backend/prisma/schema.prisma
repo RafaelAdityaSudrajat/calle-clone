@@ -53,16 +53,17 @@ model User {
   cart Cart?
 
   // BR-29: Rate limiting login (max 5 gagal dalam 15 menit)
-  failedLoginAttempts Int       @default(0)
-  lockoutUntil        DateTime?
+  failedLoginAttempts    Int       @default(0)
+  failedLoginWindowStart DateTime?
+  lockoutUntil           DateTime?
 
   // BR-05 & BR-30: Token verifikasi email (single-use & expired 24 jam)
-  emailVerifyTokenHash   String?   @unique
-  emailVerifyExpires DateTime?
+  emailVerifyTokenHash String?   @unique
+  emailVerifyExpires   DateTime?
 
   // BR-15 & BR-30: Token reset password (single-use & expired 15-30 menit)
-  resetPasswordTokenHash   String?   @unique
-  resetPasswordExpires DateTime?
+  resetPasswordTokenHash String?   @unique
+  resetPasswordExpires   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

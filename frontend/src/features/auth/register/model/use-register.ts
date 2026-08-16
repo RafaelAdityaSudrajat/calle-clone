@@ -1,9 +1,10 @@
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { AxiosError } from "axios";
-import { registerSchema } from "../RegisterSchema";
-import { authApi } from "../api/auth.api";
-import type { RegisterInput } from "../RegisterSchema";
+import { registerSchema } from "./RegisterSchema";
+import { authApi } from "@/entities/user/api/auth.api"; 
+import type { RegisterInput } from "./RegisterSchema";
+import { toast } from "sonner";
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -17,10 +18,14 @@ export function useRegister() {
       return authApi.register(validatedPayload);
     },
 
-    onSuccess: () => {
+    onSuccess: (response) => {
+      toast.success(response.message);
       navigate("/account", {
         state: { message: "Registrasi berhasil! Silakan login." },
       });
+    },
+    onError: (error) => {
+      console.log(error);
     },
   });
 

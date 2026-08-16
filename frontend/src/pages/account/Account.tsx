@@ -1,14 +1,12 @@
-
 import LayoutSecondary from "@/widgets/layout/LayoutSecondary";
-import AccountAction from "./AccountAction";
-import TabsCard from "./TabsCard";
-import PopupLogin from "@/features/auth/PopupLogin";
-import PopupRegister from "@/features/auth/PopupRegister";
-import { useAuthModal } from "@/features/auth/AuthModalContext";
+import AccountAction from "../../widgets/account/AccountAction";
+import TabsCard from "../../widgets/account/Tabs";
+import PopupLogin from "@/widgets/auth/PopupLogin";
+import PopupRegister from "@/widgets/auth/PopupRegister";
+import { useAuthModal } from "@/features/auth/ui/AuthModalContext";
 
 export default function Account() {
-  
-  const { activeAuthPopup } = useAuthModal()
+  const { activeAuthPopup } = useAuthModal();
 
   return (
     <LayoutSecondary>
@@ -19,8 +17,8 @@ export default function Account() {
             My Account
           </h1>
 
-          {/* Promo Card */}
           <div className="flex flex-col gap-4 p-3 bg-white border border-gray-200 rounded-lg shado w-sm md:flex-row md:items-center md:justify-between">
+            {/* Promo Card */}
             <div>
               <h2 className="text-xs font-semibold text-gray-800">
                 Enjoy Special Discounts and Stay Connected
@@ -33,7 +31,7 @@ export default function Account() {
             </div>
 
             {/* Account Action */}
-            <AccountAction/>
+            <AccountAction />
           </div>
 
           {/* Orders Card */}

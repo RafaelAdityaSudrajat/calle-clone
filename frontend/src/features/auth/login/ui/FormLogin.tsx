@@ -1,7 +1,7 @@
 import { CiLock, CiUser } from "react-icons/ci";
 import { IoEyeOffOutline, IoEyeOutline } from "react-icons/io5";
 import type { FieldErrors, UseFormRegister } from "react-hook-form";
-import type { LoginInput } from "./LoginScema";
+import type { LoginInput } from "../model/LoginScema";
 
 interface FormLoginProps {
   register: UseFormRegister<LoginInput>;

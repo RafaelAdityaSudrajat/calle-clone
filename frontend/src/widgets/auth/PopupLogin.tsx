@@ -1,13 +1,13 @@
-import PopupAuthCardLayout from "./PopupAuthCardLayout";
-import { loginSchema, type LoginInput } from "./LoginScema";
+import PopupAuthCardLayout from "../../features/auth/ui/PopupAuthCardLayout";
+import { loginSchema, type LoginInput } from "../../features/auth/login/model/LoginScema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 
-import { useAuthModal } from "./AuthModalContext";
-import HeaderPopupAuth from "./HeaderPopupAuth";
-import FormLogin from "./FormLogin";
-import { useLogin } from "./model/use-login";
+import { useAuthModal } from "../../features/auth/ui/AuthModalContext";
+import HeaderPopupAuth from "../../features/auth/ui/HeaderPopupAuth";
+import FormLogin from "../../features/auth/login/ui/FormLogin";
+import { useLogin } from "../../features/auth/login/model/use-login";
 
 const PopupLogin = () => {
   const [showPassword, setShowPassword] = useState<boolean>(false);

@@ -10,7 +10,7 @@ export const axiosInstance = axios.create({
 
 // ─── Response Interceptor ─────────────────────────────────────────────────────
 
-const AUTH_ENDPOINTS = ["/auth/me", "/auth/login", "/auth/register"];
+const AUTH_ENDPOINTS = ["/auth/me", "/auth/login", "/auth/register", "/cart"];
 
 axiosInstance.interceptors.response.use(
   (response) => response,

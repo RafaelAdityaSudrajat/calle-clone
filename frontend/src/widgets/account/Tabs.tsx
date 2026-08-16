@@ -1,5 +1,5 @@
 import { Link, useSearchParams } from "react-router-dom";
-import TabsContent from "./TabsContent";
+import TabsContent from "../../pages/account/TabsContent";
 
 type Tab = "orders" | "wishlist";
 

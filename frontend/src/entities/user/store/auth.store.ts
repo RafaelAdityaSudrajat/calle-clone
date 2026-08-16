@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { AuthState } from "@/shared/types/authTypes";
+import type { AuthState } from "@/entities/user/model/userTypes";
 
 // ─── Store ────────────────────────────────────────────────────────────────────
 

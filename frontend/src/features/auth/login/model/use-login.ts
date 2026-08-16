@@ -1,10 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { AxiosError } from "axios";
-import { loginSchema } from "../LoginScema";
-import { authApi } from "../api/auth.api";
-import type { LoginInput } from "../LoginScema";
-import { useAuthStore } from "@/features/auth/model/auth.store";
+import { loginSchema } from "./LoginScema";
+import { authApi } from "@/entities/user/api/auth.api"; 
+import type { LoginInput } from "./LoginScema";
+import { useAuthStore } from "@/entities/user/store/auth.store";
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 

@@ -1,23 +1,20 @@
-import PopupAuthCardLayout from "./PopupAuthCardLayout";
+import PopupAuthCardLayout from "../../features/auth/ui/PopupAuthCardLayout";
 import { useForm } from "react-hook-form";
-import { registerSchema, type RegisterInput } from "./RegisterSchema";
+import { registerSchema, type RegisterInput } from "../../features/auth/register/model/RegisterSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
-import { useAuthModal } from "./AuthModalContext";
-import HeaderPopupAuth from "./HeaderPopupAuth";
-import FormRegister from "./FormRegister";
-import { useRegister } from "@/features/auth/model/use-register"; // ← tambah ini
+import { useAuthModal } from "../../features/auth/ui/AuthModalContext";
+import HeaderPopupAuth from "../../features/auth/ui/HeaderPopupAuth";
+import FormRegister from "../../features/auth/register/ui/FormRegister";
+import { useRegister } from "@/features/auth/register/model/use-register"; // ← tambah ini
 
 const PopupRegister = () => {
   const [showPassword, setShowPassword] = useState<boolean>(false);
-  const [showConfirmPassword, setShowConfirmPassword] =
-    useState<boolean>(false);
 
   const { handleActiveAuthPopup } = useAuthModal();
   const { register: registerUser, isLoading, error } = useRegister();
 
   const handleShowPassword = () => setShowPassword((prev) => !prev);
-  const handleConfirmPassword = () => setShowConfirmPassword((prev) => !prev);
 
   const {
     register,
@@ -42,11 +39,6 @@ const PopupRegister = () => {
           hear our news earlier.
         </p>
 
-        {/* Global error dari server, misal email sudah terdaftar */}
-        {error && (
-          <p className="mb-4 text-xs text-center text-red-500">{error}</p>
-        )}
-
         <FormRegister
           register={register}
           errors={errors}
@@ -55,10 +47,13 @@ const PopupRegister = () => {
           handleSubmit={handleSubmit}
           showPassword={showPassword}
           handleShowPassword={handleShowPassword}
-          showConfirmPassword={showConfirmPassword}
-          handleConfirmPassword={handleConfirmPassword}
           onSubmit={onSubmit}
         />
+
+        {/* Global error dari server, misal email sudah terdaftar */}
+        {error && (
+          <p className="mt-4 text-xs text-center text-red-500">{error}</p>
+        )}
 
         <p className="pt-2 text-sm text-center text-gray-600">
           Already have account?{" "}

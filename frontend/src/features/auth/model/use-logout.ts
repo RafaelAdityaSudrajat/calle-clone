@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { authApi } from "../api/auth.api";
-import { useAuthStore } from "@/features/auth/model/auth.store";
+import { authApi } from "@/entities/user/api/auth.api";
+import { useAuthStore } from "@/entities/user/store/auth.store";
 
 export function useLogout() {
   const navigate = useNavigate();

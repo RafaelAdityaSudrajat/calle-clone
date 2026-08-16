@@ -1,5 +1,5 @@
-import { useAuthModal } from "@/features/auth/AuthModalContext";
-import { useAuthStore } from "@/features/auth/model/auth.store";
+import { useAuthModal } from "@/features/auth/ui/AuthModalContext";
+import { useAuthStore } from "@/entities/user/store/auth.store";
 import { useLogout } from "@/features/auth/model/use-logout";
 
 const AccountAction = () => {
@@ -27,7 +27,7 @@ const AccountAction = () => {
             className="px-5 py-2 font-medium text-white transition bg-black rounded-full hover:opacity-90"
             onClick={() => handleActiveAuthPopup("register")}
           >
-            Signup
+            Register
           </button>
         </>
       ) : (
