@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import { prisma } from "../../lib/prisma";
 import { Prisma, AccountStatus, Role } from "../../generated/prisma";
 import { createEmailVerificationToken, hashToken } from "./auth.utils";
-import { sendVerificationEmail } from "../../services/email.service";
+import { sendEmail } from "../../services/email.service";
 import { RegisterBuyerInput } from "./auth.validation";
 import {
   ConflictError,
@@ -158,7 +158,7 @@ export const registerBuyerService = async ({
    * untuk mengirim verification email.
    */
   try {
-    await sendVerificationEmail({
+    await sendEmail({
       email: user.email,
       token: emailVerifyToken,
     });

@@ -8,6 +8,9 @@ const requiredEnvVars = [
   "CLOUDINARY_CLOUD_NAME",
   "CLOUDINARY_API_KEY",
   "CLOUDINARY_API_SECRET",
+  "RESEND_API_KEY",
+  "EMAIL_FROM",
+  "FRONTEND_URL"
 ] as const;
 
 type EnvVars = (typeof requiredEnvVars)[number];

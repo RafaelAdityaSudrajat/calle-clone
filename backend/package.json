@@ -12,6 +12,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@react-email/components": "^1.0.12",
     "@types/bcrypt": "^6.0.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
@@ -23,6 +24,7 @@
     "@types/pg": "^8.20.0",
     "nodemon": "^3.1.14",
     "prisma": "^7.7.0",
+    "react-email": "^6.9.2",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3"
   },
@@ -41,6 +43,7 @@
     "morgan": "^1.11.0",
     "multer": "^2.1.1",
     "pg": "^8.20.0",
+    "resend": "^6.20.0",
     "zod": "^4.3.6"
   }
 }

@@ -35,6 +35,7 @@ export const registerBuyerController = catchAsync(
 export const verifyEmailController = catchAsync(
   async (req: Request, res: Response) => {
     const { token } = req.body;
+    console.log(token)
 
     const result = await verifyEmailService({
       token,
