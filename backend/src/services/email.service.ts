@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import VerifyEmail from "../emails/verify-email"; // sesuaiin path relatif ke file lo
+import VerifyEmail from "../emails/verify-email";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
