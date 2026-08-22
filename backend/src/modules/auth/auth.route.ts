@@ -6,6 +6,7 @@ import {
   refreshSessionController,
   logoutController,
   getCurrentUserController,
+  resendVerificationController,
 } from "./auth.controller";
 import { authenticate } from "../../middlewares/authenticate";
 import { validate } from "../../middlewares/validate";
@@ -27,11 +28,14 @@ router.post(
   validate(registerBuyerSchema),
   registerBuyerController,
 );
+
 router.post(
   "/verify-email",
   validate(verifyEmailSchema),
   verifyEmailController,
 );
+
+router.post("/resend-verification", authenticate, resendVerificationController);
 
 router.post("/login", loginRateLimiter, validate(loginSchema), loginController);
 
@@ -39,10 +43,6 @@ router.post("/refresh", refreshSessionController);
 
 router.post("/logout", logoutController);
 
-router.get(
-  "/me",
-  authenticate,
-  getCurrentUserController,
-);
+router.get("/me", authenticate, getCurrentUserController);
 
 export default router;

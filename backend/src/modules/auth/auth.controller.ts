@@ -7,6 +7,7 @@ import {
   refreshSessionService,
   logoutService,
   getCurrentUserService,
+  resendVerificationService,
 } from "./auth.service";
 import { UnauthorizedError } from "../../lib/errors";
 import catchAsync from "../../lib/catchAsync";
@@ -35,7 +36,7 @@ export const registerBuyerController = catchAsync(
 export const verifyEmailController = catchAsync(
   async (req: Request, res: Response) => {
     const { token } = req.body;
-    console.log(token)
+    console.log(token);
 
     const result = await verifyEmailService({
       token,
@@ -47,6 +48,23 @@ export const verifyEmailController = catchAsync(
       message: "Email berhasil diverifikasi.",
 
       data: result,
+    });
+  },
+);
+
+export const resendVerificationController = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
+
+    await resendVerificationService(userId);
+
+    res.status(200).json({
+      status: "success",
+      message: "Email verifikasi berhasil dikirim ulang.",
     });
   },
 );

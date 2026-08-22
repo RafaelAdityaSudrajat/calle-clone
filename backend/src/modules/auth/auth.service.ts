@@ -224,6 +224,49 @@ export const verifyEmailService = async ({
   };
 };
 
+export const resendVerificationService = async (
+  userId: string,
+): Promise<void> => {
+  const user = await prisma.user.findUnique({
+    where: {
+      id: userId,
+    },
+
+    select: {
+      id: true,
+      email: true,
+      status: true,
+    },
+  });
+
+  if (!user) {
+    throw new UnauthorizedError("Sesi tidak valid. Silakan login kembali.");
+  }
+
+  if (user.status !== AccountStatus.UNVERIFIED) {
+    throw new ConflictError("Email sudah diverifikasi.");
+  }
+
+  const { token, tokenHash, expiresAt } = createEmailVerificationToken();
+
+  await prisma.user.update({
+    where: {
+      id: user.id,
+    },
+
+    data: {
+      emailVerifyTokenHash: tokenHash,
+
+      emailVerifyExpires: expiresAt,
+    },
+  });
+
+  await sendEmail({
+    email: user.email,
+    token,
+  });
+};
+
 export const loginService = async ({
   email,
   password,
