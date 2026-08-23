@@ -6,7 +6,6 @@ interface TabsContentProps {
 }
 
 const TabsContent = ({ tab }: TabsContentProps) => {
-  console.log(tab);
   return (
     <>
       {(tab === "orders" || tab === null) && <OrdersTabs />}

@@ -1,17 +1,10 @@
 import { useAuthModal } from "@/features/auth/ui/AuthModalContext";
 import { useAuthStore } from "@/entities/user/store/auth.store";
-import { useLogout } from "@/features/auth/model/use-logout";
+import ButtonLogout from "@/features/auth/logout/ui/ButtonLogout";
 
 const AccountAction = () => {
   const { handleActiveAuthPopup } = useAuthModal();
   const { isAuthenticated } = useAuthStore();
-  const {logout} = useLogout()
-
-  const handleLogout = async () => {
-    await logout()
-  }
-
-  console.log(isAuthenticated);
 
   return (
     <div className="flex gap-3 text-xs">
@@ -31,9 +24,7 @@ const AccountAction = () => {
           </button>
         </>
       ) : (
-        <button className="px-5 py-2 font-medium text-white transition bg-black rounded-full hover:opacity-90" onClick={handleLogout}>
-          logout
-        </button>
+        <ButtonLogout />
       )}
     </div>
   );

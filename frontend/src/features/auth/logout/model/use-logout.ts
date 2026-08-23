@@ -12,7 +12,7 @@ export function useLogout() {
     mutationFn: authApi.logout,
 
     onSuccess: () => {
-      clearUser();                                    // ← kosongkan Zustand store
+      clearUser(); // ← kosongkan Zustand store
       queryClient.removeQueries({ queryKey: ["auth", "me"] }); // ← buang cache
       navigate("/");
     },
@@ -26,5 +26,5 @@ export function useLogout() {
     },
   });
 
-  return { logout, isLoading: isPending };
+  return { logout, isPending };
 }
