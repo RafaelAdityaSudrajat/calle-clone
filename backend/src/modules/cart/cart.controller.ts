@@ -38,7 +38,7 @@ export const getCartByUserIdController = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const userId = req.userId;
+    const userId = req.auth?.userId;
 
     console.log(userId);
 
