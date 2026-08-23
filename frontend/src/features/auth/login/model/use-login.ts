@@ -15,7 +15,6 @@ export function useLogin() {
 
   const { mutateAsync, isPending, error } = useMutation({
     mutationFn: (input: LoginInput) => {
-      // Zod parse di sini — transform otomatis buang confirmPassword
       const validatedPayload = loginSchema.parse(input);
       return authApi.login(validatedPayload);
     },
