@@ -18,6 +18,7 @@ import {
 import {
   loginRateLimiter,
   registerLimiter,
+  resendVerificationLimiter,
 } from "../../middlewares/limitRequest";
 
 const router = Router();
@@ -35,7 +36,12 @@ router.post(
   verifyEmailController,
 );
 
-router.post("/resend-verification", authenticate, resendVerificationController);
+router.post(
+  "/resend-verification",
+  resendVerificationLimiter,
+  authenticate,
+  resendVerificationController,
+);
 
 router.post("/login", loginRateLimiter, validate(loginSchema), loginController);
 

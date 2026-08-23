@@ -1,11 +1,10 @@
-
-import VerifyEmailSuccess from "@/features/auth/verify-email/ui/VerifyEmailSuccess";
-import VerifyEmailFailed from "@/features/auth/verify-email/ui/VerifyEmailFailed";
-import VerifyEmailLoading from "@/features/auth/verify-email/ui/VerifyEmailLoading";
+import VerifyEmailSuccess from "@/widgets/verify-email/VerifyEmailSuccess";
+import VerifyEmailFailed from "@/widgets/verify-email/VerifyEmailFailed";
+import VerifyEmailLoading from "@/widgets/verify-email/VerifyEmailLoading";
 import useVerifyEmail from "@/features/auth/verify-email/hooks/useVerifyEmail";
 
 export function VerifyEmailPage() {
-  const {status} = useVerifyEmail()
+  const { status } = useVerifyEmail();
 
   if (status === "loading") {
     return <VerifyEmailLoading />;

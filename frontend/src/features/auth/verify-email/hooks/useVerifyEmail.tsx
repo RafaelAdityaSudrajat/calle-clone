@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 const useVerifyEmail = () => {
- const [searchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
 
   const [status, setStatus] = useState<"loading" | "success" | "error">(
@@ -47,7 +47,7 @@ const useVerifyEmail = () => {
     verifyEmail();
   }, [token]);
 
-  return {status}
-}
+  return { status };
+};
 
-export default useVerifyEmail
+export default useVerifyEmail;

@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { AxiosError } from "axios";
 import { loginSchema } from "./LoginScema";
-import { authApi } from "@/entities/user/api/auth.api"; 
+import { authApi } from "@/entities/user/api/auth.api";
 import type { LoginInput } from "./LoginScema";
 import { useAuthStore } from "@/entities/user/store/auth.store";
 
@@ -21,7 +21,7 @@ export function useLogin() {
     },
 
     onSuccess: (data) => {
-      setUser(data.user);
+      setUser(data.data);
       queryClient.setQueryData(["auth", "me"], data);
 
       navigate("/", {
