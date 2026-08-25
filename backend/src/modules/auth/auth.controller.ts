@@ -8,6 +8,8 @@ import {
   logoutService,
   getCurrentUserService,
   resendVerificationService,
+  forgotPasswordService,
+  resetPasswordService,
 } from "./auth.service";
 import { UnauthorizedError } from "../../lib/errors";
 import catchAsync from "../../lib/catchAsync";
@@ -181,6 +183,39 @@ export const logoutController = catchAsync(
     res.status(200).json({
       status: "success",
       message: "Logout berhasil",
+    });
+  },
+);
+
+export const forgotPasswordController = catchAsync(
+  async (req: Request, res: Response) => {
+    const { email } = req.body;
+
+    await forgotPasswordService({
+      email,
+    });
+
+    res.status(200).json({
+      status: "success",
+
+      message: "Jika email terdaftar, link reset sudah dikirim.",
+    });
+  },
+);
+
+export const resetPasswordController = catchAsync(
+  async (req: Request, res: Response) => {
+    const { token, newPassword } = req.body;
+
+    await resetPasswordService({
+      token,
+      newPassword,
+    });
+
+    res.status(200).json({
+      status: "success",
+
+      message: "Password berhasil direset. Silakan login kembali.",
     });
   },
 );

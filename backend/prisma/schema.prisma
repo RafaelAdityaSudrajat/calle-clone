@@ -49,6 +49,10 @@ model User {
 
   // BR-03: Default status UNVERIFIED saat register
   status AccountStatus @default(UNVERIFIED)
+  
+  // Digunakan untuk invalidate seluruh access token user.
+  sessionVersion Int @default(0)
+
 
   cart Cart?
 

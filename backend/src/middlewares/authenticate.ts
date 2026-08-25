@@ -54,6 +54,7 @@ export const authenticate = catchAsync(
         id: true,
         role: true,
         status: true,
+        sessionVersion: true,
       },
     });
 
@@ -63,6 +64,10 @@ export const authenticate = catchAsync(
 
     if (user.status === AccountStatus.SUSPENDED) {
       throw new ConflictError("Akun tidak dapat digunakan");
+    }
+
+    if (payload.sessionVersion !== user.sessionVersion) {
+      throw new UnauthorizedError("Sesi tidak valid. Silakan login kembali.");
     }
 
     req.auth = {

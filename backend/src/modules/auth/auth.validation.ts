@@ -45,6 +45,28 @@ export const loginBodySchema = z
   })
   .strict();
 
+export const forgotPasswordBodySchema = z
+  .object({
+    email: z
+      .string()
+      .trim()
+      .max(254, "Email terlalu panjang")
+      .email("Format email tidak valid")
+      .transform((email) => email.toLowerCase()),
+  })
+  .strict();
+
+export const resetPasswordBodySchema = z
+  .object({
+    token: z
+      .string()
+      .length(64, "Token reset password tidak valid")
+      .regex(/^[a-f0-9]+$/i, "Token reset password tidak valid"),
+
+    newPassword: passwordSchema,
+  })
+  .strict();
+
 export const verifyEmailSchema = z.object({
   body: verifyEmailBodySchema,
 });
@@ -57,8 +79,20 @@ export const loginSchema = z.object({
   body: loginBodySchema,
 });
 
+export const forgotPasswordSchema = z.object({
+  body: forgotPasswordBodySchema,
+});
+
+export const resetPasswordSchema = z.object({
+  body: resetPasswordBodySchema,
+});
+
 export type RegisterBuyerInput = z.infer<typeof registerBuyerBodySchema>;
 
 export type VerifyEmailInput = z.infer<typeof verifyEmailBodySchema>;
 
 export type LoginInput = z.infer<typeof loginBodySchema>;
+
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>["body"];
+
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>["body"];

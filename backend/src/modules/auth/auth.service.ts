@@ -3,8 +3,15 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { prisma } from "../../lib/prisma";
 import { Prisma, AccountStatus, Role } from "../../generated/prisma";
-import { createEmailVerificationToken, hashToken } from "./auth.utils";
-import { sendEmail } from "../../services/email.service";
+import {
+  createEmailVerificationToken,
+  createResetPasswordToken,
+  hashToken,
+} from "./auth.utils";
+import {
+  sendEmail,
+  sendPasswordResetEmail,
+} from "../../services/email.service";
 import { RegisterBuyerInput } from "./auth.validation";
 import {
   ConflictError,
@@ -29,10 +36,6 @@ interface VerifyEmailServiceInput {
   token: string;
 }
 
-const BCRYPT_SALT_ROUNDS = 12;
-
-const dummyPasswordHashPromise = bcrypt.hash("dummy-login-password-123", 12);
-
 interface RefreshSessionServiceInput {
   refreshToken: string;
 
@@ -44,6 +47,15 @@ interface LogoutServiceInput {
   refreshToken: string;
 }
 
+interface ForgotPasswordServiceInput {
+  email: string;
+}
+
+interface ResetPasswordServiceInput {
+  token: string;
+  newPassword: string;
+}
+
 type RefreshTransactionResult =
   | {
       type: "ROTATED";
@@ -53,12 +65,19 @@ type RefreshTransactionResult =
         email: string;
         role: Role;
         status: AccountStatus;
+        sessionVersion: number;
         createdAt: Date;
       };
     }
   | {
       type: "INVALID" | "EXPIRED" | "REVOKED" | "REUSED" | "SUSPENDED";
     };
+
+const BCRYPT_SALT_ROUNDS = 12;
+
+const dummyPasswordHashPromise = bcrypt.hash("dummy-login-password-123", 12);
+
+const PASSWORD_HASH_ROUNDS = 12;
 
 export const registerBuyerService = async ({
   email,
@@ -288,7 +307,7 @@ export const loginService = async ({
 
       role: true,
       status: true,
-
+      sessionVersion: true,
       failedLoginAttempts: true,
       failedLoginWindowStart: true,
       lockoutUntil: true,
@@ -365,6 +384,7 @@ export const loginService = async ({
   const accessToken = createAccessToken({
     userId: user.id,
     role: user.role,
+    sessionVersion: user.sessionVersion,
   });
 
   const {
@@ -467,6 +487,7 @@ export const refreshSessionService = async ({
               email: true,
               role: true,
               status: true,
+              sessionVersion: true,
               createdAt: true,
             },
           },
@@ -667,6 +688,7 @@ export const refreshSessionService = async ({
   const accessToken = createAccessToken({
     userId: result.user.id,
     role: result.user.role,
+    sessionVersion: result.user.sessionVersion,
   });
 
   return {
@@ -734,4 +756,201 @@ export const getCurrentUserService = async (userId: string) => {
   }
 
   return user;
+};
+
+export const forgotPasswordService = async ({
+  email,
+}: ForgotPasswordServiceInput): Promise<void> => {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const user = await prisma.user.findUnique({
+    where: {
+      email: normalizedEmail,
+    },
+
+    select: {
+      id: true,
+      email: true,
+    },
+  });
+
+  /*
+   * BR-16:
+   *
+   * Jangan throw:
+   *
+   * "Email tidak ditemukan"
+   *
+   * Controller tetap menghasilkan
+   * generic response.
+   */
+  if (!user) {
+    return;
+  }
+
+  const { token, tokenHash, expiresAt } = createResetPasswordToken();
+
+  /*
+   * Setiap forgot-password request baru
+   * mengganti token sebelumnya.
+   *
+   * TOKEN A
+   * ↓
+   * TOKEN B
+   *
+   * TOKEN A otomatis invalid.
+   */
+  await prisma.user.update({
+    where: {
+      id: user.id,
+    },
+
+    data: {
+      resetPasswordTokenHash: tokenHash,
+
+      resetPasswordExpires: expiresAt,
+    },
+  });
+
+  try {
+    await sendPasswordResetEmail({
+      email: user.email,
+      token,
+    });
+  } catch {
+    /*
+     * Jangan mengubah response berdasarkan
+     * keberadaan account.
+     *
+     * Jangan log token.
+     *
+     * Production:
+     * gunakan logger + queue/outbox.
+     */
+    console.error("Failed to send password reset email", {
+      userId: user.id,
+    });
+  }
+};
+
+export const resetPasswordService = async ({
+  token,
+  newPassword,
+}: ResetPasswordServiceInput): Promise<void> => {
+  const tokenHash = hashToken(token);
+
+  /*
+   * bcrypt mahal.
+   *
+   * Lakukan sebelum membuka DB transaction
+   * supaya transaction tidak terbuka terlalu lama.
+   */
+  const passwordHash = await bcrypt.hash(newPassword, PASSWORD_HASH_ROUNDS);
+
+  const now = new Date();
+
+  const result = await prisma.$transaction(async (tx) => {
+    /*
+     * Cari kandidat berdasarkan token hash.
+     *
+     * Field ini @unique di schema.
+     */
+    const user = await tx.user.findUnique({
+      where: {
+        resetPasswordTokenHash: tokenHash,
+      },
+
+      select: {
+        id: true,
+      },
+    });
+
+    if (!user) {
+      return {
+        type: "INVALID",
+      } as const;
+    }
+
+    /*
+     * Consume token secara atomic.
+     *
+     * Token hanya bisa digunakan jika:
+     *
+     * - hash cocok
+     * - belum expired
+     *
+     * updateMany digunakan supaya
+     * race condition menghasilkan count = 0
+     * daripada exception.
+     */
+    const updated = await tx.user.updateMany({
+      where: {
+        id: user.id,
+
+        resetPasswordTokenHash: tokenHash,
+
+        resetPasswordExpires: {
+          gt: now,
+        },
+      },
+
+      data: {
+        passwordHash,
+
+        /*
+         * BR-30:
+         * token menjadi single-use.
+         */
+        resetPasswordTokenHash: null,
+
+        resetPasswordExpires: null,
+
+        /*
+         * Invalidate seluruh
+         * access token lama.
+         */
+        sessionVersion: {
+          increment: 1,
+        },
+      },
+    });
+
+    if (updated.count !== 1) {
+      return {
+        type: "INVALID",
+      } as const;
+    }
+
+    /*
+     * BR-17:
+     *
+     * Revoke SEMUA refresh session.
+     *
+     * Laptop
+     * HP
+     * browser lain
+     * attacker session
+     */
+    await tx.refreshToken.updateMany({
+      where: {
+        userId: user.id,
+
+        revokedAt: null,
+      },
+
+      data: {
+        revokedAt: now,
+      },
+    });
+
+    return {
+      type: "SUCCESS",
+    } as const;
+  });
+
+  if (result.type === "INVALID") {
+    throw new ConflictError(
+      "Token reset password tidak valid atau sudah kedaluwarsa",
+    );
+  }
 };

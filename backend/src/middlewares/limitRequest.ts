@@ -43,3 +43,27 @@ export const loginRateLimiter = rateLimit({
 
   message,
 });
+
+export const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+
+  limit: 5,
+
+  standardHeaders: "draft-8",
+
+  legacyHeaders: false,
+
+  message,
+});
+
+export const resetPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+
+  limit: 10,
+
+  standardHeaders: "draft-8",
+
+  legacyHeaders: false,
+
+  message,
+});
