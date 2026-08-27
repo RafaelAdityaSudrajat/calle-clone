@@ -3,7 +3,7 @@ import VerifyEmailFailed from "@/widgets/verify-email/VerifyEmailFailed";
 import VerifyEmailLoading from "@/widgets/verify-email/VerifyEmailLoading";
 import useVerifyEmail from "@/features/auth/verify-email/hooks/useVerifyEmail";
 
-export function VerifyEmailPage() {
+export default function VerifyEmailPage() {
   const { status } = useVerifyEmail();
 
   if (status === "loading") {

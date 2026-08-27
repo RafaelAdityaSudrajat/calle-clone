@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import VerifyEmail from "../emails/verify-email";
+import ResetPassword from "../emails/reset-password";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -46,7 +47,7 @@ export const sendPasswordResetEmail = async ({
     from: process.env.EMAIL_FROM!,
     to: email,
     subject: "Reset Password - calle",
-    react: VerifyEmail({ verifyUrl: resetUrl.toString() }),
+    react: ResetPassword({ verifyUrl: resetUrl.toString() }),
   });
 
   if (error) {

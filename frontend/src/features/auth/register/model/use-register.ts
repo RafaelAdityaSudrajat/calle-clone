@@ -2,9 +2,9 @@ import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { AxiosError } from "axios";
 import { registerSchema } from "./RegisterSchema";
-import { authApi } from "@/entities/user/api/auth.api"; 
 import type { RegisterInput } from "./RegisterSchema";
 import { toast } from "sonner";
+import { registerApi } from "../api/Register.api";
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -15,7 +15,7 @@ export function useRegister() {
     mutationFn: (input: RegisterInput) => {
       // Zod parse di sini — transform otomatis buang confirmPassword
       const validatedPayload = registerSchema.parse(input);
-      return authApi.register(validatedPayload);
+      return registerApi(validatedPayload);
     },
 
     onSuccess: (response) => {

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { authApi } from "@/entities/user/api/auth.api";
 import { useAuthStore } from "@/entities/user/store/auth.store";
+import { logoutApi } from "../api/logout.api";
 
 export function useLogout() {
   const navigate = useNavigate();
@@ -9,7 +9,7 @@ export function useLogout() {
   const queryClient = useQueryClient();
 
   const { mutate: logout, isPending } = useMutation({
-    mutationFn: authApi.logout,
+    mutationFn: logoutApi,
 
     onSuccess: () => {
       clearUser(); // ← kosongkan Zustand store

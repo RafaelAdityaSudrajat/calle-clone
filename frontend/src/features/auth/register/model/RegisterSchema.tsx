@@ -19,7 +19,6 @@ export const registerSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
 });
-// .transform(({ confirmPassword: _, ...rest }) => rest); // buang confirmPassword
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

@@ -11,8 +11,9 @@ const emailSchema = z
 
 const passwordSchema = z
   .string()
-  .min(1, "Password wajib diisi.")
-  .max(128, "Password terlalu panjang.");
+  .min(8, "Password minimal 8 karakter")
+  .regex(/[A-Za-z]/, "Password harus memiliki minimal 1 huruf")
+  .regex(/[0-9]/, "Password harus memiliki minimal 1 angka");
 // ─── Log in Schema ──────────────────────────────────────────────────────────
 
 export const loginSchema = z.object({

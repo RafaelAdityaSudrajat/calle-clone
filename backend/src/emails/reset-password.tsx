@@ -10,15 +10,15 @@ import {
   Preview,
 } from "@react-email/components";
 
-interface VerifyEmailProps {
+interface ResetPasswordProps {
   verifyUrl: string;
 }
 
-export default function VerifyEmail({ verifyUrl }: VerifyEmailProps) {
+export default function ResetPassword({ verifyUrl }: ResetPasswordProps) {
   return (
     <Html>
       <Head />
-      <Preview>Verifikasi email lo buat mulai belanja di calle</Preview>
+      <Preview>Reset Password</Preview>
       <Body style={{ backgroundColor: "#f6f6f6", fontFamily: "sans-serif" }}>
         <Container
           style={{
@@ -27,10 +27,8 @@ export default function VerifyEmail({ verifyUrl }: VerifyEmailProps) {
             borderRadius: "8px",
           }}
         >
-          <Heading style={{ fontSize: "20px" }}>Verifikasi email lo</Heading>
-          <Text>
-            Klik tombol di bawah buat verifikasi email dan aktifin akun lo.
-          </Text>
+          <Heading style={{ fontSize: "20px" }}>Reset Password</Heading>
+          <Text>Klik tombol di bawah buat Reset Password lo.</Text>
           <Button
             href={verifyUrl}
             style={{
@@ -41,11 +39,11 @@ export default function VerifyEmail({ verifyUrl }: VerifyEmailProps) {
               textDecoration: "none",
             }}
           >
-            Verifikasi Email
+            Reset Password
           </Button>
           <Text style={{ fontSize: "12px", color: "#888", marginTop: "24px" }}>
-            Link ini berlaku 24 jam. Kalau lo gak ngerasa daftar, abaikan email
-            ini aja.
+            Link ini berlaku 30 menit. Kalau lo gak ngerasa reset password,
+            abaikan email ini aja.
           </Text>
         </Container>
       </Body>

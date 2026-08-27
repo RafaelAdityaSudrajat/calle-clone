@@ -2,9 +2,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { AxiosError } from "axios";
 import { loginSchema } from "./LoginScema";
-import { authApi } from "@/entities/user/api/auth.api";
 import type { LoginInput } from "./LoginScema";
 import { useAuthStore } from "@/entities/user/store/auth.store";
+import { loginApi } from "../api/login.api";
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -16,7 +16,7 @@ export function useLogin() {
   const { mutateAsync, isPending, error } = useMutation({
     mutationFn: (input: LoginInput) => {
       const validatedPayload = loginSchema.parse(input);
-      return authApi.login(validatedPayload);
+      return loginApi(validatedPayload);
     },
 
     onSuccess: (data) => {

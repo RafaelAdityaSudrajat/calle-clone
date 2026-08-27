@@ -14,7 +14,8 @@ import DashboardAddProduct from "@/pages/dashboard/pages/add-product-page/Dashbo
 import ProtectedRoute from "./ProtectedRoute";
 import DashboardAddCategory from "@/pages/dashboard/pages/add-category-page/DashboardAddCategory";
 import ProductDetailPage from "@/pages/productDetail/ProductDetailPage";
-import { VerifyEmailPage } from "@/pages/verify-email/VerifyEmail";
+import VerifyEmailPage from "@/pages/verify-email/VerifyEmail";
+import ResetPassword from "@/pages/reset-password/ResetPassword";
 
 export function AppRouter() {
   return (
@@ -47,6 +48,7 @@ export function AppRouter() {
         />
         <Route path="/test" element={<Test />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* fallback jika route tidak ditemukan */}
         <Route path="*" element={<Navigate to="/" replace />} />
