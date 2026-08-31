@@ -9,10 +9,12 @@ import {
   resendVerificationController,
   forgotPasswordController,
   resetPasswordController,
+  changePasswordController,
 } from "./auth.controller";
 import { authenticate } from "../../middlewares/authenticate";
 import { validate } from "../../middlewares/validate";
 import {
+  changePasswordSchema,
   forgotPasswordSchema,
   loginSchema,
   registerBuyerSchema,
@@ -67,6 +69,16 @@ router.post(
   resetPasswordLimiter,
   validate(resetPasswordSchema),
   resetPasswordController,
+);
+
+router.patch(
+  "/change-password",
+
+  authenticate,
+
+  validate(changePasswordSchema),
+
+  changePasswordController,
 );
 
 router.get("/me", authenticate, getCurrentUserController);

@@ -17,6 +17,7 @@ import {
   ConflictError,
   UnauthorizedError,
   NotFoundError,
+  BadRequestError,
 } from "../../lib/errors";
 import { env } from "../../config/env";
 import { recordFailedLoginAttempt } from "./auth.login-security";
@@ -56,6 +57,12 @@ interface ResetPasswordServiceInput {
   newPassword: string;
 }
 
+interface ChangePasswordServiceInput {
+  userId: string;
+  currentPassword: string;
+  newPassword: string;
+}
+
 type RefreshTransactionResult =
   | {
       type: "ROTATED";
@@ -71,6 +78,14 @@ type RefreshTransactionResult =
     }
   | {
       type: "INVALID" | "EXPIRED" | "REVOKED" | "REUSED" | "SUSPENDED";
+    };
+
+type ChangePasswordTransactionResult =
+  | {
+      type: "SUCCESS";
+    }
+  | {
+      type: "STALE_PASSWORD";
     };
 
 const BCRYPT_SALT_ROUNDS = 12;
@@ -951,6 +966,163 @@ export const resetPasswordService = async ({
   if (result.type === "INVALID") {
     throw new ConflictError(
       "Token reset password tidak valid atau sudah kedaluwarsa",
+    );
+  }
+};
+
+export const changePasswordService = async ({
+  userId,
+  currentPassword,
+  newPassword,
+}: ChangePasswordServiceInput): Promise<void> => {
+  /*
+   * Ambil password hash terbaru dari DB.
+   *
+   * Jangan pernah return field ini
+   * dari controller/API.
+   */
+  const user = await prisma.user.findUnique({
+    where: {
+      id: userId,
+    },
+
+    select: {
+      id: true,
+      passwordHash: true,
+    },
+  });
+
+  /*
+   * Secara normal authenticate middleware
+   * sudah memastikan user ada.
+   *
+   * Ini defense-in-depth kalau account
+   * terhapus setelah authentication.
+   */
+  if (!user) {
+    throw new UnauthorizedError("Sesi tidak valid. Silakan login kembali.");
+  }
+
+  /*
+   * Re-authentication.
+   *
+   * BR-18:
+   * user wajib membuktikan currentPassword.
+   */
+  const currentPasswordValid = await bcrypt.compare(
+    currentPassword,
+    user.passwordHash,
+  );
+
+  if (!currentPasswordValid) {
+    /*
+     * Sengaja 400, bukan 401.
+     *
+     * 401 di project kita berarti
+     * session/access token problem dan
+     * bisa memicu silent refresh frontend.
+     *
+     * Di sini session valid,
+     * hanya currentPassword yang salah.
+     */
+    throw new BadRequestError("Password saat ini salah");
+  }
+
+  /*
+   * bcrypt termasuk operasi CPU-expensive.
+   *
+   * Jangan menjalankannya di dalam
+   * database transaction agar transaction
+   * tidak terbuka terlalu lama.
+   */
+  const newPasswordHash = await bcrypt.hash(newPassword, PASSWORD_HASH_ROUNDS);
+
+  const now = new Date();
+
+  const result = await prisma.$transaction(
+    async (tx): Promise<ChangePasswordTransactionResult> => {
+      /*
+       * Update password secara conditional.
+       *
+       * passwordHash lama ikut dimasukkan
+       * ke WHERE untuk melindungi kita dari
+       * concurrent change-password request.
+       */
+      const updatedUser = await tx.user.updateMany({
+        where: {
+          id: user.id,
+
+          /*
+           * Pastikan password belum berubah
+           * sejak bcrypt.compare tadi.
+           */
+          passwordHash: user.passwordHash,
+        },
+
+        data: {
+          passwordHash: newPasswordHash,
+
+          /*
+           * Mematikan SEMUA access token
+           * yang dibuat dengan
+           * sessionVersion sebelumnya.
+           */
+          sessionVersion: {
+            increment: 1,
+          },
+
+          /*
+           * Security hardening:
+           *
+           * Kalau sebelumnya user pernah
+           * request forgot-password dan
+           * reset token masih aktif,
+           * password change ini sekaligus
+           * mematikannya.
+           */
+          resetPasswordTokenHash: null,
+
+          resetPasswordExpires: null,
+        },
+      });
+
+      /*
+       * Kalau count != 1,
+       * kemungkinan password sudah berubah
+       * oleh concurrent request.
+       */
+      if (updatedUser.count !== 1) {
+        return {
+          type: "STALE_PASSWORD",
+        };
+      }
+
+      /*
+       * BR-19 / Approach A:
+       *
+       * Revoke seluruh refresh session,
+       * TERMASUK current device.
+       */
+      await tx.refreshToken.updateMany({
+        where: {
+          userId: user.id,
+          revokedAt: null,
+        },
+
+        data: {
+          revokedAt: now,
+        },
+      });
+
+      return {
+        type: "SUCCESS",
+      };
+    },
+  );
+
+  if (result.type === "STALE_PASSWORD") {
+    throw new ConflictError(
+      "Password berubah selama proses. Silakan coba lagi.",
     );
   }
 };

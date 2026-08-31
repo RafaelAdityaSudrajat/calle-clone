@@ -10,6 +10,7 @@ import {
   resendVerificationService,
   forgotPasswordService,
   resetPasswordService,
+  changePasswordService,
 } from "./auth.service";
 import { UnauthorizedError } from "../../lib/errors";
 import catchAsync from "../../lib/catchAsync";
@@ -216,6 +217,43 @@ export const resetPasswordController = catchAsync(
       status: "success",
 
       message: "Password berhasil direset. Silakan login kembali.",
+    });
+  },
+);
+
+export const changePasswordController = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = req.auth?.userId;
+
+    /*
+     * Normalnya authenticate middleware
+     * sudah menjamin ini ada.
+     *
+     * Defense-in-depth.
+     */
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
+
+    const { currentPassword, newPassword } = req.body;
+
+    await changePasswordService({
+      userId,
+      currentPassword,
+      newPassword,
+    });
+
+    /*
+     *
+     * Current session juga sudah direvoke.
+     * Jadi hapus kedua cookie dari browser.
+     */
+    clearAuthCookies(res);
+
+    res.status(200).json({
+      status: "success",
+
+      message: "Password berhasil diubah. Silakan login kembali.",
     });
   },
 );
