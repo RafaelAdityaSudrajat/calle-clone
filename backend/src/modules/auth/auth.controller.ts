@@ -11,6 +11,7 @@ import {
   forgotPasswordService,
   resetPasswordService,
   changePasswordService,
+  logoutAllService,
 } from "./auth.service";
 import { UnauthorizedError } from "../../lib/errors";
 import catchAsync from "../../lib/catchAsync";
@@ -254,6 +255,32 @@ export const changePasswordController = catchAsync(
       status: "success",
 
       message: "Password berhasil diubah. Silakan login kembali.",
+    });
+  },
+);
+
+export const logoutAllController = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
+
+    await logoutAllService({
+      userId,
+    });
+
+    /*
+     * Current device termasuk
+     * session yang di-logout.
+     */
+    clearAuthCookies(res);
+
+    res.status(200).json({
+      status: "success",
+
+      message: "Berhasil logout dari semua perangkat.",
     });
   },
 );

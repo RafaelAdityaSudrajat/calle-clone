@@ -63,6 +63,10 @@ interface ChangePasswordServiceInput {
   newPassword: string;
 }
 
+interface LogoutAllServiceInput {
+  userId: string;
+}
+
 type RefreshTransactionResult =
   | {
       type: "ROTATED";
@@ -86,6 +90,14 @@ type ChangePasswordTransactionResult =
     }
   | {
       type: "STALE_PASSWORD";
+    };
+
+type LogoutAllTransactionResult =
+  | {
+      type: "SUCCESS";
+    }
+  | {
+      type: "USER_NOT_FOUND";
     };
 
 const BCRYPT_SALT_ROUNDS = 12;
@@ -1124,5 +1136,77 @@ export const changePasswordService = async ({
     throw new ConflictError(
       "Password berubah selama proses. Silakan coba lagi.",
     );
+  }
+};
+
+export const logoutAllService = async ({
+  userId,
+}: LogoutAllServiceInput): Promise<void> => {
+  const now = new Date();
+
+  const result = await prisma.$transaction(
+    async (tx): Promise<LogoutAllTransactionResult> => {
+      /*
+       * Increment sessionVersion.
+       *
+       * Semua access token lama masih membawa
+       * sessionVersion sebelumnya sehingga
+       * langsung menjadi invalid.
+       */
+      const updatedUser = await tx.user.updateMany({
+        where: {
+          id: userId,
+        },
+
+        data: {
+          sessionVersion: {
+            increment: 1,
+          },
+        },
+      });
+
+      /*
+       * Secara normal authenticate middleware
+       * sudah memastikan user tersedia.
+       *
+       * Ini hanya defense-in-depth apabila
+       * user terhapus di antara authentication
+       * dan transaction ini.
+       */
+      if (updatedUser.count !== 1) {
+        return {
+          type: "USER_NOT_FOUND",
+        };
+      }
+
+      /*
+       * Revoke seluruh refresh session user.
+       *
+       * Termasuk refresh token dari:
+       *
+       * - current device
+       * - device lain
+       * - browser lain
+       * - stolen session
+       */
+      await tx.refreshToken.updateMany({
+        where: {
+          userId,
+          revokedAt: null,
+        },
+
+        data: {
+          revokedAt: now,
+        },
+      });
+
+      return {
+        type: "SUCCESS",
+      };
+    },
+  );
+
+  if (result.type === "USER_NOT_FOUND") {
+    throw new UnauthorizedError("Sesi tidak valid. Silakan login kembali.");
   }
 };

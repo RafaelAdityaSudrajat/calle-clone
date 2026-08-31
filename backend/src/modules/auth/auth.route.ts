@@ -10,6 +10,7 @@ import {
   forgotPasswordController,
   resetPasswordController,
   changePasswordController,
+  logoutAllController,
 } from "./auth.controller";
 import { authenticate } from "../../middlewares/authenticate";
 import { validate } from "../../middlewares/validate";
@@ -80,6 +81,8 @@ router.patch(
 
   changePasswordController,
 );
+
+router.post("/logout-all", authenticate, logoutAllController);
 
 router.get("/me", authenticate, getCurrentUserController);
 
