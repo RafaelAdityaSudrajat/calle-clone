@@ -2,7 +2,12 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { prisma } from "../../lib/prisma";
-import { Prisma, AccountStatus, Role } from "../../generated/prisma";
+import {
+  Prisma,
+  AccountStatus,
+  Role,
+  AuditEvent,
+} from "../../generated/prisma";
 import {
   createEmailVerificationToken,
   createResetPasswordToken,
@@ -22,6 +27,7 @@ import {
 import { env } from "../../config/env";
 import { recordFailedLoginAttempt } from "./auth.login-security";
 import { createAccessToken, createRefreshToken } from "./auth.token";
+import { recordAuditEvent, recordAuditEventBestEffort } from "./audit.service";
 
 // auth
 
@@ -50,21 +56,33 @@ interface LogoutServiceInput {
 
 interface ForgotPasswordServiceInput {
   email: string;
+
+  ipAddress?: string | null;
+  userAgent?: string | null;
 }
 
 interface ResetPasswordServiceInput {
   token: string;
   newPassword: string;
+
+  ipAddress?: string | null;
+  userAgent?: string | null;
 }
 
 interface ChangePasswordServiceInput {
   userId: string;
   currentPassword: string;
   newPassword: string;
+
+  ipAddress?: string | null;
+  userAgent?: string | null;
 }
 
 interface LogoutAllServiceInput {
   userId: string;
+
+  ipAddress?: string | null;
+  userAgent?: string | null;
 }
 
 type RefreshTransactionResult =
@@ -329,12 +347,11 @@ export const loginService = async ({
     select: {
       id: true,
       email: true,
-
       passwordHash: true,
-
       role: true,
       status: true,
       sessionVersion: true,
+
       failedLoginAttempts: true,
       failedLoginWindowStart: true,
       lockoutUntil: true,
@@ -343,24 +360,36 @@ export const loginService = async ({
     },
   });
 
-  /*
+  /**
    * BR-10:
    *
-   * Jangan kasih:
+   * Jangan membedakan:
    *
    * "Email tidak ditemukan"
+   * vs
+   * "Password salah"
    */
   if (!user) {
     const dummyHash = await dummyPasswordHashPromise;
 
     await bcrypt.compare(password, dummyHash);
 
+    await recordAuditEventBestEffort({
+      event: AuditEvent.LOGIN_FAILED,
+
+      actorUserId: null,
+      targetUserId: null,
+
+      ipAddress,
+      userAgent,
+    });
+
     throw new UnauthorizedError("Email atau password salah");
   }
 
   const now = new Date();
 
-  /*
+  /**
    * Account-level lock.
    */
   if (user.lockoutUntil && user.lockoutUntil > now) {
@@ -369,43 +398,66 @@ export const loginService = async ({
     );
   }
 
-  /*
+  /**
    * BR-08:
-   * compare plaintext password dengan hash.
+   *
+   * Compare plaintext password
+   * dengan password hash di database.
    */
   const passwordValid = await bcrypt.compare(password, user.passwordHash);
 
   if (!passwordValid) {
     const loginState = await recordFailedLoginAttempt(user.id);
 
+    await recordAuditEventBestEffort({
+      event: AuditEvent.LOGIN_FAILED,
+      actorUserId: user.id,
+      targetUserId: user.id,
+      ipAddress,
+      userAgent,
+    });
+
     if (loginState.locked) {
+      await recordAuditEvent({
+        event: AuditEvent.ACCOUNT_LOCKED,
+
+        actorUserId: user.id,
+
+        targetUserId: user.id,
+
+        ipAddress,
+
+        userAgent,
+      });
+
       throw new ConflictError(
         "Terlalu banyak percobaan login. Silakan coba lagi nanti.",
       );
     }
 
-    /*
-     * BR-10
+    /**
+     * BR-10:
+     * generic response.
      */
     throw new UnauthorizedError("Email atau password salah");
   }
 
-  /*
-   * Password benar dulu baru cek status.
+  /**
+   * Password dicek terlebih dahulu
+   * sebelum status account.
    *
-   * Jadi attacker dengan password salah
-   * tidak bisa mengetahui status account.
+   * Ini mencegah attacker mengetahui
+   * status account hanya dengan email.
    */
   if (user.status === AccountStatus.SUSPENDED) {
     throw new ConflictError("Akun tidak dapat digunakan");
   }
 
-  /*
+  /**
    * UNVERIFIED tetap boleh login.
    *
-   * Sesuai business rule:
-   * verification wajib sebelum checkout,
-   * bukan sebelum login/browsing.
+   * Email verification diwajibkan
+   * sebelum checkout, bukan login.
    */
 
   const accessToken = createAccessToken({
@@ -420,16 +472,20 @@ export const loginService = async ({
     expiresAt: refreshTokenExpiresAt,
   } = createRefreshToken();
 
-  /*
-   * Dua perubahan DB yang logically satu operasi:
+  /**
+   * Login sukses terdiri dari beberapa
+   * perubahan database yang secara logis
+   * merupakan satu operasi:
    *
-   * 1. reset login failure
-   * 2. create session
+   * 1. Reset failed login state
+   * 2. Create refresh session
+   * 3. Record LOGIN_SUCCESS audit
    *
-   * Maka gunakan transaction.
+   * Gunakan interactive transaction
+   * agar ketiganya commit/rollback bersama.
    */
-  await prisma.$transaction([
-    prisma.user.update({
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
       where: {
         id: user.id,
       },
@@ -439,9 +495,9 @@ export const loginService = async ({
         failedLoginWindowStart: null,
         lockoutUntil: null,
       },
-    }),
+    });
 
-    prisma.refreshToken.create({
+    await tx.refreshToken.create({
       data: {
         tokenHash: refreshTokenHash,
 
@@ -453,8 +509,23 @@ export const loginService = async ({
 
         ipAddress: ipAddress ?? null,
       },
-    }),
-  ]);
+    });
+
+    await recordAuditEvent(
+      {
+        event: AuditEvent.LOGIN_SUCCESS,
+
+        actorUserId: user.id,
+
+        targetUserId: user.id,
+
+        ipAddress,
+        userAgent,
+      },
+
+      tx,
+    );
+  });
 
   return {
     user: {
@@ -556,6 +627,22 @@ export const refreshSessionService = async ({
               revokedAt: now,
             },
           });
+
+          await recordAuditEvent(
+            {
+              event: AuditEvent.REFRESH_TOKEN_REUSE_DETECTED,
+
+              actorUserId: storedToken.userId,
+
+              targetUserId: storedToken.userId,
+
+              ipAddress,
+
+              userAgent,
+            },
+
+            tx,
+          );
 
           return {
             type: "REUSED",
@@ -787,6 +874,8 @@ export const getCurrentUserService = async (userId: string) => {
 
 export const forgotPasswordService = async ({
   email,
+  ipAddress,
+  userAgent,
 }: ForgotPasswordServiceInput): Promise<void> => {
   const normalizedEmail = email.trim().toLowerCase();
 
@@ -814,6 +903,18 @@ export const forgotPasswordService = async ({
   if (!user) {
     return;
   }
+
+  await recordAuditEventBestEffort({
+    event: AuditEvent.PASSWORD_RESET_REQUESTED,
+
+    actorUserId: user.id,
+
+    targetUserId: user.id,
+
+    ipAddress,
+
+    userAgent,
+  });
 
   const { token, tokenHash, expiresAt } = createResetPasswordToken();
 
@@ -863,6 +964,9 @@ export const forgotPasswordService = async ({
 export const resetPasswordService = async ({
   token,
   newPassword,
+
+  ipAddress,
+  userAgent,
 }: ResetPasswordServiceInput): Promise<void> => {
   const tokenHash = hashToken(token);
 
@@ -970,6 +1074,22 @@ export const resetPasswordService = async ({
       },
     });
 
+    await recordAuditEvent(
+      {
+        event: AuditEvent.PASSWORD_RESET_SUCCESS,
+
+        actorUserId: user.id,
+
+        targetUserId: user.id,
+
+        ipAddress,
+
+        userAgent,
+      },
+
+      tx,
+    );
+
     return {
       type: "SUCCESS",
     } as const;
@@ -986,6 +1106,8 @@ export const changePasswordService = async ({
   userId,
   currentPassword,
   newPassword,
+  ipAddress,
+  userAgent,
 }: ChangePasswordServiceInput): Promise<void> => {
   /*
    * Ambil password hash terbaru dari DB.
@@ -1126,6 +1248,22 @@ export const changePasswordService = async ({
         },
       });
 
+      await recordAuditEvent(
+        {
+          event: AuditEvent.PASSWORD_CHANGED,
+
+          actorUserId: user.id,
+
+          targetUserId: user.id,
+
+          ipAddress,
+
+          userAgent,
+        },
+
+        tx,
+      );
+
       return {
         type: "SUCCESS",
       };
@@ -1141,6 +1279,9 @@ export const changePasswordService = async ({
 
 export const logoutAllService = async ({
   userId,
+
+  ipAddress,
+  userAgent,
 }: LogoutAllServiceInput): Promise<void> => {
   const now = new Date();
 
@@ -1199,6 +1340,22 @@ export const logoutAllService = async ({
           revokedAt: now,
         },
       });
+
+      await recordAuditEvent(
+        {
+          event: AuditEvent.LOGOUT_ALL,
+
+          actorUserId: userId,
+
+          targetUserId: userId,
+
+          ipAddress,
+
+          userAgent,
+        },
+
+        tx,
+      );
 
       return {
         type: "SUCCESS",

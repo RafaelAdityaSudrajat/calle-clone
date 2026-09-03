@@ -35,6 +35,23 @@ enum CartStatus {
   CHECKOUT_IN_PROGRESS
 }
 
+enum AuditEvent {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  ACCOUNT_LOCKED
+
+  PASSWORD_RESET_REQUESTED
+  PASSWORD_RESET_SUCCESS
+  PASSWORD_CHANGED
+
+  LOGOUT
+  LOGOUT_ALL
+
+  REFRESH_TOKEN_REUSE_DETECTED
+
+  ADMIN_FORCE_RESET
+}
+
 model User {
   id String @id @default(uuid())
 
@@ -74,6 +91,9 @@ model User {
 
   // Relasi: 1 User bisa punya banyak Refresh Token (Multi-device login)
   refreshTokens RefreshToken[]
+
+    auditEventsAsActor AuditLog[] @relation("AuditActor")
+  auditEventsAsTarget AuditLog[] @relation("AuditTarget")
 }
 
 model RefreshToken {
@@ -105,7 +125,31 @@ model RefreshToken {
   // Index untuk mempercepat query pengecekan validitas token & cleanup cron job
   @@index([userId])
   @@index([expiresAt])
+
+
 }
+
+
+model AuditLog {
+  id String @id @default(uuid())
+
+  event AuditEvent
+
+  actorUserId  String?
+  targetUserId String?
+
+  ipAddress String?
+  userAgent  String?
+
+  createdAt DateTime @default(now())
+
+  actor  User? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+target User? @relation("AuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+  @@index([actorUserId, createdAt])
+  @@index([targetUserId, createdAt])
+  @@index([event, createdAt])
+}
+
 
 model Category {
   id   String @id @default(uuid())

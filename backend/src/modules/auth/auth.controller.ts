@@ -21,6 +21,7 @@ import {
   refreshTokenCookieOptions,
   setAuthCookies,
 } from "./auth.cookie";
+import { getAuditRequestContext } from "./auth.utils";
 
 export const registerBuyerController = catchAsync(
   async (req: Request, res: Response) => {
@@ -208,10 +209,13 @@ export const forgotPasswordController = catchAsync(
 export const resetPasswordController = catchAsync(
   async (req: Request, res: Response) => {
     const { token, newPassword } = req.body;
+    const { ipAddress, userAgent } = getAuditRequestContext(req);
 
     await resetPasswordService({
       token,
       newPassword,
+      ipAddress,
+      userAgent,
     });
 
     res.status(200).json({
@@ -225,6 +229,7 @@ export const resetPasswordController = catchAsync(
 export const changePasswordController = catchAsync(
   async (req: Request, res: Response) => {
     const userId = req.auth?.userId;
+    const { ipAddress, userAgent } = getAuditRequestContext(req);
 
     /*
      * Normalnya authenticate middleware
@@ -242,6 +247,8 @@ export const changePasswordController = catchAsync(
       userId,
       currentPassword,
       newPassword,
+      ipAddress,
+      userAgent,
     });
 
     /*
@@ -262,6 +269,8 @@ export const changePasswordController = catchAsync(
 export const logoutAllController = catchAsync(
   async (req: Request, res: Response) => {
     const userId = req.auth?.userId;
+    const { ipAddress, userAgent } = getAuditRequestContext(req);
+    console.log(ipAddress, userAgent);
 
     if (!userId) {
       throw new UnauthorizedError("Silakan login terlebih dahulu");
@@ -269,6 +278,8 @@ export const logoutAllController = catchAsync(
 
     await logoutAllService({
       userId,
+      ipAddress,
+      userAgent,
     });
 
     /*
