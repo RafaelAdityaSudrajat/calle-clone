@@ -42,6 +42,8 @@ export const loginRateLimiter = rateLimit({
   legacyHeaders: false,
 
   message,
+
+  skip: () => process.env.NODE_ENV === "test",
 });
 
 export const forgotPasswordLimiter = rateLimit({
