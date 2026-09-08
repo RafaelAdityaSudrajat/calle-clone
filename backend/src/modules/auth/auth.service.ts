@@ -23,6 +23,7 @@ import {
   UnauthorizedError,
   NotFoundError,
   BadRequestError,
+  ValidationError,
 } from "../../lib/errors";
 import { env } from "../../config/env";
 import { recordFailedLoginAttempt } from "./auth.login-security";
@@ -1159,7 +1160,7 @@ export const changePasswordService = async ({
      * Di sini session valid,
      * hanya currentPassword yang salah.
      */
-    throw new BadRequestError("Password saat ini salah");
+    throw new ValidationError("Password saat ini salah");
   }
 
   /*
