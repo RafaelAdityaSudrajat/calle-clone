@@ -270,7 +270,6 @@ export const logoutAllController = catchAsync(
   async (req: Request, res: Response) => {
     const userId = req.auth?.userId;
     const { ipAddress, userAgent } = getAuditRequestContext(req);
-    console.log(ipAddress, userAgent);
 
     if (!userId) {
       throw new UnauthorizedError("Silakan login terlebih dahulu");
