@@ -272,7 +272,7 @@ describe("Auth Integration — Lifecycle", () => {
      * secara manual.
      */
 
-    // const meResponse = await agent.get("/api/auth/me");
+    const meResponse = await agent.get("/api/auth/me");
 
     /*
      * =====================================
@@ -280,12 +280,14 @@ describe("Auth Integration — Lifecycle", () => {
      * =====================================
      */
 
-    // expect(meResponse.status).toBe(200);
+    expect(meResponse.status).toBe(200);
 
-    // expect(meResponse.body.data.user.email).toBe(email);
+    expect(meResponse.body.data.user.id).toBe(registeredUser!.id);
 
-    // expect(meResponse.body.data.user.status).toBe(AccountStatus.ACTIVE);
+    expect(meResponse.body.data.user.email).toBe(email);
 
-    // expect(meResponse.body.data.user).not.toHaveProperty("passwordHash");
+    expect(meResponse.body.data.user.status).toBe(AccountStatus.ACTIVE);
+
+    expect(meResponse.body.data.user).not.toHaveProperty("passwordHash");
   });
 });
