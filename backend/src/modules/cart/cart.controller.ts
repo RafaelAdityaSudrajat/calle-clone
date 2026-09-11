@@ -2,6 +2,7 @@ import { NextFunction, Response } from "express";
 import { AuthRequest } from "../../middlewares/authenticate";
 import { addToCartSchema } from "./cart.validation";
 import { addToCartService, getCartByUserId } from "./cart.service";
+import { UnauthorizedError } from "../../lib/errors";
 
 export const addToCartController = async (
   req: AuthRequest,
@@ -12,7 +13,11 @@ export const addToCartController = async (
     const body = addToCartSchema.parse(req.body);
 
     const { productVariantId, quantity } = body;
-    const userId = req.userId;
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
 
     const payload = {
       userId,
@@ -40,7 +45,9 @@ export const getCartByUserIdController = async (
   try {
     const userId = req.auth?.userId;
 
-    console.log(userId);
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
 
     const result = await getCartByUserId({ userId });
 

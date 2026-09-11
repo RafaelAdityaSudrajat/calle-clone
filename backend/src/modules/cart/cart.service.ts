@@ -49,7 +49,6 @@ export const addToCartService = async ({
   productVariantId,
   quantity,
 }: AddToCartServiceArgs) => {
-  console.log(userId);
   return prisma.$transaction(async (tx) => {
     // Cek product variant
     const productVariant = await tx.productVariant.findUnique({
@@ -64,6 +63,10 @@ export const addToCartService = async ({
     // Variant tidak ditemukan
     if (!productVariant) {
       throw new NotFoundError("Product variant tidak di temukan");
+    }
+    // Variant harus active
+    if (!productVariant.isActive) {
+      throw new ConflictError("Product variant tidak tersedia");
     }
 
     // Product harus ACTIVE
@@ -82,21 +85,11 @@ export const addToCartService = async ({
     }
 
     //  Cari Cart User
-    let cart = await tx.cart.findUnique({
-      where: {
-        userId,
-      },
+    const cart = await tx.cart.upsert({
+      where: { userId },
+      update: {}, // Jika ada, tidak melakukan update apa-apa
+      create: { userId }, // Jika tidak ada, buat baru
     });
-
-    // * Kalau belum ada Cart buat otomatis
-
-    if (!cart) {
-      cart = await tx.cart.create({
-        data: {
-          userId,
-        },
-      });
-    }
 
     const cartItem = await tx.cartItem.findUnique({
       where: {
@@ -107,37 +100,34 @@ export const addToCartService = async ({
       },
     });
 
-    const totalQuantity = (cartItem?.quantity ?? 0) + quantity;
+    const totalQuantity = cartItem?.quantity ?? 0;
 
-    if (totalQuantity > productVariant.stock) {
+    if (totalQuantity + quantity > productVariant.stock) {
       throw new ConflictError("stock tidak cukup");
     }
 
-    let updatedCartItem;
-
-    if (cartItem) {
-      updatedCartItem = await tx.cartItem.update({
-        where: {
-          id: cartItem.id,
-        },
-        data: {
-          quantity: totalQuantity,
-        },
-      });
-    } else {
-      updatedCartItem = await tx.cartItem.create({
-        data: {
+    const updatedCartItem = await tx.cartItem.upsert({
+      where: {
+        cartId_productVariantId: {
           cartId: cart.id,
           productVariantId: productVariant.id,
-          quantity,
         },
-      });
-    }
+      },
+      update: {
+        // Menggunakan "increment" mencegah lost update dari concurrent request
+        quantity: { increment: quantity },
+      },
+      create: {
+        cartId: cart.id,
+        productVariantId: productVariant.id,
+        quantity: quantity,
+      },
+    });
 
     return {
       message: cartItem
         ? "Cart updated successfully"
-        : "Product telah di tambakhan ke cart successfully",
+        : "Product telah ditambahkan ke cart successfully",
       data: updatedCartItem,
     };
   });
