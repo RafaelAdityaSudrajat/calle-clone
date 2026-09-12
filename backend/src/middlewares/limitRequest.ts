@@ -6,6 +6,9 @@ const message = {
   message: "Terlalu banyak permintaan. Silakan coba lagi nanti.",
 };
 
+const skipInTest = () =>
+  process.env.NODE_ENV === "test" || process.env.VITEST === "true";
+
 export const registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
 
@@ -16,6 +19,8 @@ export const registerLimiter = rateLimit({
   legacyHeaders: false,
 
   message,
+
+  skip: skipInTest,
 });
 
 export const resendVerificationLimiter = rateLimit({
@@ -29,7 +34,7 @@ export const resendVerificationLimiter = rateLimit({
 
   message,
 
-  skip: () => process.env.NODE_ENV === "test",
+  skip: skipInTest,
 });
 
 export const loginRateLimiter = rateLimit({
@@ -45,7 +50,7 @@ export const loginRateLimiter = rateLimit({
 
   message,
 
-  skip: () => process.env.NODE_ENV === "test",
+  skip: skipInTest,
 });
 
 export const forgotPasswordLimiter = rateLimit({
@@ -58,6 +63,8 @@ export const forgotPasswordLimiter = rateLimit({
   legacyHeaders: false,
 
   message,
+
+  skip: skipInTest,
 });
 
 export const resetPasswordLimiter = rateLimit({
@@ -70,4 +77,6 @@ export const resetPasswordLimiter = rateLimit({
   legacyHeaders: false,
 
   message,
+
+  skip: skipInTest,
 });

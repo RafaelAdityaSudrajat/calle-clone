@@ -24,5 +24,9 @@ export default defineConfig({
     clearMocks: true,
 
     testTimeout: 15_000,
+
+    env: {
+      NODE_ENV: "test",
+    },
   },
 });
