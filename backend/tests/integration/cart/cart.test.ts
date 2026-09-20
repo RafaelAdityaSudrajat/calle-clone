@@ -59,7 +59,7 @@ const seedProductContext = async ({
 };
 
 describe("Cart Integration", () => {
-  const cartEndpoint = "/api/cart";
+  const cartEndpoint = "/api/v1/cart";
 
   beforeEach(async () => {
     await cleanCartDatabase();
@@ -75,7 +75,7 @@ describe("Cart Integration", () => {
    * GET CART LOGIC
    * =====================================
    */
-  describe("GET /api/cart", () => {
+  describe("GET /api/v1/cart", () => {
     it("returns 404 if the user does not have a cart yet", async () => {
       const user = await createTestUser();
       const { accessTokenCookie } = await loginTestUser(user.email);
@@ -119,7 +119,7 @@ describe("Cart Integration", () => {
    * ADD TO CART LOGIC
    * =====================================
    */
-  describe("POST /api/cart", () => {
+  describe("POST /api/v1/cart", () => {
     it("creates a new cart and adds item using upsert if user does not have a cart", async () => {
       const user = await createTestUser();
       const { accessTokenCookie } = await loginTestUser(user.email);

@@ -90,7 +90,7 @@ describe("Auth Integration — Forgot & Reset Password", () => {
     const user = await createTestUser();
 
     const response = await request(app)
-      .post("/api/auth/forgot-password")
+      .post("/api/v1/auth/forgot-password")
       .send({ email: user.email });
 
     expect(response.status).toBe(200);
@@ -114,7 +114,7 @@ describe("Auth Integration — Forgot & Reset Password", () => {
    */
   it("returns the exact same generic message for a non-existing email", async () => {
     const response = await request(app)
-      .post("/api/auth/forgot-password")
+      .post("/api/v1/auth/forgot-password")
       .send({ email: "ghost-user@example.com" });
 
     expect(response.status).toBe(200);
@@ -148,10 +148,12 @@ describe("Auth Integration — Forgot & Reset Password", () => {
      * ACT
      * Kirim raw token via request, biar controller yang validasi hash-nya.
      */
-    const response = await request(app).post("/api/auth/reset-password").send({
-      token: validRawToken,
-      newPassword,
-    });
+    const response = await request(app)
+      .post("/api/v1/auth/reset-password")
+      .send({
+        token: validRawToken,
+        newPassword,
+      });
 
     /*
      * ASSERT HTTP
@@ -212,10 +214,12 @@ describe("Auth Integration — Forgot & Reset Password", () => {
       resetPasswordExpires: new Date(Date.now() - 5000), // Sudah expired
     });
 
-    const response = await request(app).post("/api/auth/reset-password").send({
-      token: expiredRawToken,
-      newPassword: "NewStrongPassword123",
-    });
+    const response = await request(app)
+      .post("/api/v1/auth/reset-password")
+      .send({
+        token: expiredRawToken,
+        newPassword: "NewStrongPassword123",
+      });
 
     expect(response.status).toBe(409);
     expect(response.body.message).toMatch(/kedaluwarsa|tidak valid/i);

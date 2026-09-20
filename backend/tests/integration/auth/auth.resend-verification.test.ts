@@ -92,7 +92,7 @@ const extractCookieValue = (
  * endpoint /me.
  */
 const loginAndGetAccessToken = async (email: string) => {
-  const response = await request(app).post("/api/auth/login").send({
+  const response = await request(app).post("/api/v1/auth/login").send({
     email,
     password: TEST_PASSWORD,
   });
@@ -101,7 +101,7 @@ const loginAndGetAccessToken = async (email: string) => {
 };
 
 const callResendVerification = async (accessToken?: string) => {
-  const req = request(app).post("/api/auth/resend-verification");
+  const req = request(app).post("/api/v1/auth/resend-verification");
 
   if (accessToken) {
     req.set("Cookie", [`accessToken=${accessToken}`]);
@@ -258,7 +258,7 @@ describe("Auth Integration — Resend Verification", () => {
 
     const email = `integration-${crypto.randomUUID()}@example.com`;
 
-    await request(app).post("/api/auth/register").send({
+    await request(app).post("/api/v1/auth/register").send({
       email,
       password: TEST_PASSWORD,
     });
@@ -287,7 +287,7 @@ describe("Auth Integration — Resend Verification", () => {
      */
 
     const verifyWithOldToken = await request(app)
-      .post("/api/auth/verify-email")
+      .post("/api/v1/auth/verify-email")
       .send({ token: token1 });
 
     expect(verifyWithOldToken.status).toBe(409);
@@ -298,7 +298,7 @@ describe("Auth Integration — Resend Verification", () => {
      */
 
     const verifyWithNewToken = await request(app)
-      .post("/api/auth/verify-email")
+      .post("/api/v1/auth/verify-email")
       .send({ token: token2 });
 
     expect(verifyWithNewToken.status).toBe(200);

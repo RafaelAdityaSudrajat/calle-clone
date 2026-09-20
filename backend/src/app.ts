@@ -4,12 +4,8 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import morgan from "morgan";
 
-import authRoute from "./modules/auth/auth.route";
-import productRoute from "./modules/product/product.route";
-import categoryRoute from "./modules/category/category.route";
-import cartRoute from "./modules/cart/cart.route";
-
 import { errorHandler, notFoundHandler } from "./middlewares/errorHandler";
+import v1Router from "./routes/v1.router";
 
 const app = express();
 
@@ -24,10 +20,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 // routes nanti ditambah di sini
-app.use("/api/auth", authRoute);
-app.use("/api/products", productRoute);
-app.use("/api/category", categoryRoute);
-app.use("/api/cart", cartRoute);
+app.use("/api/v1", v1Router);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

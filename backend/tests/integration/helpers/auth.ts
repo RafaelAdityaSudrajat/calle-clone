@@ -51,7 +51,7 @@ export const loginTestUser = async (
   email: string,
   password = TEST_PASSWORD,
 ) => {
-  const response = await request(app).post("/api/auth/login").send({
+  const response = await request(app).post("/api/v1/auth/login").send({
     email,
     password,
   });

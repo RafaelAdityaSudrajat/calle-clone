@@ -83,7 +83,7 @@ describe("Auth Integration — Login", () => {
      */
 
     const response = await request(app)
-      .post("/api/auth/login")
+      .post("/api/v1/auth/login")
       .set("User-Agent", "CalleIntegrationTest/1.0")
       .send({
         email: user.email,
@@ -166,7 +166,7 @@ describe("Auth Integration — Login", () => {
      * ACT
      */
 
-    const response = await request(app).post("/api/auth/login").send({
+    const response = await request(app).post("/api/v1/auth/login").send({
       email: unknownEmail,
       password: TEST_PASSWORD,
     });
@@ -207,7 +207,7 @@ describe("Auth Integration — Login", () => {
      * ACT
      */
 
-    const response = await request(app).post("/api/auth/login").send({
+    const response = await request(app).post("/api/v1/auth/login").send({
       email: user.email,
       password: TEST_PASSWORD,
     });
@@ -262,7 +262,7 @@ describe("Auth Integration — Login", () => {
      * ACT
      */
 
-    const response = await request(app).post("/api/auth/login").send({
+    const response = await request(app).post("/api/v1/auth/login").send({
       email: user.email,
       password: TEST_PASSWORD,
     });
