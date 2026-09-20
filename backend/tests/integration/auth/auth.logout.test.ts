@@ -47,7 +47,7 @@ const createTestUser = async ({
  * Normalisasi array untuk mencegah error .find() saat extract cookie.
  */
 const loginTestUser = async (email: string, password = TEST_PASSWORD) => {
-  const response = await request(app).post("/api/auth/login").send({
+  const response = await request(app).post("/api/v1/auth/login").send({
     email,
     password,
   });
@@ -139,7 +139,7 @@ describe("Auth Integration — Logout & Logout All", () => {
      * ACT
      */
     const response = await request(app)
-      .post("/api/auth/logout")
+      .post("/api/v1/auth/logout")
       .set("Cookie", [refreshTokenCookie]);
 
     /*
@@ -219,7 +219,7 @@ describe("Auth Integration — Logout & Logout All", () => {
      * Perhatikan: logout-all butuh authenticate middleware, jadi pakai accessToken
      */
     const response = await request(app)
-      .post("/api/auth/logout-all")
+      .post("/api/v1/auth/logout-all")
       .set("Cookie", [accessTokenCookie]);
 
     /*
@@ -252,7 +252,7 @@ describe("Auth Integration — Logout & Logout All", () => {
    */
   it("handles logout gracefully if no token is provided", async () => {
     // Tidak melampirkan cookie sama sekali
-    const response = await request(app).post("/api/auth/logout");
+    const response = await request(app).post("/api/v1/auth/logout");
 
     // Sesuai implementasi, bisa return 200 (karena toh tujuannya supaya tidak login)
     // Atau 400/401 jika memang diwajibkan validasi. Silakan sesuaikan statusnya!

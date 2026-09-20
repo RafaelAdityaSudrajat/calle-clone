@@ -77,7 +77,7 @@ const extractCookieValue = (
  * detail implementasi hashToken().
  */
 const loginTestUser = async (email: string, password = TEST_PASSWORD) => {
-  const response = await request(app).post("/api/auth/login").send({
+  const response = await request(app).post("/api/v1/auth/login").send({
     email,
     password,
   });
@@ -90,7 +90,7 @@ const loginTestUser = async (email: string, password = TEST_PASSWORD) => {
 };
 
 const callRefresh = async (refreshToken?: string) => {
-  const req = request(app).post("/api/auth/refresh");
+  const req = request(app).post("/api/v1/auth/refresh");
 
   if (refreshToken) {
     req.set("Cookie", [`refreshToken=${refreshToken}`]);
@@ -272,7 +272,7 @@ describe("Auth Integration — Refresh Token Rotation", () => {
     const { refreshToken: token } = await loginTestUser(user.email);
 
     await request(app)
-      .post("/api/auth/logout")
+      .post("/api/v1/auth/logout")
       .set("Cookie", [`refreshToken=${token}`]);
 
     /*

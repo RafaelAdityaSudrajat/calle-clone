@@ -74,7 +74,7 @@ describe("Auth Integration — Lifecycle", () => {
      */
 
     const registerResponse = await agent
-      .post("/api/auth/register")
+      .post("/api/v1/auth/register")
       .set("User-Agent", "CalleIntegrationTest/1.0")
       .send({
         email,
@@ -151,7 +151,7 @@ describe("Auth Integration — Lifecycle", () => {
      * =====================================
      */
 
-    const verifyResponse = await agent.post("/api/auth/verify-email").send({
+    const verifyResponse = await agent.post("/api/v1/auth/verify-email").send({
       token: verificationEmail.token,
     });
 
@@ -194,7 +194,7 @@ describe("Auth Integration — Lifecycle", () => {
      */
 
     const loginResponse = await agent
-      .post("/api/auth/login")
+      .post("/api/v1/auth/login")
       .set("User-Agent", "CalleIntegrationTest/1.0")
       .send({
         email,
@@ -272,7 +272,7 @@ describe("Auth Integration — Lifecycle", () => {
      * secara manual.
      */
 
-    const meResponse = await agent.get("/api/auth/me");
+    const meResponse = await agent.get("/api/v1/auth/me");
 
     /*
      * =====================================

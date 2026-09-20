@@ -52,7 +52,7 @@ const createTestUser = async ({
  * karena endpoint ini butuh middleware `authenticate`.
  */
 const loginTestUser = async (email: string, password = TEST_PASSWORD) => {
-  const response = await request(app).post("/api/auth/login").send({
+  const response = await request(app).post("/api/v1/auth/login").send({
     email,
     password,
   });
@@ -97,7 +97,7 @@ const seedActiveSession = async (userId: string) => {
 };
 
 describe("Auth Integration — Change Password", () => {
-  const changePasswordEndpoint = "/api/auth/change-password";
+  const changePasswordEndpoint = "/api/v1/auth/change-password";
 
   beforeEach(async () => {
     await cleanAuthDatabase();

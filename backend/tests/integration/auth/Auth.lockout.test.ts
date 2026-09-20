@@ -101,7 +101,7 @@ describe("Auth Integration — Account Lockout", () => {
      */
 
     for (let attempt = 1; attempt < MAX_FAILED_LOGIN_ATTEMPTS; attempt++) {
-      const response = await request(app).post("/api/auth/login").send({
+      const response = await request(app).post("/api/v1/auth/login").send({
         email: user.email,
         password: "WrongPassword123",
       });
@@ -131,7 +131,7 @@ describe("Auth Integration — Account Lockout", () => {
      * jadi response-nya harus 409, BUKAN 401.
      */
 
-    const lockingResponse = await request(app).post("/api/auth/login").send({
+    const lockingResponse = await request(app).post("/api/v1/auth/login").send({
       email: user.email,
       password: "WrongPassword123",
     });
@@ -234,7 +234,7 @@ describe("Auth Integration — Account Lockout", () => {
      * ACT
      */
 
-    const response = await request(app).post("/api/auth/login").send({
+    const response = await request(app).post("/api/v1/auth/login").send({
       email: user.email,
       password: TEST_PASSWORD,
     });
@@ -294,7 +294,7 @@ describe("Auth Integration — Account Lockout", () => {
      * ACT
      */
 
-    const response = await request(app).post("/api/auth/login").send({
+    const response = await request(app).post("/api/v1/auth/login").send({
       email: user.email,
       password: TEST_PASSWORD,
     });
@@ -334,7 +334,7 @@ describe("Auth Integration — Account Lockout", () => {
      * ACT
      */
 
-    const response = await request(app).post("/api/auth/login").send({
+    const response = await request(app).post("/api/v1/auth/login").send({
       email: user.email,
       password: "WrongPassword123",
     });
@@ -398,7 +398,7 @@ describe("Auth Integration — Account Lockout", () => {
      * ACT
      */
 
-    const response = await request(app).post("/api/auth/login").send({
+    const response = await request(app).post("/api/v1/auth/login").send({
       email: user.email,
       password: TEST_PASSWORD,
     });
