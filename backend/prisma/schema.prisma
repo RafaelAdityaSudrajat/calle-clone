@@ -65,7 +65,6 @@ enum PaymentStatus {
   REFUNDED
 }
 
-
 model User {
   id String @id @default(uuid())
 
@@ -80,10 +79,9 @@ model User {
 
   // BR-03: Default status UNVERIFIED saat register
   status AccountStatus @default(UNVERIFIED)
-  
+
   // Digunakan untuk invalidate seluruh access token user.
   sessionVersion Int @default(0)
-
 
   cart Cart?
 
@@ -108,7 +106,7 @@ model User {
   // Relasi: 1 User bisa punya banyak Refresh Token (Multi-device login)
   refreshTokens RefreshToken[]
 
-    auditEventsAsActor AuditLog[] @relation("AuditActor")
+  auditEventsAsActor  AuditLog[] @relation("AuditActor")
   auditEventsAsTarget AuditLog[] @relation("AuditTarget")
 }
 
@@ -141,10 +139,7 @@ model RefreshToken {
   // Index untuk mempercepat query pengecekan validitas token & cleanup cron job
   @@index([userId])
   @@index([expiresAt])
-
-
 }
-
 
 model AuditLog {
   id String @id @default(uuid())
@@ -155,17 +150,17 @@ model AuditLog {
   targetUserId String?
 
   ipAddress String?
-  userAgent  String?
+  userAgent String?
 
   createdAt DateTime @default(now())
 
   actor  User? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
-target User? @relation("AuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+  target User? @relation("AuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
   @@index([actorUserId, createdAt])
   @@index([targetUserId, createdAt])
   @@index([event, createdAt])
 }
-
 
 model Category {
   id   String @id @default(uuid())
@@ -283,7 +278,7 @@ model CartItem {
 
   quantity Int
 
-   // Snapshot harga saat pertama ditambahkan. Bukan source of truth.
+  // Snapshot harga saat pertama ditambahkan. Bukan source of truth.
   // Dipakai untuk deteksi perubahan harga (BR-13, DD-08).
   priceAtAdd Decimal @db.Decimal(12, 2)
 
