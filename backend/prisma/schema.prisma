@@ -52,6 +52,20 @@ enum AuditEvent {
   ADMIN_FORCE_RESET
 }
 
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  FAILED
+  REFUNDED
+}
+
+
 model User {
   id String @id @default(uuid())
 
@@ -72,6 +86,8 @@ model User {
 
 
   cart Cart?
+
+  orders Order[]
 
   // BR-29: Rate limiting login (max 5 gagal dalam 15 menit)
   failedLoginAttempts    Int       @default(0)
@@ -226,6 +242,8 @@ model ProductVariant {
 
   cartItems CartItem[]
 
+  orderItems OrderItem[]
+
   createdAt DateTime @default(now())
 
   updatedAt DateTime @updatedAt
@@ -265,11 +283,72 @@ model CartItem {
 
   quantity Int
 
+   // Snapshot harga saat pertama ditambahkan. Bukan source of truth.
+  // Dipakai untuk deteksi perubahan harga (BR-13, DD-08).
+  priceAtAdd Decimal @db.Decimal(12, 2)
+
   createdAt DateTime @default(now())
 
   updatedAt DateTime @updatedAt
 
   @@unique([cartId, productVariantId])
   @@index([cartId])
+  @@index([productVariantId])
+}
+
+model Order {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  status        OrderStatus   @default(PENDING_PAYMENT)
+  paymentStatus PaymentStatus @default(UNPAID)
+
+  totalAmount Decimal @db.Decimal(12, 2)
+
+  paidAt DateTime?
+
+  // Snapshot alamat (DD-05)
+  shippingRecipientName String
+  shippingPhone         String
+  shippingAddressLine   String
+  shippingCity          String
+  shippingPostalCode    String
+
+  // Idempotency (DD-11)
+  idempotencyKey String @unique
+
+  items OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([userId, status, createdAt])
+}
+
+model OrderItem {
+  id String @id @default(uuid())
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productVariantId String
+  productVariant   ProductVariant @relation(fields: [productVariantId], references: [id])
+
+  // Snapshot (DD-06)
+  productName String
+  variantSku  String
+
+  // Freeze harga (BR-14, DD-02)
+  unitPrice Decimal @db.Decimal(12, 2)
+  quantity  Int
+  subtotal  Decimal @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
   @@index([productVariantId])
 }
