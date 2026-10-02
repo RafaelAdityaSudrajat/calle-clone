@@ -312,13 +312,14 @@ model Order {
   shippingPostalCode    String
 
   // Idempotency (DD-11)
-  idempotencyKey String @unique
+  idempotencyKey String
 
   items OrderItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([userId, idempotencyKey])
   @@index([userId])
   @@index([status])
   @@index([userId, status, createdAt])
