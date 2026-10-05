@@ -1,6 +1,6 @@
 import z from "zod";
 
-export const addToCartSchema = z.object({
+export const addToCartSchemas = z.object({
   productVariantId: z
     .string({ message: "Product variant id is required" })
     .uuid({ message: "Invalid product variant id" }),
@@ -10,4 +10,3 @@ export const addToCartSchema = z.object({
     .int({ message: "Quantity must be an integer" })
     .min(1, { message: "Quantity must be greater than 0" }),
 });
-

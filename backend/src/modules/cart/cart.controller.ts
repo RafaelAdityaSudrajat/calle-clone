@@ -1,9 +1,9 @@
 import { NextFunction, Response } from "express";
 import { AuthRequest } from "../../middlewares/authenticate";
-import { addToCartSchema } from "./cart.validation";
 import { UnauthorizedError } from "../../lib/errors";
 import catchAsync from "../../lib/catchAsync";
-import { getCart, getCartService } from "./cart.service";
+import { addToCartService, getCartService } from "./cart.service";
+import { AddToCartInput } from "./cart.schema";
 
 // export const addToCartController = async (
 //   req: AuthRequest,
@@ -75,6 +75,31 @@ export const getCartController = catchAsync(
     res.status(200).json({
       success: true,
       message: "Cart retrieved successfully",
+      data,
+    });
+  },
+);
+
+/**
+ * POST /api/v1/cart
+ * body sudah divalidasi & di-transform ke camelCase oleh middleware `validate`
+ * memakai `addToCartSchema` (lihat cart.schema.ts), jadi di sini req.body
+ * sudah pasti berbentuk AddToCartInput.
+ */
+export const addToCartController = catchAsync(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    const userId = req.auth?.userId;
+    const input = req.body;
+
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
+
+    const data = await addToCartService(userId, input);
+
+    res.status(201).json({
+      success: true,
+      message: "Item added to cart",
       data,
     });
   },

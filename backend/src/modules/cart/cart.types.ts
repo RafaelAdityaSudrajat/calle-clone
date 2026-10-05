@@ -66,20 +66,3 @@ export interface CheckoutResultDto {
   /** true jika request ini adalah replay dari Idempotency-Key yang sama */
   idempotent_replay: boolean;
 }
-
-// ---------- Error code (dari spesifikasi) ----------
-
-export const CART_ERROR_CODES = {
-  UNAUTHORIZED: { status: 401 },
-  PRODUCT_NOT_FOUND: { status: 404 },
-  PRODUCT_NOT_AVAILABLE: { status: 400 },
-  CART_ITEM_NOT_FOUND: { status: 404 },
-  INVALID_QUANTITY: { status: 400 },
-  STOCK_INSUFFICIENT: { status: 400 },
-  CART_EMPTY: { status: 400 },
-  INVALID_ADDRESS: { status: 400 },
-  PRICE_CHANGED: { status: 409 },
-  INTERNAL_ERROR: { status: 500 },
-} as const;
-
-export type CartErrorCode = keyof typeof CART_ERROR_CODES;

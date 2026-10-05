@@ -33,7 +33,9 @@ export const addToCartBodySchema = z
     quantity: v.quantity,
   }));
 
-export const addToCartSchema = { body: addToCartBodySchema };
+export const addToCartSchema = z.object({
+  body: addToCartBodySchema,
+});
 
 // ---------- PATCH /cart/:cartItemId ----------
 // quantity = 0 diterjemahkan sebagai delete (BR), jadi min 0.

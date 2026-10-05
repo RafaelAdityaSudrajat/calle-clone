@@ -4,7 +4,6 @@ import { cleanCartDatabase } from "../helpers/database";
 import { prisma } from "../../../src/lib/prisma";
 import app from "../../../src/app";
 import { createTestUser, loginTestUser } from "../helpers/auth";
-import { ProductStatus } from "../../../src/generated/prisma";
 import {
   seedCart,
   seedCartItem,
