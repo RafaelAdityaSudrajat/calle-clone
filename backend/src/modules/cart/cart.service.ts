@@ -9,7 +9,7 @@ import {
 
 import { prisma } from "../../lib/prisma";
 import { CartDto, CartItemDto, UnavailableReason } from "./cart.types";
-import { AddToCartInput } from "./cart.schema";
+import { AddToCartInput, UpdateCartItemInput } from "./cart.schema";
 import { CartErrors } from "./cart.errors";
 
 interface AddToCartServiceArgs {
@@ -221,6 +221,75 @@ export async function addToCartService(
   // Dibaca ulang di luar transaksi: lebih simpel & reuse logic getCart
   // sepenuhnya (availability, price_changed, total), dan datanya sudah
   // pasti ter-commit karena transaksi di atas sudah selesai.
+  return getCartService(userId);
+}
+
+/**
+ * Ambil satu CartItem milik user tertentu, sekaligus validasi kepemilikan.
+ *
+ * SENGAJA tidak membedakan "item tidak ada sama sekali" vs "item ada tapi
+ * punya user lain" -> dua-duanya balas CART_ITEM_NOT_FOUND (404) yang sama.
+ * Ini anti-IDOR: kalau dibedakan (mis. 403 utk "milik user lain"), attacker
+ * bisa menebak-nebak cartItemId user lain cuma dari beda status code.
+ */
+function findOwnedCartItem(userId: string, cartItemId: string) {
+  return prisma.cartItem.findFirst({
+    where: { id: cartItemId, cart: { userId } },
+    include: {
+      productVariant: { include: { product: true } },
+    },
+  });
+}
+
+/**
+ * PATCH /cart/:cartItemId
+ *
+ * - quantity = 0 -> diterjemahkan sebagai delete (BR). Delete item yang
+ *   produknya sudah non-ACTIVE tetap BOLEH (supaya user bisa bersih-bersih
+ *   cart dari barang mati), beda dengan update quantity > 0 yang DITOLAK
+ *   untuk produk non-ACTIVE.
+ * - Update bersifat ABSOLUTE (menimpa quantity apa adanya), beda dengan
+ *   add yang atomic increment. Jadi stok divalidasi terhadap quantity baru
+ *   itu sendiri, bukan akumulasi.
+ * - priceAtAdd TIDAK pernah disentuh di sini, cuma berubah lewat add
+ *   pertama kali. Update quantity bukan "nambah barang", jadi snapshot
+ *   harga awal tetap harus utuh untuk deteksi price_changed.
+ */
+export async function updateCartItemService(
+  userId: string,
+  cartItemId: string,
+  input: UpdateCartItemInput,
+): Promise<CartDto> {
+  const { quantity } = input;
+
+  const item = await findOwnedCartItem(userId, cartItemId);
+  if (!item) {
+    throw CartErrors.cartItemNotFound();
+  }
+
+  if (quantity === 0) {
+    await prisma.cartItem.delete({ where: { id: cartItemId } });
+    return getCartService(userId);
+  }
+
+  const { productVariant: variant } = item;
+  const { product } = variant;
+
+  // BR: update (quantity > 0) pada produk non-ACTIVE ditolak. Beda dengan
+  // delete (quantity = 0) di atas, yang boleh jalan tanpa cek ini.
+  if (product.isDeleted || product.status !== "ACTIVE" || !variant.isActive) {
+    throw CartErrors.productNotAvailable();
+  }
+
+  if (quantity > variant.stock) {
+    throw CartErrors.stockInsufficient();
+  }
+
+  await prisma.cartItem.update({
+    where: { id: cartItemId },
+    data: { quantity }, // absolute set, priceAtAdd sengaja tidak ikut diubah
+  });
+
   return getCartService(userId);
 }
 

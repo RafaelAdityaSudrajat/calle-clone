@@ -2,7 +2,11 @@ import { NextFunction, Response } from "express";
 import { AuthRequest } from "../../middlewares/authenticate";
 import { UnauthorizedError } from "../../lib/errors";
 import catchAsync from "../../lib/catchAsync";
-import { addToCartService, getCartService } from "./cart.service";
+import {
+  addToCartService,
+  getCartService,
+  updateCartItemService,
+} from "./cart.service";
 import { AddToCartInput } from "./cart.schema";
 
 // export const addToCartController = async (
@@ -100,6 +104,27 @@ export const addToCartController = catchAsync(
     res.status(201).json({
       success: true,
       message: "Item added to cart",
+      data,
+    });
+  },
+);
+
+export const updateCartItemController = catchAsync(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    const userId = req.auth?.userId;
+    if (!userId) {
+      throw new UnauthorizedError();
+    }
+
+    const cartItemId = req.params.cartItemId as string;
+    const input = req.body;
+
+    const data = await updateCartItemService(userId, cartItemId, input);
+
+    res.status(200).json({
+      success: true,
+      message:
+        input.quantity === 0 ? "Item removed from cart" : "Cart item updated",
       data,
     });
   },
