@@ -13,7 +13,7 @@ export const errorHandler = (
   if (err instanceof AppError) {
     res.status(err.statusCode).json({
       status: "error",
-      code: err.statusCode,
+      code: err.code ?? "APP_ERROR", // fallback kalau ada AppError lama yang belum dikasih code
       message: err.message,
     });
     return;
