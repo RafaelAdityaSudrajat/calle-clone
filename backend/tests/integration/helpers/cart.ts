@@ -75,6 +75,15 @@ export async function seedCart(userId: string) {
   return prisma.cart.create({ data: { userId } });
 }
 
+export async function seedProductWithVariant(
+  overrides: Parameters<typeof seedProduct>[0] &
+    Parameters<typeof seedVariant>[1] = {},
+) {
+  const product = await seedProduct(overrides);
+  const variant = await seedVariant(product.id, overrides);
+  return { product, variant };
+}
+
 export async function seedCartItem(
   cartId: string,
   productVariantId: string,
