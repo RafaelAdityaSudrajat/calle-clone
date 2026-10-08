@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import request from "supertest";
 import app from "../../../src/app"; // ASUMSI: entry point Express export { app }, tanpa app.listen()
-import { createTestUser, loginTestUser } from "../helpers/auth"; // ASUMSI: nama fungsi sign token, satu modul dengan verifyAccessToken
+import {
+  createTestUser,
+  getAccesTokenCookie,
+  loginTestUser,
+} from "../helpers/auth"; // ASUMSI: nama fungsi sign token, satu modul dengan verifyAccessToken
 import { cleanCartDatabase } from "../helpers/database";
 import {
   seedProduct,
@@ -25,13 +29,6 @@ import { prisma } from "../../../src/lib/prisma";
 //   const token = signAccessToken({ sub: userId, sessionVersion });
 //   return `accessToken=${token}`;
 // }
-
-const getAccesTokenCookie = async () => {
-  const user = await createTestUser();
-  const { accessTokenCookie } = await loginTestUser(user.email);
-
-  return { user, accessTokenCookie };
-};
 
 describe("POST /api/v1/cart (integration)", () => {
   const cartEndpoint = "/api/v1/cart";

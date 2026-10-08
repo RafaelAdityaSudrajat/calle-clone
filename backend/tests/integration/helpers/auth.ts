@@ -90,3 +90,10 @@ export const loginTestUser = async (
     refreshTokenValue: getCookieValue(refreshTokenCookieRaw),
   };
 };
+
+export const getAccesTokenCookie = async () => {
+  const user = await createTestUser();
+  const { accessTokenCookie } = await loginTestUser(user.email);
+
+  return { user, accessTokenCookie };
+};
