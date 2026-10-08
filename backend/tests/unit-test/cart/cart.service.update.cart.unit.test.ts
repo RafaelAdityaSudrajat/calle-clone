@@ -10,7 +10,7 @@ vi.mock("../../../src/lib/prisma", () => ({
   prisma: {
     cartItem: {
       findFirst: vi.fn(),
-      delete: vi.fn(),
+      deleteMany: vi.fn(),
       update: vi.fn(),
     },
     cart: {
@@ -24,7 +24,7 @@ import { prisma } from "../../../src/lib/prisma";
 const mockFindFirst = prisma.cartItem.findFirst as unknown as ReturnType<
   typeof vi.fn
 >;
-const mockDelete = prisma.cartItem.delete as unknown as ReturnType<
+const mockDeleteMany = prisma.cartItem.deleteMany as unknown as ReturnType<
   typeof vi.fn
 >;
 const mockUpdate = prisma.cartItem.update as unknown as ReturnType<
@@ -63,6 +63,7 @@ describe("updateCartItemService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetCartFindUnique.mockResolvedValue(null); // isi detail getCart tidak relevan di sini
+    mockDeleteMany.mockResolvedValue({ count: 1 });
   });
 
   it("melempar CART_ITEM_NOT_FOUND kalau item tidak ada / bukan milik user", async () => {
@@ -73,7 +74,7 @@ describe("updateCartItemService", () => {
     ).rejects.toMatchObject({ statusCode: 404, code: "CART_ITEM_NOT_FOUND" });
 
     expect(mockUpdate).not.toHaveBeenCalled();
-    expect(mockDelete).not.toHaveBeenCalled();
+    expect(mockDeleteMany).not.toHaveBeenCalled();
   });
 
   it("query findFirst memfilter id DAN cart.userId sekaligus (anti-IDOR)", async () => {
@@ -90,32 +91,32 @@ describe("updateCartItemService", () => {
     );
   });
 
-  describe("quantity = 0 (delete)", () => {
-    it("menghapus item dan mengembalikan hasil getCart", async () => {
-      mockFindFirst.mockResolvedValue(buildOwnedItem());
-
+  describe("quantity = 0 (delete, didelegasikan ke removeCartItem)", () => {
+    it("menghapus lewat deleteMany dengan filter id + cart.userId, lalu mengembalikan hasil getCart", async () => {
       await updateCartItemService("user-1", "item-1", { quantity: 0 });
 
-      expect(mockDelete).toHaveBeenCalledWith({ where: { id: "item-1" } });
+      expect(mockDeleteMany).toHaveBeenCalledWith({
+        where: { id: "item-1", cart: { userId: "user-1" } },
+      });
       expect(mockUpdate).not.toHaveBeenCalled();
-    });
-
-    it("delete tetap boleh walau produk sudah non-ACTIVE (beda dari update quantity > 0)", async () => {
-      mockFindFirst.mockResolvedValue(
-        buildOwnedItem({ productStatus: "ARCHIVED" }),
+      expect(mockGetCartFindUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { userId: "user-1" } }),
       );
-
-      await updateCartItemService("user-1", "item-1", { quantity: 0 });
-
-      expect(mockDelete).toHaveBeenCalledTimes(1);
     });
 
-    it("delete tetap boleh walau stok 0", async () => {
-      mockFindFirst.mockResolvedValue(buildOwnedItem({ stock: 0 }));
-
+    it("tidak melakukan lookup item maupun cek availability, jadi produk ARCHIVED / stok 0 tetap bisa dihapus", async () => {
       await updateCartItemService("user-1", "item-1", { quantity: 0 });
 
-      expect(mockDelete).toHaveBeenCalledTimes(1);
+      expect(mockFindFirst).not.toHaveBeenCalled();
+      expect(mockDeleteMany).toHaveBeenCalledTimes(1);
+    });
+
+    it("melempar CART_ITEM_NOT_FOUND kalau tidak ada yang terhapus (item tidak ada / milik user lain)", async () => {
+      mockDeleteMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        updateCartItemService("user-1", "item-x", { quantity: 0 }),
+      ).rejects.toMatchObject({ statusCode: 404, code: "CART_ITEM_NOT_FOUND" });
     });
   });
 

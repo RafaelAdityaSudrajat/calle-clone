@@ -262,16 +262,14 @@ export async function updateCartItemService(
 ): Promise<CartDto> {
   const { quantity } = input;
 
+  if (quantity === 0) {
+    return removeCartItemService(userId, cartItemId);
+  }
+
   const item = await findOwnedCartItem(userId, cartItemId);
   if (!item) {
     throw CartErrors.cartItemNotFound();
   }
-
-  if (quantity === 0) {
-    await prisma.cartItem.delete({ where: { id: cartItemId } });
-    return getCartService(userId);
-  }
-
   const { productVariant: variant } = item;
   const { product } = variant;
 
@@ -289,6 +287,21 @@ export async function updateCartItemService(
     where: { id: cartItemId },
     data: { quantity }, // absolute set, priceAtAdd sengaja tidak ikut diubah
   });
+
+  return getCartService(userId);
+}
+
+export async function removeCartItemService(
+  userId: string,
+  cartItemId: string,
+): Promise<CartDto> {
+  const { count } = await prisma.cartItem.deleteMany({
+    where: { id: cartItemId, cart: { userId } },
+  });
+
+  if (count === 0) {
+    throw CartErrors.cartItemNotFound();
+  }
 
   return getCartService(userId);
 }

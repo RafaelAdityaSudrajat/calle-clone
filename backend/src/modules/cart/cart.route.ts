@@ -3,10 +3,15 @@ import { authenticate } from "../../middlewares/authenticate";
 import {
   addToCartController,
   getCartController,
+  removeCartItemController,
   updateCartItemController,
 } from "./cart.controller";
 import { validate } from "../../middlewares/validate";
-import { addToCartSchema, updateCartItemSchema } from "./cart.schema";
+import {
+  addToCartSchema,
+  removeCartItemSchema,
+  updateCartItemSchema,
+} from "./cart.schema";
 
 const router = Router();
 
@@ -17,6 +22,12 @@ router.patch(
   authenticate,
   validate(updateCartItemSchema),
   updateCartItemController,
+);
+router.patch(
+  "/:cartItemId",
+  authenticate,
+  validate(removeCartItemSchema),
+  removeCartItemController,
 );
 
 export default router;

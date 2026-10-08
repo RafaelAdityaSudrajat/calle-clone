@@ -5,6 +5,7 @@ import catchAsync from "../../lib/catchAsync";
 import {
   addToCartService,
   getCartService,
+  removeCartItemService,
   updateCartItemService,
 } from "./cart.service";
 import { AddToCartInput } from "./cart.schema";
@@ -125,6 +126,25 @@ export const updateCartItemController = catchAsync(
       success: true,
       message:
         input.quantity === 0 ? "Item removed from cart" : "Cart item updated",
+      data,
+    });
+  },
+);
+
+export const removeCartItemController = catchAsync(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    const userId = req.auth?.userId;
+    if (!userId) {
+      throw new UnauthorizedError();
+    }
+
+    const cartItemId = req.params.cartItemId as string; // Express 5: tipe params mengizinkan string[], route ini segmen tunggal
+
+    const data = await removeCartItemService(userId, cartItemId);
+
+    res.status(200).json({
+      success: true,
+      message: "Item removed from cart",
       data,
     });
   },
