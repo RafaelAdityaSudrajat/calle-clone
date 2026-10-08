@@ -29,7 +29,7 @@ describe("GET /api/v1/cart (integration)", () => {
     expect(res.status).toBe(401);
     expect(res.body.status).toBe("error");
     expect(res.body.message).toBe("Silakan login terlebih dahulu");
-    expect(res.body.code).toBe(401);
+    expect(res.body.code).toBe("UNAUTHORIZED");
   });
 
   it("balas 200 dengan cart_id null kalau user belum pernah punya cart", async () => {
