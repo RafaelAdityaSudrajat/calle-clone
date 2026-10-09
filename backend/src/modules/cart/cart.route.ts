@@ -23,7 +23,7 @@ router.patch(
   validate(updateCartItemSchema),
   updateCartItemController,
 );
-router.patch(
+router.delete(
   "/:cartItemId",
   authenticate,
   validate(removeCartItemSchema),
