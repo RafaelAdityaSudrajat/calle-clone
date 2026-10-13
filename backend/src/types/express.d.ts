@@ -1,7 +1,4 @@
-import type {
-  AccountStatus,
-  Role,
-} from "../generated/prisma";
+import type { AccountStatus, Role } from "../generated/prisma";
 
 declare global {
   namespace Express {
@@ -11,6 +8,7 @@ declare global {
         role: Role;
         status: AccountStatus;
       };
+      validatedHeaders?: { idempotencyKey: string };
     }
   }
 }

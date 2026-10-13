@@ -4,11 +4,12 @@ import { UnauthorizedError } from "../../lib/errors";
 import catchAsync from "../../lib/catchAsync";
 import {
   addToCartService,
+  checkoutService,
   getCartService,
   removeCartItemService,
   updateCartItemService,
 } from "./cart.service";
-import { AddToCartInput } from "./cart.schema";
+import { AddToCartInput, CheckoutBodyInput } from "./cart.schema";
 
 // export const addToCartController = async (
 //   req: AuthRequest,
@@ -145,6 +146,40 @@ export const removeCartItemController = catchAsync(
     res.status(200).json({
       success: true,
       message: "Item removed from cart",
+      data,
+    });
+  },
+);
+
+export const checkoutController = catchAsync(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    const userId = req.auth?.userId;
+    if (!userId) {
+      throw new UnauthorizedError();
+    }
+
+    // Body sudah camelCase hasil transform di `validate`.
+    const body = req.body as CheckoutBodyInput;
+
+    // Header hasil parse disimpan `validate` di req.validatedHeaders,
+    // req.headers asli sengaja tidak ditimpa.
+    const headers = req.validatedHeaders;
+    if (!headers) {
+      throw new Error(
+        "validatedHeaders missing: pasang checkoutSchema di route",
+      );
+    }
+
+    const data = await checkoutService(userId, {
+      ...body,
+      idempotencyKey: headers.idempotencyKey,
+    });
+
+    res.status(data.idempotent_replay ? 200 : 201).json({
+      success: true,
+      message: data.idempotent_replay
+        ? "Order already created for this request"
+        : "Order created successfully",
       data,
     });
   },

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { authenticate } from "../../middlewares/authenticate";
 import {
   addToCartController,
+  checkoutController,
   getCartController,
   removeCartItemController,
   updateCartItemController,
@@ -9,6 +10,7 @@ import {
 import { validate } from "../../middlewares/validate";
 import {
   addToCartSchema,
+  checkoutSchema,
   removeCartItemSchema,
   updateCartItemSchema,
 } from "./cart.schema";
@@ -28,6 +30,13 @@ router.delete(
   authenticate,
   validate(removeCartItemSchema),
   removeCartItemController,
+);
+
+router.post(
+  "/checkout",
+  authenticate,
+  validate(checkoutSchema),
+  checkoutController,
 );
 
 export default router;

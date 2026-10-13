@@ -8,18 +8,42 @@ import {
 } from "./money";
 
 import { prisma } from "../../lib/prisma";
-import { CartDto, CartItemDto, UnavailableReason } from "./cart.types";
-import { AddToCartInput, UpdateCartItemInput } from "./cart.schema";
+import {
+  CartDto,
+  CartItemDto,
+  UnavailableReason,
+  CheckoutResultDto,
+} from "./cart.types";
+import {
+  AddToCartInput,
+  UpdateCartItemInput,
+  CheckoutInput,
+} from "./cart.schema";
 import { CartErrors } from "./cart.errors";
 
-interface AddToCartServiceArgs {
-  userId: string;
-  productVariantId: string;
-  quantity: number;
-}
+type OrderWithItems = Prisma.OrderGetPayload<{ include: { items: true } }>;
 
-interface getCartByIdArgs {
-  userId: string | undefined;
+function toCheckoutResultDto(
+  order: OrderWithItems,
+  replay: boolean,
+): CheckoutResultDto {
+  return {
+    order_id: order.id,
+    status: order.status,
+    payment_status: order.paymentStatus,
+    total_amount: toMoneyString(order.totalAmount),
+    items: order.items.map((i) => ({
+      id: i.id,
+      product_variant_id: i.productVariantId,
+      product_name: i.productName,
+      variant_sku: i.variantSku,
+      unit_price: toMoneyString(i.unitPrice),
+      quantity: i.quantity,
+      subtotal: toMoneyString(i.subtotal),
+    })),
+    created_at: order.createdAt.toISOString(),
+    idempotent_replay: replay,
+  };
 }
 
 function findCartByUserId(userId: string) {
@@ -306,123 +330,123 @@ export async function removeCartItemService(
   return getCartService(userId);
 }
 
-// export const getCartByUserId = async ({ userId }: getCartByIdArgs) => {
-//   console.log(userId);
+export async function checkoutService(
+  userId: string,
+  input: CheckoutInput,
+): Promise<CheckoutResultDto> {
+  const { shippingAddress, confirmPriceChange, idempotencyKey } = input;
 
-//   const cart = await prisma.cart.findUnique({
-//     where: { userId },
-//     include: {
-//       cartItems: {
-//         include: {
-//           productVariant: {
-//             include: {
-//               product: {
-//                 include: {
-//                   images: true, // Ikut menarik semua gambar produk tersebut
-//                 },
-//               },
-//             },
-//           },
-//         },
-//       },
-//     },
-//   });
+  const { order, replay } = await prisma.$transaction(async (tx) => {
+    // 1. Kunci cart dulu, supaya dua checkout user yang sama diproses berurutan.
+    const cart = await tx.cart.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    if (cart) {
+      await tx.$queryRaw`SELECT id FROM "Cart" WHERE id = ${cart.id} FOR UPDATE`;
+    }
 
-//   if (!cart) {
-//     throw new NotFoundError("cart not found");
-//   }
+    // 2. Replay idempotency, SETELAH lock. Request kedua dengan key yang sama
+    //    menunggu lock, lalu melihat order dari request pertama. Kalau dicek
+    //    sebelum lock, dia melihat cart kosong dan gagal CART_EMPTY.
+    const existing = await tx.order.findUnique({
+      where: { userId_idempotencyKey: { userId, idempotencyKey } },
+      include: { items: { orderBy: { createdAt: "asc" } } },
+    });
+    if (existing) {
+      return { order: existing, replay: true };
+    }
 
-//   return {
-//     message: cart && "Get Cart Successfully",
-//     data: cart,
-//   };
-// };
+    if (!cart) throw CartErrors.cartEmpty();
 
-// export const addToCartService = async ({
-//   userId,
-//   productVariantId,
-//   quantity,
-// }: AddToCartServiceArgs) => {
-//   return prisma.$transaction(async (tx) => {
-//     // Cek product variant
-//     const productVariant = await tx.productVariant.findUnique({
-//       where: {
-//         id: productVariantId,
-//       },
-//       include: {
-//         product: true,
-//       },
-//     });
+    const cartItems = await tx.cartItem.findMany({
+      where: { cartId: cart.id },
+      orderBy: { createdAt: "asc" },
+      include: { productVariant: { include: { product: true } } },
+    });
+    if (cartItems.length === 0) throw CartErrors.cartEmpty();
 
-//     // Variant tidak ditemukan
-//     if (!productVariant) {
-//       throw new NotFoundError("Product variant tidak di temukan");
-//     }
-//     // Variant harus active
-//     if (!productVariant.isActive) {
-//       throw new ConflictError("Product variant tidak tersedia");
-//     }
+    // 3. Validasi availability + stok untuk SEMUA item sebelum menulis apa pun.
+    //    Satu item bermasalah menolak seluruh checkout.
+    for (const { quantity, productVariant: variant } of cartItems) {
+      const { product } = variant;
+      if (
+        product.isDeleted ||
+        product.status !== "ACTIVE" ||
+        !variant.isActive
+      ) {
+        throw CartErrors.productNotAvailable();
+      }
+      if (quantity > variant.stock) {
+        throw CartErrors.stockInsufficient();
+      }
+    }
 
-//     // Product harus ACTIVE
-//     if (productVariant.product.status !== ProductStatus.ACTIVE) {
-//       throw new ConflictError("Product tidak tersedia");
-//     }
+    // 4. Harga terkini, lalu cek perubahan harga.
+    const lines = cartItems.map((item) => {
+      const { productVariant: variant } = item;
+      const unitPrice = getEffectivePrice(variant.product, variant);
+      return {
+        variant,
+        quantity: item.quantity,
+        unitPrice,
+        lineSubtotal: subtotal(unitPrice, item.quantity),
+        priceChanged: hasPriceChanged(unitPrice, item.priceAtAdd),
+      };
+    });
 
-//     // Product tidak boleh soft delete
-//     if (productVariant.product.deletedAt) {
-//       throw new ConflictError("Product sudah di hapus");
-//     }
+    if (!confirmPriceChange && lines.some((l) => l.priceChanged)) {
+      throw CartErrors.priceChanged();
+    }
 
-//     //  Stock harus cukup
-//     if (quantity > productVariant.stock) {
-//       throw new ConflictError("melebihi stock");
-//     }
+    const totalAmount = sumMoney(lines.map((l) => l.lineSubtotal));
 
-//     //  Cari Cart User
-//     const cart = await tx.cart.upsert({
-//       where: { userId },
-//       update: {}, // Jika ada, tidak melakukan update apa-apa
-//       create: { userId }, // Jika tidak ada, buat baru
-//     });
+    // 5. Kurangi stok. Update kondisional (stock >= qty) adalah penjaga oversell
+    //    yang sebenarnya. Diurutkan per variant id supaya dua checkout dengan
+    //    variant yang beririsan mengunci baris dalam urutan sama (tanpa deadlock).
+    const byVariantId = [...lines].sort((a, b) =>
+      a.variant.id.localeCompare(b.variant.id),
+    );
+    for (const line of byVariantId) {
+      const { count } = await tx.productVariant.updateMany({
+        where: { id: line.variant.id, stock: { gte: line.quantity } },
+        data: { stock: { decrement: line.quantity } },
+      });
+      if (count === 0) {
+        throw CartErrors.stockInsufficient();
+      }
+    }
 
-//     const cartItem = await tx.cartItem.findUnique({
-//       where: {
-//         cartId_productVariantId: {
-//           cartId: cart.id,
-//           productVariantId: productVariant.id,
-//         },
-//       },
-//     });
+    // 6. Buat order + snapshot item (harga dibekukan di sini).
+    const created = await tx.order.create({
+      data: {
+        userId,
+        totalAmount,
+        shippingRecipientName: shippingAddress.recipientName,
+        shippingPhone: shippingAddress.phone,
+        shippingAddressLine: shippingAddress.addressLine,
+        shippingCity: shippingAddress.city,
+        shippingPostalCode: shippingAddress.postalCode,
+        idempotencyKey,
+        items: {
+          create: lines.map((l) => ({
+            productVariantId: l.variant.id,
+            productName: l.variant.product.name,
+            variantSku: l.variant.sku,
+            unitPrice: l.unitPrice,
+            quantity: l.quantity,
+            subtotal: l.lineSubtotal,
+          })),
+        },
+      },
+      include: { items: { orderBy: { createdAt: "asc" } } },
+    });
 
-//     const totalQuantity = cartItem?.quantity ?? 0;
+    // 7. Kosongkan cart. Cart-nya sendiri tetap ada.
+    await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
 
-//     if (totalQuantity + quantity > productVariant.stock) {
-//       throw new ConflictError("stock tidak cukup");
-//     }
+    return { order: created, replay: false };
+  });
 
-//     const updatedCartItem = await tx.cartItem.upsert({
-//       where: {
-//         cartId_productVariantId: {
-//           cartId: cart.id,
-//           productVariantId: productVariant.id,
-//         },
-//       },
-//       update: {
-//         // Menggunakan "increment" mencegah lost update dari concurrent request
-//         quantity: { increment: quantity },
-//       },
-//       create: {
-//         cartId: cart.id,
-//         productVariantId: productVariant.id,
-//         quantity: quantity,
-//       },
-//     });
-
-//     return {
-//       message: cartItem
-//         ? "Cart updated successfully"
-//         : "Product telah ditambahkan ke cart successfully",
-//       data: updatedCartItem,
-//     };
-//   });
-// };
+  return toCheckoutResultDto(order, replay);
+}

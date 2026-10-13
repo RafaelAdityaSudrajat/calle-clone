@@ -120,5 +120,7 @@ export type AddToCartInput = z.output<typeof addToCartBodySchema>;
 export type UpdateCartItemInput = z.output<typeof updateCartItemBodySchema>;
 export type CartItemParams = z.output<typeof cartItemParamsSchema>;
 export type ShippingAddressInput = z.output<typeof shippingAddressSchema>;
+export type CheckoutBodyInput = z.output<typeof checkoutBodySchema>;
+export type CheckoutHeadersInput = z.output<typeof checkoutHeadersSchema>;
 export type CheckoutInput = z.output<typeof checkoutBodySchema> &
   z.output<typeof checkoutHeadersSchema>;
