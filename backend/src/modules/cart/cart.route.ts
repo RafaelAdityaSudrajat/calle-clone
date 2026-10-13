@@ -19,6 +19,12 @@ const router = Router();
 
 router.get("/", authenticate, getCartController);
 router.post("/", authenticate, validate(addToCartSchema), addToCartController);
+router.post(
+  "/checkout",
+  authenticate,
+  validate(checkoutSchema),
+  checkoutController,
+);
 router.patch(
   "/:cartItemId",
   authenticate,
@@ -30,13 +36,6 @@ router.delete(
   authenticate,
   validate(removeCartItemSchema),
   removeCartItemController,
-);
-
-router.post(
-  "/checkout",
-  authenticate,
-  validate(checkoutSchema),
-  checkoutController,
 );
 
 export default router;

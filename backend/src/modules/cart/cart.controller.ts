@@ -9,7 +9,11 @@ import {
   removeCartItemService,
   updateCartItemService,
 } from "./cart.service";
-import { AddToCartInput, CheckoutBodyInput } from "./cart.schema";
+import {
+  AddToCartInput,
+  CheckoutBodyInput,
+  UpdateCartItemInput,
+} from "./cart.schema";
 
 // export const addToCartController = async (
 //   req: AuthRequest,
@@ -95,7 +99,7 @@ export const getCartController = catchAsync(
 export const addToCartController = catchAsync(
   async (req: AuthRequest, res: Response, _next: NextFunction) => {
     const userId = req.auth?.userId;
-    const input = req.body;
+    const input = req.body as AddToCartInput;
 
     if (!userId) {
       throw new UnauthorizedError("Silakan login terlebih dahulu");
@@ -119,7 +123,7 @@ export const updateCartItemController = catchAsync(
     }
 
     const cartItemId = req.params.cartItemId as string;
-    const input = req.body;
+    const input = req.body as UpdateCartItemInput;
 
     const data = await updateCartItemService(userId, cartItemId, input);
 
