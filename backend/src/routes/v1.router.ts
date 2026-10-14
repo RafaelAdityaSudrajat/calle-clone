@@ -4,6 +4,7 @@ import authRoute from "../modules/auth/auth.route";
 import productRoute from "../modules/product/product.route";
 import categoryRoute from "../modules/category/category.route";
 import cartRoute from "../modules/cart/cart.route";
+import orderRoute from "../modules/order/order.route";
 
 const v1Router = Router();
 
@@ -12,5 +13,6 @@ v1Router.use("/auth", authRoute);
 v1Router.use("/products", productRoute);
 v1Router.use("/category", categoryRoute);
 v1Router.use("/cart", cartRoute);
+v1Router.use("/orders", orderRoute);
 
 export default v1Router;
