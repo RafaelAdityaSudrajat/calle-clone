@@ -626,6 +626,44 @@ describe("POST /api/v1/cart/checkout (integration)", () => {
       });
       expect(bOrders).toHaveLength(0);
     });
+
+    it("2 user berbeda berebut stok terakhir -> hanya 1 order, stok tidak negatif", async () => {
+      const userA = await setupCartWithItems([{ quantity: 1, stock: 1 }]);
+      const { variant } = userA.items[0];
+
+      const userB = await getAccesTokenCookie();
+      const cartB = await seedCart(userB.user.id);
+      await seedCartItem(cartB.id, variant.id, {
+        quantity: 1,
+        priceAtAdd: "100000.00",
+      });
+
+      const [a, b] = await Promise.all([
+        request(app)
+          .post(checkoutEndpoint)
+          .set("Cookie", [userA.accessTokenCookie])
+          .set("Idempotency-Key", KEY)
+          .send(body()),
+        request(app)
+          .post(checkoutEndpoint)
+          .set("Cookie", [userB.accessTokenCookie])
+          .set("Idempotency-Key", KEY)
+          .send(body()),
+      ]);
+
+      expect([a.status, b.status].sort()).toEqual([201, 400]);
+      const loser = a.status === 400 ? a : b;
+      expect(loser.body.code).toBe("STOCK_INSUFFICIENT");
+
+      const orders = await prisma.order.count({
+        where: { userId: { in: [userA.user.id, userB.user.id] } },
+      });
+      expect(orders).toBe(1);
+      const after = await prisma.productVariant.findUnique({
+        where: { id: variant.id },
+      });
+      expect(after?.stock).toBe(0);
+    });
   });
 
   // ------------------------------------------------------------------
