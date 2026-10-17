@@ -48,6 +48,20 @@ export const listOrdersQuerySchema = z.strictObject({
   status: z.enum(ORDER_STATUSES).optional(),
 });
 
+/**
+ * Params untuk GET /orders/:orderId.
+ * Validasi UUID di layer schema (bukan di service) supaya:
+ *  1. Invalid format → 400 (INVALID_PARAM), beda dari "tidak ditemukan"
+ *     → 404. Ini penting: user salah ketik UUID dapat pesan jelas, bukan
+ *     "order tidak ditemukan" yang membingungkan.
+ *  2. Service tidak perlu try/catch Prisma error P2023 (invalid UUID).
+ */
+export const orderParamsSchema = z.strictObject({
+  orderId: z.uuid({ error: "orderId must be a valid UUID" }),
+});
+
 export const listOrdersSchema = { query: listOrdersQuerySchema };
+export const getOrderByIdSchema = { params: orderParamsSchema };
 
 export type ListOrdersQuery = z.output<typeof listOrdersQuerySchema>;
+export type OrderParams = z.output<typeof orderParamsSchema>;

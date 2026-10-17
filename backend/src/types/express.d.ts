@@ -8,6 +8,7 @@ declare global {
         role: Role;
         status: AccountStatus;
       };
+      validatedParams?: unknown;
       validatedQuery?: unknown;
       validatedHeaders?: { idempotencyKey: string };
     }

@@ -1,7 +1,51 @@
+import { Prisma } from "../../generated/prisma";
 import { prisma } from "../../lib/prisma";
 import { toMoneyString } from "../cart/money";
+import { OrderErrors } from "./order.errors";
 import { ListOrdersQuery } from "./order.schema";
-import { OrderListDto, OrderSummaryDto } from "./order.types";
+import { OrderDetailDto, OrderListDto, OrderSummaryDto } from "./order.types";
+
+/**
+ * Query shape untuk GET /orders/:id — type helper biar DTO mapper dapat
+ * autocomplete lengkap tanpa duplikasi type inline.
+ */
+type OrderWithItems = Prisma.OrderGetPayload<{
+  include: { items: { orderBy: { createdAt: "asc" } } };
+}>;
+
+function toOrderDetailDto(order: OrderWithItems): OrderDetailDto {
+  return {
+    id: order.id,
+    status: order.status,
+    payment_status: order.paymentStatus,
+    total_amount: toMoneyString(order.totalAmount),
+
+    // Snapshot alamat — murni COPY dari kolom order, bukan hasil JOIN.
+    // Jadi kalau user ubah alamat defaultnya besok, order lama tetap
+    // tampil dengan alamat saat checkout.
+    shipping_address: {
+      recipient_name: order.shippingRecipientName,
+      phone: order.shippingPhone,
+      address_line: order.shippingAddressLine,
+      city: order.shippingCity,
+      postal_code: order.shippingPostalCode,
+    },
+
+    items: order.items.map((i) => ({
+      id: i.id,
+      product_variant_id: i.productVariantId,
+      product_name: i.productName, // snapshot, bukan JOIN
+      variant_sku: i.variantSku, // snapshot, bukan JOIN
+      unit_price: toMoneyString(i.unitPrice), // beku, bukan harga sekarang
+      quantity: i.quantity,
+      subtotal: toMoneyString(i.subtotal),
+    })),
+
+    created_at: order.createdAt.toISOString(),
+    updated_at: order.updatedAt.toISOString(),
+    paid_at: order.paidAt ? order.paidAt.toISOString() : null,
+  };
+}
 
 /**
  * GET /orders.
@@ -90,4 +134,52 @@ export async function getOrdersService(
       total_pages: totalPages,
     },
   };
+}
+
+/**
+ * GET /orders/:id.
+ *
+ * Prinsip anti-IDOR: `userId` SELALU ada di WHERE, dipasangkan dengan
+ * `id` order. Ini pola `findFirst({ where: { id, userId } })` — BUKAN
+ * `findUnique({ where: { id } })` yang lalu dicek ownership di JS.
+ *
+ * Kenapa beda? `findUnique` akan gagal P2025 kalau row tidak ada, dan
+ * kita harus catch → ini noise. `findFirst` dengan userId sekaligus
+ * menggabungkan "ada" + "milik user" jadi satu query atomik yang tidak
+ * bisa race.
+ *
+ * Kenapa TIDAK query items dengan userId juga?
+ *  - OrderItem tidak punya userId. Ownership diturunkan dari Order.
+ *  - Karena Order sudah terfilter userId, include items aman — semua
+ *    item PASTI milik order yang sudah terverifikasi milik user ini.
+ *
+ * Sengaja TIDAK dibungkus $transaction (read-only, single query),
+ * konsisten dengan getOrdersService & getCartService.
+ */
+export async function getOrderByIdService(
+  userId: string,
+  orderId: string,
+): Promise<OrderDetailDto> {
+  const order = await prisma.order.findFirst({
+    where: { id: orderId, userId },
+    include: {
+      items: {
+        // Urutan stabil, sama seperti saat checkout & list.
+        // Tanpa orderBy, Postgres tidak menjamin urutan.
+        orderBy: { createdAt: "asc" },
+      },
+    },
+  });
+
+  if (!order) {
+    // BUKAN `return null`. User MEMINTA satu resource spesifik —
+    // "tidak ada" di sini artinya permintaan TIDAK terpenuhi, dan itu
+    // beda dari "user belum punya order" (list kosong = sukses).
+    //
+    // Anti-IDOR: pesan & kode SAMA untuk "tidak ada" vs "milik user
+    // lain" → attacker tidak bisa probing.
+    throw OrderErrors.notFound();
+  }
+
+  return toOrderDetailDto(order);
 }

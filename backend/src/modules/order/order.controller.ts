@@ -2,8 +2,8 @@ import { NextFunction, Response } from "express";
 import { AuthRequest } from "../../middlewares/authenticate";
 import { UnauthorizedError } from "../../lib/errors";
 import catchAsync from "../../lib/catchAsync";
-import { getOrdersService } from "./order.service";
-import { ListOrdersQuery } from "./order.schema";
+import { getOrderByIdService, getOrdersService } from "./order.service";
+import { ListOrdersQuery, OrderParams } from "./order.schema";
 
 /**
  * GET /api/v1/orders
@@ -34,6 +34,30 @@ export const listOrdersController = catchAsync(
     res.status(200).json({
       success: true,
       message: "Orders retrieved successfully",
+      data,
+    });
+  },
+);
+
+export const getOrderByIdController = catchAsync(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    const userId = req.auth?.userId;
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
+
+    const params = req.params as OrderParams | undefined;
+    if (!params) {
+      throw new Error(
+        "validatedParams missing: pasang getOrderByIdSchema di route",
+      );
+    }
+
+    const data = await getOrderByIdService(userId, params.orderId);
+
+    res.status(200).json({
+      success: true,
+      message: "Order retrieved successfully",
       data,
     });
   },
