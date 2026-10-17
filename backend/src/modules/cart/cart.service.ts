@@ -20,6 +20,7 @@ import {
   CheckoutInput,
 } from "./cart.schema";
 import { CartErrors } from "./cart.errors";
+import { findOwnedCartItem, lockCartRow } from "./helper.cart.service";
 
 type OrderWithItems = Prisma.OrderGetPayload<{ include: { items: true } }>;
 
@@ -179,6 +180,19 @@ export async function addToCartService(
   const { productVariantId, quantity } = input;
 
   await prisma.$transaction(async (tx) => {
+    // Auto-create cart. Aman dari race antar user berbeda karena Cart.userId
+    // UNIQUE; kalau dua request pertama user yang sama datang bersamaan,
+    // salah satunya akan gagal constraint lalu Prisma retry via upsert.
+    const cart = await tx.cart.upsert({
+      where: { userId },
+      create: { userId },
+      update: {},
+    });
+
+    // Kunci baris Cart user ini sampai transaksi selesai, supaya request
+    // add lain untuk cart yang sama menunggu, bukan jalan paralel.
+    await lockCartRow(tx, cart.id);
+
     const variant = await tx.productVariant.findUnique({
       where: { id: productVariantId },
       include: { product: true },
@@ -192,19 +206,6 @@ export async function addToCartService(
     if (product.isDeleted || product.status !== "ACTIVE" || !variant.isActive) {
       throw CartErrors.productNotAvailable();
     }
-
-    // Auto-create cart. Aman dari race antar user berbeda karena Cart.userId
-    // UNIQUE; kalau dua request pertama user yang sama datang bersamaan,
-    // salah satunya akan gagal constraint lalu Prisma retry via upsert.
-    const cart = await tx.cart.upsert({
-      where: { userId },
-      create: { userId },
-      update: {},
-    });
-
-    // Kunci baris Cart user ini sampai transaksi selesai, supaya request
-    // add lain untuk cart yang sama menunggu, bukan jalan paralel.
-    await tx.$queryRaw`SELECT id FROM "Cart" WHERE id = ${cart.id} FOR UPDATE`;
 
     const existingItem = await tx.cartItem.findUnique({
       where: {
@@ -249,35 +250,13 @@ export async function addToCartService(
 }
 
 /**
- * Ambil satu CartItem milik user tertentu, sekaligus validasi kepemilikan.
- *
- * SENGAJA tidak membedakan "item tidak ada sama sekali" vs "item ada tapi
- * punya user lain" -> dua-duanya balas CART_ITEM_NOT_FOUND (404) yang sama.
- * Ini anti-IDOR: kalau dibedakan (mis. 403 utk "milik user lain"), attacker
- * bisa menebak-nebak cartItemId user lain cuma dari beda status code.
- */
-function findOwnedCartItem(userId: string, cartItemId: string) {
-  return prisma.cartItem.findFirst({
-    where: { id: cartItemId, cart: { userId } },
-    include: {
-      productVariant: { include: { product: true } },
-    },
-  });
-}
-
-/**
  * PATCH /cart/:cartItemId
  *
- * - quantity = 0 -> diterjemahkan sebagai delete (BR). Delete item yang
- *   produknya sudah non-ACTIVE tetap BOLEH (supaya user bisa bersih-bersih
- *   cart dari barang mati), beda dengan update quantity > 0 yang DITOLAK
- *   untuk produk non-ACTIVE.
- * - Update bersifat ABSOLUTE (menimpa quantity apa adanya), beda dengan
- *   add yang atomic increment. Jadi stok divalidasi terhadap quantity baru
- *   itu sendiri, bukan akumulasi.
- * - priceAtAdd TIDAK pernah disentuh di sini, cuma berubah lewat add
- *   pertama kali. Update quantity bukan "nambah barang", jadi snapshot
- *   harga awal tetap harus utuh untuk deteksi price_changed.
+ * - Quantity 0 diterjemahkan menjadi delete.
+ * - Untuk quantity > 0, Cart harus dikunci sebelum item dibaca ulang.
+ * - Validasi produk, ownership, dan stok dilakukan di dalam transaksi.
+ * - Quantity di-update secara absolut, bukan increment.
+ * - priceAtAdd tetap tidak berubah.
  */
 export async function updateCartItemService(
   userId: string,
@@ -290,42 +269,119 @@ export async function updateCartItemService(
     return removeCartItemService(userId, cartItemId);
   }
 
-  const item = await findOwnedCartItem(userId, cartItemId);
-  if (!item) {
-    throw CartErrors.cartItemNotFound();
-  }
-  const { productVariant: variant } = item;
-  const { product } = variant;
+  await prisma.$transaction(async (tx) => {
+    // 1. Cari CartItem secara terbatas pada user ini.
+    //    Query awal hanya untuk mengetahui Cart mana yang harus dikunci.
+    const candidate = await tx.cartItem.findFirst({
+      where: {
+        id: cartItemId,
+        cart: { userId },
+      },
+      select: {
+        cartId: true,
+      },
+    });
 
-  // BR: update (quantity > 0) pada produk non-ACTIVE ditolak. Beda dengan
-  // delete (quantity = 0) di atas, yang boleh jalan tanpa cek ini.
-  if (product.isDeleted || product.status !== "ACTIVE" || !variant.isActive) {
-    throw CartErrors.productNotAvailable();
-  }
+    if (!candidate) {
+      throw CartErrors.cartItemNotFound();
+    }
 
-  if (quantity > variant.stock) {
-    throw CartErrors.stockInsufficient();
-  }
+    // 2. Semua mutasi pada Cart yang sama harus mengikuti lock yang sama.
+    await lockCartRow(tx, candidate.cartId);
 
-  await prisma.cartItem.update({
-    where: { id: cartItemId },
-    data: { quantity }, // absolute set, priceAtAdd sengaja tidak ikut diubah
+    // 3. Baca ulang setelah lock diperoleh.
+    //    Item mungkin sudah dihapus oleh checkout sebelum lock ini didapat.
+    const item = await findOwnedCartItem(
+      tx,
+      userId,
+      cartItemId,
+      candidate.cartId,
+    );
+
+    if (!item) {
+      throw CartErrors.cartItemNotFound();
+    }
+
+    const { productVariant: variant } = item;
+    const { product } = variant;
+
+    // 4. Produk yang tidak tersedia tidak boleh di-update.
+    //    Delete tetap diperbolehkan melalui removeCartItemService.
+    if (product.isDeleted || product.status !== "ACTIVE" || !variant.isActive) {
+      throw CartErrors.productNotAvailable();
+    }
+
+    if (quantity > variant.stock) {
+      throw CartErrors.stockInsufficient();
+    }
+
+    // 5. Update dengan filter ownership tetap.
+    //    updateMany memungkinkan kita memeriksa apakah row benar-benar
+    //    ter-update, tanpa hanya mengandalkan ID yang diberikan client.
+    const { count } = await tx.cartItem.updateMany({
+      where: {
+        id: cartItemId,
+        cartId: candidate.cartId,
+        cart: { userId },
+      },
+      data: {
+        quantity,
+      },
+    });
+
+    if (count === 0) {
+      throw CartErrors.cartItemNotFound();
+    }
   });
 
   return getCartService(userId);
 }
 
+/**
+ * DELETE /cart/:cartItemId
+ *
+ * - Cari item milik user untuk mengetahui Cart yang harus dikunci.
+ * - Lock Cart sebelum melakukan penghapusan.
+ * - Filter DELETE tetap memeriksa id, cartId, dan userId.
+ * - Item yang sudah tidak ada menghasilkan CART_ITEM_NOT_FOUND.
+ * - Produk non-ACTIVE tetap boleh dihapus.
+ */
 export async function removeCartItemService(
   userId: string,
   cartItemId: string,
 ): Promise<CartDto> {
-  const { count } = await prisma.cartItem.deleteMany({
-    where: { id: cartItemId, cart: { userId } },
-  });
+  await prisma.$transaction(async (tx) => {
+    // 1. Cari CartItem milik user. Hanya mengambil cartId untuk lock.
+    const candidate = await tx.cartItem.findFirst({
+      where: {
+        id: cartItemId,
+        cart: { userId },
+      },
+      select: {
+        cartId: true,
+      },
+    });
 
-  if (count === 0) {
-    throw CartErrors.cartItemNotFound();
-  }
+    if (!candidate) {
+      throw CartErrors.cartItemNotFound();
+    }
+
+    // 2. Lock Cart sebelum mengubah CartItem.
+    await lockCartRow(tx, candidate.cartId);
+
+    // 3. Hapus hanya jika item masih ada dan ownership masih cocok.
+    const { count } = await tx.cartItem.deleteMany({
+      where: {
+        id: cartItemId,
+        cartId: candidate.cartId,
+        cart: { userId },
+      },
+    });
+
+    if (count === 0) {
+      throw CartErrors.cartItemNotFound();
+    }
+  });
 
   return getCartService(userId);
 }
@@ -343,7 +399,7 @@ export async function checkoutService(
       select: { id: true },
     });
     if (cart) {
-      await tx.$queryRaw`SELECT id FROM "Cart" WHERE id = ${cart.id} FOR UPDATE`;
+      await lockCartRow(tx, cart.id);
     }
 
     // 2. Replay idempotency, SETELAH lock. Request kedua dengan key yang sama
