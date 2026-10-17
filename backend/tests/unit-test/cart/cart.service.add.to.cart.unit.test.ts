@@ -93,10 +93,34 @@ describe("addToCartService", () => {
         productVariantId: "variant-x",
         quantity: 1,
       }),
-    ).rejects.toMatchObject({ statusCode: 404, code: "PRODUCT_NOT_FOUND" });
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      code: "PRODUCT_NOT_FOUND",
+    });
 
-    // Tidak boleh lanjut ke langkah berikutnya kalau variant tidak ketemu
-    expect(txMock.cart.upsert).not.toHaveBeenCalled();
+    // Cart perlu diambil atau dibuat terlebih dahulu agar bisa dikunci.
+    expect(txMock.cart.upsert).toHaveBeenCalledWith({
+      where: { userId: "user-1" },
+      create: { userId: "user-1" },
+      update: {},
+    });
+
+    // Lock harus diperoleh sebelum variant dibaca.
+    expect(txMock.$queryRaw).toHaveBeenCalledTimes(1);
+
+    const cartUpsertOrder = txMock.cart.upsert.mock.invocationCallOrder[0];
+
+    const lockOrder = txMock.$queryRaw.mock.invocationCallOrder[0];
+
+    const variantLookupOrder =
+      txMock.productVariant.findUnique.mock.invocationCallOrder[0];
+
+    expect(cartUpsertOrder).toBeLessThan(lockOrder);
+    expect(lockOrder).toBeLessThan(variantLookupOrder);
+
+    // Variant tidak ada: jangan lanjut membaca atau mengubah CartItem.
+    expect(txMock.cartItem.findUnique).not.toHaveBeenCalled();
+    expect(txMock.cartItem.upsert).not.toHaveBeenCalled();
   });
 
   it.each([

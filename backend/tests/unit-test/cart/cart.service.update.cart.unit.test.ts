@@ -1,35 +1,38 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { updateCartItemService } from "../../../src/modules/cart/cart.service";
 
-/**
- * updateCartItemService TIDAK pakai $transaction (beda dengan addToCart), karena
- * update bersifat absolute set, bukan increment -> tidak ada race read-modify-
- * write yang perlu dikunci. Jadi cukup mock prisma langsung, tanpa txMock.
- */
-vi.mock("../../../src/lib/prisma", () => ({
-  prisma: {
+const mocks = vi.hoisted(() => ({
+  tx: {
     cartItem: {
       findFirst: vi.fn(),
       deleteMany: vi.fn(),
-      update: vi.fn(),
+      updateMany: vi.fn(),
     },
+    $queryRaw: vi.fn(),
+  },
+  transaction: vi.fn(),
+  cartFindUnique: vi.fn(),
+}));
+
+vi.mock("../../../src/lib/prisma", () => ({
+  prisma: {
+    $transaction: mocks.transaction,
     cart: {
-      findUnique: vi.fn(), // dipakai getCart() di akhir
+      findUnique: mocks.cartFindUnique,
     },
   },
 }));
 
 import { prisma } from "../../../src/lib/prisma";
 
-const mockFindFirst = prisma.cartItem.findFirst as unknown as ReturnType<
+const mockTransaction = prisma.$transaction as unknown as ReturnType<
   typeof vi.fn
 >;
-const mockDeleteMany = prisma.cartItem.deleteMany as unknown as ReturnType<
-  typeof vi.fn
->;
-const mockUpdate = prisma.cartItem.update as unknown as ReturnType<
-  typeof vi.fn
->;
+
+const mockFindFirst = mocks.tx.cartItem.findFirst;
+const mockDeleteMany = mocks.tx.cartItem.deleteMany;
+const mockUpdateMany = mocks.tx.cartItem.updateMany;
+
 const mockGetCartFindUnique = prisma.cart.findUnique as unknown as ReturnType<
   typeof vi.fn
 >;
@@ -59,11 +62,35 @@ function buildOwnedItem(
   };
 }
 
+function mockExistingOwnedItem(
+  overrides: Parameters<typeof buildOwnedItem>[0] = {},
+) {
+  mockFindFirst
+    .mockResolvedValueOnce({ cartId: "cart-1" })
+    .mockResolvedValueOnce(buildOwnedItem(overrides));
+}
+
 describe("updateCartItemService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetCartFindUnique.mockResolvedValue(null); // isi detail getCart tidak relevan di sini
+
+    // Simulasikan transaksi dengan menjalankan callback memakai tx mock.
+    mockTransaction.mockImplementation(
+      async (callback: (tx: unknown) => unknown) => callback(mocks.tx),
+    );
+
+    mocks.tx.$queryRaw.mockResolvedValue(undefined);
+
+    // Default untuk menemukan Cart milik user.
+    mockFindFirst.mockResolvedValue({
+      cartId: "cart-1",
+    });
+
     mockDeleteMany.mockResolvedValue({ count: 1 });
+    mockUpdateMany.mockResolvedValue({ count: 1 });
+
+    // getCartService dipanggil setelah transaksi selesai.
+    mockGetCartFindUnique.mockResolvedValue(null);
   });
 
   it("melempar CART_ITEM_NOT_FOUND kalau item tidak ada / bukan milik user", async () => {
@@ -73,7 +100,7 @@ describe("updateCartItemService", () => {
       updateCartItemService("user-1", "item-x", { quantity: 1 }),
     ).rejects.toMatchObject({ statusCode: 404, code: "CART_ITEM_NOT_FOUND" });
 
-    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockUpdateMany).not.toHaveBeenCalled();
     expect(mockDeleteMany).not.toHaveBeenCalled();
   });
 
@@ -96,19 +123,30 @@ describe("updateCartItemService", () => {
       await updateCartItemService("user-1", "item-1", { quantity: 0 });
 
       expect(mockDeleteMany).toHaveBeenCalledWith({
-        where: { id: "item-1", cart: { userId: "user-1" } },
+        where: {
+          id: "item-1",
+          cartId: "cart-1",
+          cart: { userId: "user-1" },
+        },
       });
-      expect(mockUpdate).not.toHaveBeenCalled();
+      expect(mockUpdateMany).not.toHaveBeenCalled();
       expect(mockGetCartFindUnique).toHaveBeenCalledWith(
         expect.objectContaining({ where: { userId: "user-1" } }),
       );
     });
 
-    it("tidak melakukan lookup item maupun cek availability, jadi produk ARCHIVED / stok 0 tetap bisa dihapus", async () => {
-      await updateCartItemService("user-1", "item-1", { quantity: 0 });
+    it("mengambil cartId untuk locking tanpa memvalidasi availability produk", async () => {
+      mockFindFirst.mockResolvedValueOnce({ cartId: "cart-1" });
+      mockDeleteMany.mockResolvedValueOnce({ count: 0 });
 
-      expect(mockFindFirst).not.toHaveBeenCalled();
-      expect(mockDeleteMany).toHaveBeenCalledTimes(1);
+      await expect(
+        updateCartItemService("user-1", "item-x", {
+          quantity: 0,
+        }),
+      ).rejects.toMatchObject({
+        statusCode: 404,
+        code: "CART_ITEM_NOT_FOUND",
+      });
     });
 
     it("melempar CART_ITEM_NOT_FOUND kalau tidak ada yang terhapus (item tidak ada / milik user lain)", async () => {
@@ -136,35 +174,39 @@ describe("updateCartItemService", () => {
         code: "PRODUCT_NOT_AVAILABLE",
       });
 
-      expect(mockUpdate).not.toHaveBeenCalled();
+      expect(mockUpdateMany).not.toHaveBeenCalled();
     });
 
     it("melempar STOCK_INSUFFICIENT kalau quantity baru melebihi stok", async () => {
-      mockFindFirst.mockResolvedValue(buildOwnedItem({ stock: 5 }));
-
+      mockExistingOwnedItem({ stock: 5 });
       await expect(
         updateCartItemService("user-1", "item-1", { quantity: 6 }),
       ).rejects.toMatchObject({ statusCode: 400, code: "STOCK_INSUFFICIENT" });
 
-      expect(mockUpdate).not.toHaveBeenCalled();
+      expect(mockUpdateMany).not.toHaveBeenCalled();
     });
 
     it("lolos validasi stok kalau quantity PAS SAMA DENGAN stok (boundary)", async () => {
-      mockFindFirst.mockResolvedValue(buildOwnedItem({ stock: 5 }));
-
+      mockExistingOwnedItem({ stock: 5 });
       await updateCartItemService("user-1", "item-1", { quantity: 5 });
 
-      expect(mockUpdate).toHaveBeenCalledTimes(1);
+      expect(mockUpdateMany).toHaveBeenCalledTimes(1);
     });
 
     it("update bersifat ABSOLUTE SET, bukan increment, dan priceAtAdd tidak ikut dikirim", async () => {
-      mockFindFirst.mockResolvedValue(buildOwnedItem({ stock: 10 })); // quantity lama = 2
+      mockExistingOwnedItem({ stock: 10 });
 
-      await updateCartItemService("user-1", "item-1", { quantity: 7 });
+      await updateCartItemService("user-1", "item-1", {
+        quantity: 7,
+      });
 
-      expect(mockUpdate).toHaveBeenCalledWith({
-        where: { id: "item-1" },
-        data: { quantity: 7 }, // absolute, bukan { increment: 7 }
+      expect(mockUpdateMany).toHaveBeenCalledWith({
+        where: {
+          id: "item-1",
+          cartId: "cart-1",
+          cart: { userId: "user-1" },
+        },
+        data: { quantity: 7 },
       });
     });
 
@@ -172,12 +214,15 @@ describe("updateCartItemService", () => {
       // quantity lama di cart = 2 (dari buildOwnedItem), stok = 5.
       // Kalau salah diakumulasi (2 + 4 = 6 > 5) harusnya gagal, tapi
       // seharusnya LOLOS karena update itu absolute (quantity baru = 4 <= 5).
-      mockFindFirst.mockResolvedValue(buildOwnedItem({ stock: 5 }));
-
+      mockExistingOwnedItem({ stock: 5 });
       await updateCartItemService("user-1", "item-1", { quantity: 4 });
 
-      expect(mockUpdate).toHaveBeenCalledWith({
-        where: { id: "item-1" },
+      expect(mockUpdateMany).toHaveBeenCalledWith({
+        where: {
+          id: "item-1",
+          cartId: "cart-1",
+          cart: { userId: "user-1" },
+        },
         data: { quantity: 4 },
       });
     });
