@@ -578,7 +578,7 @@ describe("POST /api/v1/cart/checkout (integration)", () => {
   // Atomicity: cart tetap utuh saat checkout gagal
   // ------------------------------------------------------------------
   describe("cart tetap utuh saat checkout gagal", () => {
-    it("stok habis di tengah -> tidak ada order, cart tidak dikosongkan", async () => {
+    it("quantity melebihi stok saat checkout -> cart tetap utuh", async () => {
       const { accessTokenCookie, cart } = await setupCartWithItems([
         { quantity: 5, stock: 3 },
       ]);
@@ -695,6 +695,122 @@ describe("POST /api/v1/cart/checkout (integration)", () => {
       expect(loser.body.code).toBe("CART_EMPTY");
 
       expect(await prisma.order.count()).toBe(1);
+    });
+
+    it("update dan checkout paralel menghasilkan order yang konsisten", async () => {
+      const { user, accessTokenCookie, cart, items } = await setupCartWithItems(
+        [{ quantity: 2, stock: 10 }],
+      );
+
+      const cartItem = items[0].item;
+      const variant = items[0].variant;
+
+      const [checkoutRes, updateRes] = await Promise.all([
+        request(app)
+          .post(checkoutEndpoint)
+          .set("Cookie", [accessTokenCookie])
+          .set("Idempotency-Key", KEY)
+          .send(body()),
+
+        request(app)
+          .patch(`/api/v1/cart/${cartItem.id}`)
+          .set("Cookie", [accessTokenCookie])
+          .send({ quantity: 3 }),
+      ]);
+
+      // Checkout tetap berhasil. Urutan lock menentukan apakah order
+      // dibuat dari quantity 2 atau quantity 3.
+      expect(checkoutRes.status).toBe(201);
+
+      const order = await prisma.order.findUnique({
+        where: { id: checkoutRes.body.data.order_id },
+        include: { items: true },
+      });
+
+      expect(order).not.toBeNull();
+
+      const orderedQuantity = order!.items[0].quantity;
+      expect([2, 3]).toContain(orderedQuantity);
+
+      // Jika checkout menang lebih dahulu, item sudah dihapus sehingga
+      // update harus gagal not-found. Jika update menang, checkout harus
+      // membaca quantity baru dan memasukkannya ke order.
+      if (orderedQuantity === 2) {
+        expect(updateRes.status).toBe(404);
+      } else {
+        expect(updateRes.status).toBe(200);
+      }
+
+      expect(
+        await prisma.order.count({
+          where: { userId: user.id },
+        }),
+      ).toBe(1);
+
+      // Cart bersih setelah checkout.
+      expect(
+        await prisma.cartItem.count({
+          where: { cartId: cart.id },
+        }),
+      ).toBe(0);
+
+      const stockAfter = await prisma.productVariant.findUnique({
+        where: { id: variant.id },
+      });
+
+      expect(stockAfter?.stock).toBe(10 - orderedQuantity);
+    });
+
+    it("delete dan checkout paralel tidak menghasilkan order parsial", async () => {
+      const { user, accessTokenCookie, cart, items } = await setupCartWithItems(
+        [{ quantity: 2, stock: 10 }],
+      );
+
+      const cartItem = items[0].item;
+      const variant = items[0].variant;
+
+      const [checkoutRes, deleteRes] = await Promise.all([
+        request(app)
+          .post(checkoutEndpoint)
+          .set("Cookie", [accessTokenCookie])
+          .set("Idempotency-Key", KEY)
+          .send(body()),
+
+        request(app)
+          .delete(`/api/v1/cart/${cartItem.id}`)
+          .set("Cookie", [accessTokenCookie]),
+      ]);
+
+      // Dua hasil yang sah:
+      // 1. Checkout menang: order dibuat, delete melihat item sudah hilang.
+      // 2. Delete menang: cart menjadi kosong, checkout ditolak CART_EMPTY.
+      const checkoutWon =
+        checkoutRes.status === 201 && deleteRes.status === 404;
+
+      const deleteWon =
+        checkoutRes.status === 400 &&
+        checkoutRes.body.code === "CART_EMPTY" &&
+        deleteRes.status === 200;
+
+      expect(checkoutWon || deleteWon).toBe(true);
+
+      const orderCount = await prisma.order.count({
+        where: { userId: user.id },
+      });
+
+      expect(orderCount).toBe(checkoutWon ? 1 : 0);
+
+      const remainingItems = await prisma.cartItem.findMany({
+        where: { cartId: cart.id },
+      });
+
+      expect(remainingItems).toHaveLength(0);
+
+      const stockAfter = await prisma.productVariant.findUnique({
+        where: { id: variant.id },
+      });
+
+      expect(stockAfter?.stock).toBe(checkoutWon ? 8 : 10);
     });
   });
 });
