@@ -85,6 +85,9 @@ function getUnavailableReason(
   if (product.status !== "ACTIVE") return "PRODUCT_NOT_ACTIVE";
   if (!variant.isActive) return "VARIANT_INACTIVE";
   if (variant.stock === 0) return "OUT_OF_STOCK";
+  if (variant.stock < item.quantity) {
+    return "INSUFFICIENT_STOCK";
+  }
 
   return null;
 }
@@ -442,20 +445,36 @@ export async function checkoutService(
     const lines = cartItems.map((item) => {
       const { productVariant: variant } = item;
       const unitPrice = getEffectivePrice(variant.product, variant);
+
       return {
+        cartItemId: item.id,
+        productName: variant.product.name,
         variant,
         quantity: item.quantity,
+        priceAtAdd: item.priceAtAdd,
         unitPrice,
         lineSubtotal: subtotal(unitPrice, item.quantity),
         priceChanged: hasPriceChanged(unitPrice, item.priceAtAdd),
       };
     });
 
+    // Buat detail hanya untuk item yang harganya benar-benar berubah.
+    // old_price berasal dari snapshot CartItem.priceAtAdd;
+    // new_price berasal dari harga efektif produk saat checkout.
+    const priceChanges = lines
+      .filter((line) => line.priceChanged)
+      .map((line) => ({
+        cart_item_id: line.cartItemId,
+        product_name: line.productName,
+        old_price: toMoneyString(line.priceAtAdd),
+        new_price: toMoneyString(line.unitPrice),
+      }));
+
     if (!confirmPriceChange && lines.some((l) => l.priceChanged)) {
-      throw CartErrors.priceChanged();
+      throw CartErrors.priceChanged(priceChanges);
     }
 
-    const totalAmount = sumMoney(lines.map((l) => l.lineSubtotal));
+    const totalAmount = sumMoney(lines.map((line) => line.lineSubtotal));
 
     // 5. Kurangi stok. Update kondisional (stock >= qty) adalah penjaga oversell
     //    yang sebenarnya. Diurutkan per variant id supaya dua checkout dengan

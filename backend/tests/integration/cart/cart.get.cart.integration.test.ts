@@ -3,7 +3,11 @@ import request from "supertest";
 import { cleanCartDatabase } from "../helpers/database";
 import { prisma } from "../../../src/lib/prisma";
 import app from "../../../src/app";
-import { createTestUser, loginTestUser } from "../helpers/auth";
+import {
+  createTestUser,
+  getAccesTokenCookie,
+  loginTestUser,
+} from "../helpers/auth";
 import {
   seedCart,
   seedCartItem,
@@ -33,8 +37,7 @@ describe("GET /api/v1/cart (integration)", () => {
   });
 
   it("balas 200 dengan cart_id null kalau user belum pernah punya cart", async () => {
-    const user = await createTestUser();
-    const { accessTokenCookie } = await loginTestUser(user.email);
+    const { user, accessTokenCookie } = await getAccesTokenCookie();
 
     const res = await request(app)
       .get(cartEndpoint)
@@ -51,8 +54,7 @@ describe("GET /api/v1/cart (integration)", () => {
 
   it("balas cart isi user yang login, bukan user lain (anti-IDOR)", async () => {
     const owner = await createTestUser();
-    const otherUser = await createTestUser();
-    const { accessTokenCookie } = await loginTestUser(otherUser.email);
+    const { user: otherUser, accessTokenCookie } = await getAccesTokenCookie();
 
     const product = await seedProduct();
     const variant = await seedVariant(product.id);
@@ -72,8 +74,7 @@ describe("GET /api/v1/cart (integration)", () => {
   });
 
   it("menghitung subtotal & total_amount dengan benar dari data di database", async () => {
-    const user = await createTestUser();
-    const { accessTokenCookie } = await loginTestUser(user.email);
+    const { user, accessTokenCookie } = await getAccesTokenCookie();
 
     const product = await seedProduct({ basePrice: "100000.00" });
     const variant = await seedVariant(product.id, { stock: 10 });
@@ -95,8 +96,7 @@ describe("GET /api/v1/cart (integration)", () => {
   });
 
   it("item dengan produk ARCHIVED tetap tampil tapi tidak masuk total_amount", async () => {
-    const user = await createTestUser();
-    const { accessTokenCookie } = await loginTestUser(user.email);
+    const { user, accessTokenCookie } = await getAccesTokenCookie();
 
     const cart = await seedCart(user.id);
 
@@ -130,8 +130,7 @@ describe("GET /api/v1/cart (integration)", () => {
   });
 
   it("variant dengan stock 0 ditandai OUT_OF_STOCK", async () => {
-    const user = await createTestUser();
-    const { accessTokenCookie } = await loginTestUser(user.email);
+    const { user, accessTokenCookie } = await getAccesTokenCookie();
 
     const product = await seedProduct();
     const variant = await seedVariant(product.id, { stock: 0 });
@@ -146,9 +145,88 @@ describe("GET /api/v1/cart (integration)", () => {
     expect(res.body.data.items[0].is_available).toBe(false);
   });
 
+  it("menandai INSUFFICIENT_STOCK jika quantity cart melebihi stok", async () => {
+    const { user, accessTokenCookie } = await getAccesTokenCookie();
+
+    const product = await seedProduct({
+      status: "ACTIVE",
+      basePrice: "100000.00",
+    });
+
+    const variant = await seedVariant(product.id, {
+      stock: 1,
+    });
+
+    const cart = await seedCart(user.id);
+
+    await seedCartItem(cart.id, variant.id, {
+      quantity: 3,
+      priceAtAdd: "100000.00",
+    });
+
+    const res = await request(app)
+      .get("/api/v1/cart")
+      .set("Cookie", [accessTokenCookie]);
+
+    expect(res.status).toBe(200);
+
+    const item = res.body.data.items[0];
+
+    expect(item).toMatchObject({
+      product_variant_id: variant.id,
+      quantity: 3,
+      available_stock: 1,
+      is_available: false,
+      unavailable_reason: "INSUFFICIENT_STOCK",
+      unit_price: "100000.00",
+      subtotal: "300000.00",
+    });
+
+    // Item tetap tampil, tetapi tidak masuk total barang yang tersedia.
+    expect(res.body.data.total_quantity).toBe(0);
+    expect(res.body.data.total_amount).toBe("0.00");
+  });
+
+  it("menandai item available jika quantity tepat sama dengan stok", async () => {
+    const { user, accessTokenCookie } = await getAccesTokenCookie();
+
+    const product = await seedProduct({
+      status: "ACTIVE",
+      basePrice: "100000.00",
+    });
+
+    const variant = await seedVariant(product.id, {
+      stock: 3,
+    });
+
+    const cart = await seedCart(user.id);
+
+    await seedCartItem(cart.id, variant.id, {
+      quantity: 3,
+      priceAtAdd: "100000.00",
+    });
+
+    const res = await request(app)
+      .get("/api/v1/cart")
+      .set("Cookie", [accessTokenCookie]);
+
+    expect(res.status).toBe(200);
+
+    expect(res.body.data.items[0]).toMatchObject({
+      product_variant_id: variant.id,
+      quantity: 3,
+      available_stock: 3,
+      is_available: true,
+      unavailable_reason: null,
+      subtotal: "300000.00",
+    });
+
+    expect(res.body.data.total_quantity).toBe(3);
+    expect(res.body.data.total_amount).toBe("300000.00");
+  });
+
   it("priceOverride dipakai sebagai unit_price, dan price_changed true kalau beda dari price_at_add", async () => {
-    const user = await createTestUser();
-    const { accessTokenCookie } = await loginTestUser(user.email);
+    const { user, accessTokenCookie } = await getAccesTokenCookie();
 
     const product = await seedProduct({ basePrice: "100000.00" });
     const variant = await seedVariant(product.id, {

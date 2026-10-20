@@ -13,8 +13,9 @@ export const errorHandler = (
   if (err instanceof AppError) {
     res.status(err.statusCode).json({
       status: "error",
-      code: err.code ?? "APP_ERROR", // fallback kalau ada AppError lama yang belum dikasih code
+      code: err.code ?? "APP_ERROR",
       message: err.message,
+      ...(err.details !== undefined ? { data: err.details } : {}),
     });
     return;
   }

@@ -12,7 +12,8 @@ export type UnavailableReason =
   | "PRODUCT_NOT_ACTIVE" // status produk selain ACTIVE (DRAFT/INACTIVE/OUT_OF_STOCK/ARCHIVED)
   | "PRODUCT_DELETED" // produk soft-delete
   | "VARIANT_INACTIVE" // variant isActive = false
-  | "OUT_OF_STOCK"; // stok variant 0
+  | "OUT_OF_STOCK" // stok variant 0
+  | "INSUFFICIENT_STOCK";
 
 export interface CartItemDto {
   id: string;

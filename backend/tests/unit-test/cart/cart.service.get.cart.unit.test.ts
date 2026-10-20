@@ -216,6 +216,60 @@ describe("getCartService", () => {
       );
     });
 
+    it("menandai INSUFFICIENT_STOCK dan tidak menghitung item tersebut ke total cart", async () => {
+      mockFindUnique.mockResolvedValue(
+        buildCart([
+          buildCartItem({
+            quantity: 3,
+            stock: 1,
+          }),
+        ]),
+      );
+
+      const result = await getCartService("user-1");
+
+      expect(result.items).toHaveLength(1);
+
+      expect(result.items[0]).toMatchObject({
+        quantity: 3,
+        available_stock: 1,
+        is_available: false,
+        unavailable_reason: "INSUFFICIENT_STOCK",
+        unit_price: "100000.00",
+        subtotal: "300000.00",
+      });
+
+      // Item tetap ditampilkan agar user tahu barang mana yang
+      // stoknya tidak mencukupi.
+      // Namun, item tidak dihitung sebagai barang yang tersedia.
+      expect(result.total_quantity).toBe(0);
+      expect(result.total_amount).toBe("0.00");
+    });
+
+    it("tetap available ketika quantity tepat sama dengan stok", async () => {
+      mockFindUnique.mockResolvedValue(
+        buildCart([
+          buildCartItem({
+            quantity: 3,
+            stock: 3,
+          }),
+        ]),
+      );
+
+      const result = await getCartService("user-1");
+
+      expect(result.items[0]).toMatchObject({
+        quantity: 3,
+        available_stock: 3,
+        is_available: true,
+        unavailable_reason: null,
+        subtotal: "300000.00",
+      });
+
+      expect(result.total_quantity).toBe(3);
+      expect(result.total_amount).toBe("300000.00");
+    });
+
     it("is_available true dan unavailable_reason null kalau semua syarat terpenuhi", async () => {
       mockFindUnique.mockResolvedValue(buildCart([buildCartItem({})]));
 

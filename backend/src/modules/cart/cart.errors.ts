@@ -1,5 +1,12 @@
 import { AppError } from "../../lib/errors";
 
+type PriceChangeDetail = {
+  cart_item_id: string;
+  product_name: string;
+  old_price: string;
+  new_price: string;
+};
+
 /**
  * Error bisnis khusus domain Cart.
  *
@@ -40,10 +47,13 @@ export const CartErrors = {
   invalidAddress: () =>
     new AppError("Incomplete address", 400, "INVALID_ADDRESS"),
 
-  priceChanged: () =>
+  priceChanged: (priceChanges: PriceChangeDetail[]) =>
     new AppError(
       "Price has changed; confirmation required",
       409,
       "PRICE_CHANGED",
+      {
+        price_changes: priceChanges,
+      },
     ),
 };

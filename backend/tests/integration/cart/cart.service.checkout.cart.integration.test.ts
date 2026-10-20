@@ -477,6 +477,17 @@ describe("POST /api/v1/cart/checkout (integration)", () => {
 
       expect(res.status).toBe(409);
       expect(res.body.code).toBe("PRICE_CHANGED");
+
+      expect(res.body.data).toMatchObject({
+        price_changes: [
+          {
+            cart_item_id: cartItem!.id,
+            old_price: "100000.00",
+            new_price: "120000.00",
+          },
+        ],
+      });
+
       expect(await prisma.order.count()).toBe(0);
 
       const remaining = await prisma.cartItem.findMany({
