@@ -14,14 +14,26 @@ import {
   removeCartItemSchema,
   updateCartItemSchema,
 } from "./cart.schema";
+import {
+  cartAddLimiter,
+  cartCheckoutLimiter,
+} from "../../middlewares/limitRequest";
 
 const router = Router();
 
 router.get("/", authenticate, getCartController);
-router.post("/", authenticate, validate(addToCartSchema), addToCartController);
+router.post(
+  "/",
+  authenticate,
+  cartAddLimiter,
+  validate(addToCartSchema),
+  addToCartController,
+);
+
 router.post(
   "/checkout",
   authenticate,
+  cartCheckoutLimiter,
   validate(checkoutSchema),
   checkoutController,
 );
