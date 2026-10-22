@@ -11,6 +11,7 @@ import {
   seedCartItem,
 } from "../helpers/cart";
 import { prisma } from "../../../src/lib/prisma";
+import { randomUUID } from "node:crypto";
 
 const KEY = "11111111-1111-4111-8111-111111111111";
 const KEY_ALT = "22222222-2222-4222-8222-222222222222";
@@ -40,6 +41,8 @@ type SeedItem = {
   basePrice?: string;
   priceOverride?: string;
   productStatus?: "ACTIVE" | "DRAFT" | "ARCHIVED";
+  productIsDeleted?: boolean;
+  variantIsActive?: boolean;
 };
 
 /** Siapkan user + cart + 1 atau lebih cart item. Return semua yang dibutuhkan test. */
@@ -57,9 +60,11 @@ async function setupCartWithItems(items: SeedItem[] = [{}]) {
     const product = await seedProduct({
       status: o.productStatus ?? "ACTIVE",
       basePrice: o.basePrice ?? "100000.00",
+      isDeleted: o.productIsDeleted ?? false,
     });
     const variant = await seedVariant(product.id, {
       stock: o.stock ?? 10,
+      isActive: o.variantIsActive ?? true,
       ...(o.priceOverride ? { priceOverride: o.priceOverride } : {}),
     });
     const item = await seedCartItem(cart.id, variant.id, {
@@ -446,6 +451,69 @@ describe("POST /api/v1/cart/checkout (integration)", () => {
       });
       expect(healthy?.stock).toBe(10); // utuh
     });
+
+    it.each([
+      {
+        label: "produk soft-delete",
+        overrides: { productIsDeleted: true },
+      },
+      {
+        label: "variant tidak aktif",
+        overrides: { variantIsActive: false },
+      },
+      {
+        label: "produk DRAFT",
+        overrides: { productStatus: "DRAFT" as const },
+      },
+      {
+        label: "produk ARCHIVED",
+        overrides: { productStatus: "ARCHIVED" as const },
+      },
+    ])(
+      "balas PRODUCT_NOT_AVAILABLE untuk $label dan mempertahankan cart",
+      async ({ overrides }) => {
+        const { user, accessTokenCookie, cart, items } =
+          await setupCartWithItems([
+            {
+              quantity: 2,
+              stock: 10,
+              ...overrides,
+            },
+          ]);
+
+        const variant = items[0].variant;
+
+        const res = await request(app)
+          .post(checkoutEndpoint)
+          .set("Cookie", [accessTokenCookie])
+          .set("Idempotency-Key", randomUUID())
+          .send(body());
+
+        expect(res.status).toBe(400);
+        expect(res.body.code).toBe("PRODUCT_NOT_AVAILABLE");
+
+        // Checkout gagal: tidak boleh membuat order atau menghapus item cart.
+        expect(
+          await prisma.order.count({
+            where: { userId: user.id },
+          }),
+        ).toBe(0);
+
+        const remainingItems = await prisma.cartItem.findMany({
+          where: { cartId: cart.id },
+        });
+
+        expect(remainingItems).toHaveLength(1);
+        expect(remainingItems[0].quantity).toBe(2);
+
+        // Tidak ada pengurangan stok yang boleh terjadi.
+        const variantAfter = await prisma.productVariant.findUnique({
+          where: { id: variant.id },
+        });
+
+        expect(variantAfter?.stock).toBe(10);
+      },
+    );
   });
 
   // ------------------------------------------------------------------
