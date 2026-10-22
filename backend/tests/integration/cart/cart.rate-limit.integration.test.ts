@@ -28,6 +28,8 @@ async function withCartRateLimitEnabled<T>(
   }
 }
 
+// Satu hal yang perlu dicatat: test ini membuktikan isolasi kuota dalam instance limiter yang sedang berjalan, menggunakan store default express-rate-limit. Kalau aplikasi nantinya dijalankan di beberapa server instance, kita perlu mengevaluasi shared store agar pembatasan tetap konsisten lintas instance.
+
 describe("Cart rate limiting (integration)", () => {
   beforeEach(async () => {
     await cleanCartDatabase();
@@ -106,6 +108,84 @@ describe("Cart rate limiting (integration)", () => {
           code: "RATE_LIMIT_EXCEEDED",
           message: "Too many requests. Please try again later.",
         });
+      });
+    });
+  });
+
+  describe("isolasi antar-user", () => {
+    it("limit Add to Cart milik User A tidak memblokir User B", async () => {
+      await withCartRateLimitEnabled(async () => {
+        const userA = await getAccesTokenCookie();
+        const userB = await getAccesTokenCookie();
+
+        // User A menggunakan seluruh kuota Add to Cart: 30 request.
+        // Payload sengaja invalid agar test berfokus pada rate limiter.
+        for (let i = 0; i < 30; i++) {
+          const res = await request(app)
+            .post("/api/v1/cart")
+            .set("Cookie", [userA.accessTokenCookie])
+            .send({});
+
+          expect(res.status).toBe(400);
+        }
+
+        // User B memiliki kuota sendiri, sehingga request-nya belum
+        // boleh ditolak oleh rate limiter.
+        const userBResponse = await request(app)
+          .post("/api/v1/cart")
+          .set("Cookie", [userB.accessTokenCookie])
+          .send({});
+
+        expect(userBResponse.status).toBe(400);
+        expect(userBResponse.status).not.toBe(429);
+
+        // Setelah kuota User A habis, request berikutnya harus ditolak.
+        const userAResponse = await request(app)
+          .post("/api/v1/cart")
+          .set("Cookie", [userA.accessTokenCookie])
+          .send({});
+
+        expect(userAResponse.status).toBe(429);
+        expect(userAResponse.body.code).toBe("RATE_LIMIT_EXCEEDED");
+      });
+    });
+
+    it("limit Checkout milik User A tidak memblokir User B", async () => {
+      await withCartRateLimitEnabled(async () => {
+        const userA = await getAccesTokenCookie();
+        const userB = await getAccesTokenCookie();
+
+        // Lima request pertama User A menghabiskan kuota checkout.
+        // Idempotency-Key valid, tetapi body checkout sengaja invalid.
+        for (let i = 0; i < 5; i++) {
+          const res = await request(app)
+            .post("/api/v1/cart/checkout")
+            .set("Cookie", [userA.accessTokenCookie])
+            .set("Idempotency-Key", randomUUID())
+            .send({});
+
+          expect(res.status).toBe(400);
+        }
+
+        // User B masih memiliki jatah checkout sendiri.
+        const userBResponse = await request(app)
+          .post("/api/v1/cart/checkout")
+          .set("Cookie", [userB.accessTokenCookie])
+          .set("Idempotency-Key", randomUUID())
+          .send({});
+
+        expect(userBResponse.status).toBe(400);
+        expect(userBResponse.status).not.toBe(429);
+
+        // Request keenam User A harus terkena rate limit.
+        const userAResponse = await request(app)
+          .post("/api/v1/cart/checkout")
+          .set("Cookie", [userA.accessTokenCookie])
+          .set("Idempotency-Key", randomUUID())
+          .send({});
+
+        expect(userAResponse.status).toBe(429);
+        expect(userAResponse.body.code).toBe("RATE_LIMIT_EXCEEDED");
       });
     });
   });
