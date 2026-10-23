@@ -34,6 +34,11 @@ function body(overrides: Record<string, unknown> = {}) {
   };
 }
 
+type OrderItemInsertFailureTrigger = {
+  functionName: string;
+  triggerName: string;
+};
+
 type SeedItem = {
   quantity?: number;
   stock?: number;
@@ -75,6 +80,61 @@ async function setupCartWithItems(items: SeedItem[] = [{}]) {
   }
 
   return { user, accessTokenCookie, cart, items: seeded };
+}
+
+async function installOrderItemInsertFailureTrigger(): Promise<OrderItemInsertFailureTrigger> {
+  const suffix = randomUUID().replaceAll("-", "");
+  const functionName = `fail_order_item_insert_${suffix}`;
+  const triggerName = `fail_order_item_insert_${suffix}`;
+
+  // Function akan melempar exception setiap kali OrderItem di-insert.
+  await prisma.$executeRawUnsafe(`
+    CREATE FUNCTION public."${functionName}"()
+    RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+      RAISE EXCEPTION
+        'Forced OrderItem insert failure for rollback integration test';
+    END;
+    $$;
+  `);
+
+  try {
+    // Trigger berjalan sebelum PostgreSQL memasukkan OrderItem.
+    await prisma.$executeRawUnsafe(`
+      CREATE TRIGGER "${triggerName}"
+      BEFORE INSERT ON public."OrderItem"
+      FOR EACH ROW
+      EXECUTE FUNCTION public."${functionName}"();
+    `);
+  } catch (error) {
+    // Hindari meninggalkan function jika pembuatan trigger gagal.
+    await prisma.$executeRawUnsafe(`
+      DROP FUNCTION IF EXISTS public."${functionName}"();
+    `);
+
+    throw error;
+  }
+
+  return { functionName, triggerName };
+}
+
+/**
+ * Menghapus trigger dan function setelah test selesai,
+ * termasuk ketika request checkout menghasilkan error.
+ */
+async function removeOrderItemInsertFailureTrigger(
+  trigger: OrderItemInsertFailureTrigger,
+): Promise<void> {
+  await prisma.$executeRawUnsafe(`
+    DROP TRIGGER IF EXISTS "${trigger.triggerName}"
+    ON public."OrderItem";
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    DROP FUNCTION IF EXISTS public."${trigger.functionName}"();
+  `);
 }
 
 describe("POST /api/v1/cart/checkout (integration)", () => {
@@ -890,6 +950,129 @@ describe("POST /api/v1/cart/checkout (integration)", () => {
       });
 
       expect(stockAfter?.stock).toBe(checkoutWon ? 8 : 10);
+    });
+  });
+
+  describe("check out gagal rollback checkout", () => {
+    it("melakukan rollback stok, order, dan cart ketika insert OrderItem gagal", async () => {
+      // Arrange: buat user dan cart dengan stok 5 serta quantity 2.
+      const { user, accessTokenCookie } = await setupCartWithItems([
+        {
+          quantity: 2,
+          stock: 5,
+        },
+      ]);
+
+      const cart = await prisma.cart.findUniqueOrThrow({
+        where: { userId: user.id },
+      });
+
+      // Ambil item cart yang baru dibuat.
+      const cartItemBefore = await prisma.cartItem.findFirstOrThrow({
+        where: { cartId: cart.id },
+        select: {
+          id: true,
+          quantity: true,
+          productVariantId: true,
+        },
+      });
+
+      // Simpan kondisi stok sebelum checkout.
+      const variantBefore = await prisma.productVariant.findUniqueOrThrow({
+        where: { id: cartItemBefore.productVariantId },
+        select: { stock: true },
+      });
+
+      // Simpan kondisi order sebelum checkout.
+      const orderIdsBefore = (
+        await prisma.order.findMany({
+          where: { userId: user.id },
+          select: { id: true },
+        })
+      ).map((order) => order.id);
+
+      const orderItemCountBefore = await prisma.orderItem.count({
+        where: {
+          orderId: { in: orderIdsBefore },
+        },
+      });
+
+      // Pastikan fixture sesuai skenario yang sedang diuji.
+      expect(variantBefore.stock).toBe(5);
+      expect(cartItemBefore.quantity).toBe(2);
+
+      // Act: pasang failpoint, jalankan checkout, lalu selalu bersihkan.
+      let trigger: OrderItemInsertFailureTrigger | undefined;
+
+      const response = await (async () => {
+        try {
+          trigger = await installOrderItemInsertFailureTrigger();
+
+          return await request(app)
+            .post("/api/v1/cart/checkout")
+            .set("Cookie", accessTokenCookie)
+            .set("Idempotency-Key", randomUUID())
+            .send({
+              shipping_address: {
+                recipient_name: "Budi",
+                phone: "08123456789",
+                address_line: "Jl. Merdeka No. 1",
+                city: "Jakarta",
+                postal_code: "12345",
+              },
+              confirm_price_change: true,
+            });
+        } finally {
+          // Tetap jalankan cleanup meskipun request melempar error.
+          if (trigger) {
+            await removeOrderItemInsertFailureTrigger(trigger);
+          }
+        }
+      })();
+
+      // Assert: checkout gagal ketika insert OrderItem dilakukan.
+      expect(response.status).toBe(500);
+      expect(response.body.code).toBe("INTERNAL_ERROR");
+
+      // Baca ulang seluruh state penting langsung dari database.
+      const [variantAfter, cartItemAfter, ordersAfter] = await Promise.all([
+        prisma.productVariant.findUnique({
+          where: { id: cartItemBefore.productVariantId },
+          select: { stock: true },
+        }),
+
+        prisma.cartItem.findUnique({
+          where: { id: cartItemBefore.id },
+          select: { quantity: true },
+        }),
+
+        prisma.order.findMany({
+          where: { userId: user.id },
+          select: { id: true },
+        }),
+      ]);
+
+      const orderIdsAfter = ordersAfter.map((order) => order.id);
+
+      const orderItemCountAfter = await prisma.orderItem.count({
+        where: {
+          orderId: { in: orderIdsAfter },
+        },
+      });
+
+      // 1. Stok tidak boleh berkurang.
+      expect(variantAfter).not.toBeNull();
+      expect(variantAfter!.stock).toBe(variantBefore.stock);
+
+      // 2. Cart item harus tetap ada dengan quantity semula.
+      expect(cartItemAfter).not.toBeNull();
+      expect(cartItemAfter!.quantity).toBe(cartItemBefore.quantity);
+
+      // 3. Tidak boleh ada order baru yang tersimpan.
+      expect([...orderIdsAfter].sort()).toEqual([...orderIdsBefore].sort());
+
+      // 4. Tidak boleh ada OrderItem tambahan yang tersimpan.
+      expect(orderItemCountAfter).toBe(orderItemCountBefore);
     });
   });
 });
