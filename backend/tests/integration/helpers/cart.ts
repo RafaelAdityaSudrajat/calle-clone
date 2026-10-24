@@ -52,6 +52,8 @@ export async function seedVariant(
     stock?: number;
     isActive?: boolean;
     priceOverride?: string | null;
+    size?: string;
+    color?: string;
   } = {},
 ) {
   const suffix = uniqueSuffix();
@@ -60,8 +62,8 @@ export async function seedVariant(
     data: {
       productId,
       sku: `SKU-${suffix}`,
-      size: "M",
-      color: "Black",
+      size: overrides.size ?? "M",
+      color: overrides.color ?? "Black",
       stock: overrides.stock ?? 10,
       isActive: overrides.isActive ?? true,
       priceOverride: overrides.priceOverride
@@ -95,6 +97,40 @@ export async function seedCartItem(
       productVariantId,
       quantity: overrides.quantity ?? 1,
       priceAtAdd: new Prisma.Decimal(overrides.priceAtAdd ?? "100000.00"),
+    },
+  });
+}
+
+export async function seedOrderWithItem(
+  userId: string,
+  productVariantId: string,
+  overrides: { quantity?: number; unitPrice?: string } = {},
+) {
+  const quantity = overrides.quantity ?? 2;
+  const unitPrice = new Prisma.Decimal(overrides.unitPrice ?? "100000.00");
+
+  return prisma.order.create({
+    data: {
+      userId,
+      totalAmount: unitPrice.mul(quantity),
+      shippingRecipientName: "Test User",
+      shippingPhone: "081234567890",
+      shippingAddressLine: "Jl. Test No. 1",
+      shippingCity: "Bandung",
+      shippingPostalCode: "40111",
+      idempotencyKey: `idem-${uniqueSuffix()}`,
+      items: {
+        create: [
+          {
+            productVariantId,
+            productName: "Test Product",
+            variantSku: `SKU-SNAPSHOT-${uniqueSuffix()}`,
+            unitPrice,
+            quantity,
+            subtotal: unitPrice.mul(quantity),
+          },
+        ],
+      },
     },
   });
 }
