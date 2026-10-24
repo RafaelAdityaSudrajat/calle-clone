@@ -77,29 +77,29 @@ export const changePasswordBodySchema = z
   })
   .strict();
 
-export const verifyEmailSchema = z.object({
+export const verifyEmailSchema = {
   body: verifyEmailBodySchema,
-});
+};
 
-export const registerBuyerSchema = z.object({
+export const registerBuyerSchema = {
   body: registerBuyerBodySchema,
-});
+};
 
-export const loginSchema = z.object({
+export const loginSchema = {
   body: loginBodySchema,
-});
+};
 
-export const forgotPasswordSchema = z.object({
+export const forgotPasswordSchema = {
   body: forgotPasswordBodySchema,
-});
+};
 
-export const resetPasswordSchema = z.object({
+export const resetPasswordSchema = {
   body: resetPasswordBodySchema,
-});
+};
 
-export const changePasswordSchema = z.object({
+export const changePasswordSchema = {
   body: changePasswordBodySchema,
-});
+};
 
 export type RegisterBuyerInput = z.infer<typeof registerBuyerBodySchema>;
 

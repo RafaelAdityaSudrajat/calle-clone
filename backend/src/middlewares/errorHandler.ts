@@ -9,30 +9,48 @@ export const errorHandler = (
   res: Response,
   next: NextFunction,
 ): void => {
+  // Jika response sudah mulai dikirim, serahkan penanganan
+  // berikutnya kepada Express agar tidak mencoba mengirim response kedua.
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
+
   // Handle AppError (custom errors dari service layer)
   if (err instanceof AppError) {
     res.status(err.statusCode).json({
       status: "error",
-      code: err.statusCode,
+      code: err.code ?? "APP_ERROR",
       message: err.message,
+      ...(err.details !== undefined ? { data: err.details } : {}),
     });
     return;
   }
 
   // Handle Multer errors (upload file)
+  // Error upload file.
   if (err instanceof multer.MulterError) {
-    const message =
-      err.code === "LIMIT_FILE_SIZE"
-        ? "Each image must be 2MB or smaller"
-        : err.code === "LIMIT_UNEXPECTED_FILE"
-          ? 'Use form-data file field "images", "images[]", or "image"'
-          : err.message;
+    const isFileTooLarge = err.code === "LIMIT_FILE_SIZE";
+    const isUnexpectedFile = err.code === "LIMIT_UNEXPECTED_FILE";
+
+    const code = isFileTooLarge
+      ? "FILE_TOO_LARGE"
+      : isUnexpectedFile
+        ? "UNEXPECTED_FILE"
+        : "UPLOAD_ERROR";
+
+    const message = isFileTooLarge
+      ? "Each image must be 2MB or smaller"
+      : isUnexpectedFile
+        ? 'Use form-data file field "images", "images[]", or "image"'
+        : "Upload failed";
 
     res.status(400).json({
       status: "error",
-      code: 400,
+      code,
       message,
     });
+
     return;
   }
 
@@ -40,7 +58,7 @@ export const errorHandler = (
   console.error("Unexpected error:", err);
   res.status(500).json({
     status: "error",
-    code: 500,
+    code: "INTERNAL_ERROR",
     message: "Internal server error",
   });
 };
@@ -48,7 +66,7 @@ export const errorHandler = (
 export const notFoundHandler = (req: Request, res: Response): void => {
   res.status(404).json({
     status: "error",
-    code: 404,
+    code: "NOT_FOUND",
     message: `Route ${req.method} ${req.path} not found`,
   });
 };

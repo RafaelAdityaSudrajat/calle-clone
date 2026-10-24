@@ -16,7 +16,11 @@ export const cleanCartDatabase = async (): Promise<void> => {
   /*
    * Urutan penting karena foreign key constraints
    */
-  // Hapus cart items dulu (child dari cart & productVariant)
+
+  await prisma.orderItem.deleteMany();
+  await prisma.order.deleteMany();
+
+  // Hapus cart items (child dari cart & productVariant)
   await prisma.cartItem.deleteMany();
 
   // Hapus carts (child dari user)

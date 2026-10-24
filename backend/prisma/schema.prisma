@@ -52,6 +52,19 @@ enum AuditEvent {
   ADMIN_FORCE_RESET
 }
 
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  FAILED
+  REFUNDED
+}
+
 model User {
   id String @id @default(uuid())
 
@@ -66,12 +79,13 @@ model User {
 
   // BR-03: Default status UNVERIFIED saat register
   status AccountStatus @default(UNVERIFIED)
-  
+
   // Digunakan untuk invalidate seluruh access token user.
   sessionVersion Int @default(0)
 
-
   cart Cart?
+
+  orders Order[]
 
   // BR-29: Rate limiting login (max 5 gagal dalam 15 menit)
   failedLoginAttempts    Int       @default(0)
@@ -92,7 +106,7 @@ model User {
   // Relasi: 1 User bisa punya banyak Refresh Token (Multi-device login)
   refreshTokens RefreshToken[]
 
-    auditEventsAsActor AuditLog[] @relation("AuditActor")
+  auditEventsAsActor  AuditLog[] @relation("AuditActor")
   auditEventsAsTarget AuditLog[] @relation("AuditTarget")
 }
 
@@ -125,10 +139,7 @@ model RefreshToken {
   // Index untuk mempercepat query pengecekan validitas token & cleanup cron job
   @@index([userId])
   @@index([expiresAt])
-
-
 }
-
 
 model AuditLog {
   id String @id @default(uuid())
@@ -139,17 +150,17 @@ model AuditLog {
   targetUserId String?
 
   ipAddress String?
-  userAgent  String?
+  userAgent String?
 
   createdAt DateTime @default(now())
 
   actor  User? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
-target User? @relation("AuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+  target User? @relation("AuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
   @@index([actorUserId, createdAt])
   @@index([targetUserId, createdAt])
   @@index([event, createdAt])
 }
-
 
 model Category {
   id   String @id @default(uuid())
@@ -226,6 +237,8 @@ model ProductVariant {
 
   cartItems CartItem[]
 
+  orderItems OrderItem[]
+
   createdAt DateTime @default(now())
 
   updatedAt DateTime @updatedAt
@@ -249,7 +262,6 @@ model Cart {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([status])
 }
 
 model CartItem {
@@ -265,11 +277,71 @@ model CartItem {
 
   quantity Int
 
+  // Snapshot harga saat pertama ditambahkan. Bukan source of truth.
+  // Dipakai untuk deteksi perubahan harga (BR-13, DD-08).
+  priceAtAdd Decimal @db.Decimal(12, 2)
+
   createdAt DateTime @default(now())
 
   updatedAt DateTime @updatedAt
 
   @@unique([cartId, productVariantId])
-  @@index([cartId])
+  @@index([productVariantId])
+}
+
+model Order {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  status        OrderStatus   @default(PENDING_PAYMENT)
+  paymentStatus PaymentStatus @default(UNPAID)
+
+  totalAmount Decimal @db.Decimal(12, 2)
+
+  paidAt DateTime?
+
+  // Snapshot alamat (DD-05)
+  shippingRecipientName String
+  shippingPhone         String
+  shippingAddressLine   String
+  shippingCity          String
+  shippingPostalCode    String
+
+  // Idempotency (DD-11)
+  idempotencyKey String
+
+  items OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId])
+  @@index([userId, status, createdAt])
+}
+
+model OrderItem {
+  id String @id @default(uuid())
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productVariantId String
+  productVariant   ProductVariant @relation(fields: [productVariantId], references: [id])
+
+  // Snapshot (DD-06)
+  productName String
+  variantSku  String
+
+  // Freeze harga (BR-14, DD-02)
+  unitPrice Decimal @db.Decimal(12, 2)
+  quantity  Int
+  subtotal  Decimal @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
   @@index([productVariantId])
 }

@@ -3,6 +3,7 @@ export class AppError extends Error {
     public message: string,
     public statusCode: number,
     public code?: string,
+    public details?: unknown,
   ) {
     super(message);
     this.name = this.constructor.name;
@@ -10,8 +11,8 @@ export class AppError extends Error {
 }
 
 export class ValidationError extends AppError {
-  constructor(message: string) {
-    super(message, 400, "VALIDATION_ERROR");
+  constructor(message: string, details?: unknown) {
+    super(message, 400, "VALIDATION_ERROR", details);
   }
 }
 
@@ -41,6 +42,6 @@ export class ConflictError extends AppError {
 
 export class BadRequestError extends AppError {
   constructor(message: string) {
-    super(message, 401, "CONFLICT");
+    super(message, 400, "BAD_REQUEST");
   }
 }
