@@ -15,6 +15,13 @@ import {
 const MAX_SLUG_RETRY = 3;
 const MAX_IMAGES_PER_PRODUCT = 8;
 
+const lockProductRow = async (
+  tx: Prisma.TransactionClient,
+  productId: string,
+) => {
+  await tx.$queryRaw`SELECT id FROM "Product" WHERE id = ${productId} FOR UPDATE`;
+};
+
 /**
  * Create product beserta images & variants dalam satu transaction.
  * Kenapa transaction: kalau insert variant gagal (misal SKU collision
@@ -339,7 +346,11 @@ export const updateProductService = async (
   input: UpdateProductInput,
 ) => {
   return await prisma.$transaction(async (tx) => {
-    // 1. Cek eksistensi produk
+    // 1 lock product id mencegah race condition
+
+    await lockProductRow(tx, productId); // <-- tambahan
+
+    // 2. Cek eksistensi produk
     const existingProduct = await tx.product.findUnique({
       where: { id: productId },
       include: { variants: true },
@@ -355,7 +366,7 @@ export const updateProductService = async (
       );
     }
 
-    // 2. Validasi State Machine (Section 5 Business Rules)
+    // 3. Validasi State Machine (Section 5 Business Rules)
     if (input.status) {
       if (
         existingProduct.status === ProductStatus.ARCHIVED &&
@@ -379,7 +390,7 @@ export const updateProductService = async (
       }
     }
 
-    // 3. Generate Slug baru jika nama produk diubah (FR-04)
+    // 4. Generate Slug baru jika nama produk diubah (FR-04)
     let newSlug = undefined;
     if (input.name && input.name !== existingProduct.name) {
       const baseSlug = input.name
@@ -389,7 +400,7 @@ export const updateProductService = async (
       newSlug = `${baseSlug}-${Date.now().toString().slice(-4)}`;
     }
 
-    // 4. Lakukan Update Data Produk
+    // 5. Lakukan Update Data Produk
     await tx.product.update({
       where: { id: productId },
       data: {
@@ -405,7 +416,7 @@ export const updateProductService = async (
       },
     });
 
-    // 5. Update Images (Jika dilampirkan)
+    // 6. Update Images (Jika dilampirkan)
     if (input.images && input.images.length > 0) {
       // Hapus gambar lama dan replace dengan urutan baru (Cara terbersih untuk re-order image)
       await tx.productImage.deleteMany({
@@ -422,7 +433,7 @@ export const updateProductService = async (
       });
     }
 
-    // 6. Return data terbaru
+    // 7. Return data terbaru
     return await tx.product.findUnique({
       where: { id: productId },
       include: {
@@ -453,6 +464,9 @@ export const updateProductVariantService = async (
     if (input.stock !== undefined && input.stock < 0) {
       throw new ConflictError("Stok tidak boleh bernilai negatif");
     }
+
+    // Gerbang: transaction lain untuk produk yang sama menunggu di sini
+    await lockProductRow(tx, existingVariant.productId);
 
     // 3. Lakukan Update pada Variant
     const updatedVariant = await tx.productVariant.update({
@@ -524,15 +538,15 @@ const runStockAutomation = async (
  */
 export const deleteProductService = async (productId: string) => {
   return await prisma.$transaction(async (tx) => {
-    // 1. Cek eksistensi produk
+    // 1 lock product id mencegah race condition
+    await lockProductRow(tx, productId);
+    // 2. Cek eksistensi produk
     const product = await tx.product.findUnique({
       where: { id: productId },
       include: {
         variants: {
           include: {
-            _count: {
-              select: { cartItems: true }, // Menggunakan cartItems sebagai acuan histori order/cart
-            },
+            _count: { select: { cartItems: true, orderItems: true } },
           },
         },
       },
@@ -548,13 +562,13 @@ export const deleteProductService = async (productId: string) => {
       );
     }
 
-    // 2. Hitung total transaksi/histori order dari seluruh varian produk ini
+    // 3. Hitung total transaksi/histori order dari seluruh varian produk ini
     const totalOrderHistory = product.variants.reduce(
-      (total, variant) => total + variant._count.cartItems,
+      (total, v) => total + v._count.cartItems + v._count.orderItems,
       0,
     );
 
-    // 3. Apply Business Rules FR-11 & FR-12
+    // 4. Apply Business Rules FR-11 & FR-12
     if (totalOrderHistory > 0) {
       // FR-11: Sudah ada histori order -> Wajib Soft-Delete (ARCHIVED)
       const updatedProduct = await tx.product.update({
@@ -602,36 +616,46 @@ export const deleteProductService = async (productId: string) => {
  */
 export const deleteProductVariantService = async (variantId: string) => {
   return await prisma.$transaction(async (tx) => {
-    // 1. Cek eksistensi varian beserta hitungan historinya
+    // productId tidak pernah berubah, jadi aman dibaca sebelum lock
+    const found = await tx.productVariant.findUnique({
+      where: { id: variantId },
+      select: { productId: true },
+    });
+
+    if (!found) {
+      throw new NotFoundError("Variant produk tidak ditemukan");
+    }
+
+    const { productId } = found;
+
+    await lockProductRow(tx, productId);
+
+    // Baca ulang SETELAH lock, karena data bisa berubah selama menunggu
     const variant = await tx.productVariant.findUnique({
       where: { id: variantId },
-      include: {
-        _count: {
-          select: { cartItems: true },
-        },
-      },
+      include: { _count: { select: { cartItems: true, orderItems: true } } },
     });
 
     if (!variant) {
       throw new NotFoundError("Variant produk tidak ditemukan");
     }
 
-    // 2. Apply Business Rules FR-13
-    if (variant._count.cartItems > 0) {
+    const hasHistory = variant._count.cartItems + variant._count.orderItems > 0;
+
+    // Business Rules FR-13
+    if (hasHistory) {
       if (!variant.isActive) {
         throw new ConflictError(
           "Variant produk ini sudah dalam keadaan nonaktif",
         );
       }
 
-      // Sudah pernah di-order -> Hanya boleh di-nonaktifkan
       const disabledVariant = await tx.productVariant.update({
         where: { id: variantId },
         data: { isActive: false },
       });
 
-      // Cek Automation FR-15: Apakah setelah variant ini dinonaktifkan, semua varian produk induknya mati?
-      await checkAndSyncParentProductStatus(tx, variant.productId);
+      await runStockAutomation(tx, productId);
 
       return {
         deleteType: "SOFT_DISABLE",
@@ -639,22 +663,17 @@ export const deleteProductVariantService = async (variantId: string) => {
           "Variant telah dinonaktifkan karena sudah memiliki histori transaksi.",
         data: disabledVariant,
       };
-    } else {
-      // Belum pernah di-order -> Hard delete
-      const productId = variant.productId;
-      await tx.productVariant.delete({
-        where: { id: variantId },
-      });
-
-      // Sync status produk induk setelah deletion
-      await checkAndSyncParentProductStatus(tx, productId);
-
-      return {
-        deleteType: "HARD_DELETE",
-        message: "Variant produk berhasil dihapus permanen.",
-        data: null,
-      };
     }
+
+    await tx.productVariant.delete({ where: { id: variantId } });
+
+    await runStockAutomation(tx, productId);
+
+    return {
+      deleteType: "HARD_DELETE",
+      message: "Variant produk berhasil dihapus permanen.",
+      data: null,
+    };
   });
 };
 
@@ -662,79 +681,70 @@ export const uploadProductImages = async (
   productId: string,
   files: Express.Multer.File[],
 ) => {
-  // 1. Validasi produk exist SEBELUM upload ke Cloudinary,
-  //    biar gak ada file ke-upload sia-sia kalau productId salah.
+  // 1. Fast-fail (tidak menentukan): hindari upload sia-sia kalau jelas ditolak.
   const product = await prisma.product.findUnique({
     where: { id: productId, isDeleted: false },
-    select: {
-      id: true,
-      _count: { select: { images: true } },
-    },
+    select: { id: true, _count: { select: { images: true } } },
   });
 
   if (!product) {
     throw new ConflictError("Produk tidak ditemukan");
   }
 
-  // 2. Cek batas jumlah gambar (existing + baru gak boleh lewat limit)
   if (product._count.images + files.length > MAX_IMAGES_PER_PRODUCT) {
     throw new ConflictError(
       `Maksimal ${MAX_IMAGES_PER_PRODUCT} gambar per produk`,
     );
   }
 
-  // 3. Cek apakah produk ini sudah punya primary image.
-  //    Kalau belum ada sama sekali, gambar pertama yang baru
-  //    di-upload otomatis jadi primary. Kalau sudah ada, gambar
-  //    baru semua isPrimary: false (gak menimpa primary lama).
-  const hasPrimaryAlready = await prisma.productImage.findFirst({
-    where: { productId, isPrimary: true },
-    select: { id: true },
-  });
-
-  // 4. Upload ke Cloudinary — reuse helper yang sama dengan create product,
-  //    jadi cuma ada SATU cara upload di seluruh codebase.
+  // 2. Upload di luar transaction (panggilan jaringan lambat).
   const uploaded = await uploadManyToCloudinary(files, "products");
 
-  // 5. Insert semua record sekaligus dalam transaction —
-  //    kalau salah satu insert gagal, semuanya rollback,
-  //    daripada nyisain data setengah-setengah.
-  const images = await prisma.$transaction(
-    uploaded.map((img, index) =>
-      prisma.productImage.create({
-        data: {
-          productId,
-          url: img.url,
-          isPrimary: !hasPrimaryAlready && index === 0,
-          sortOrder: product._count.images + index,
-        },
-      }),
-    ),
-  );
+  // 3. Pengecekan yang menentukan, di dalam lock.
+  return await prisma.$transaction(async (tx) => {
+    await lockProductRow(tx, productId);
 
-  return images;
-};
-
-/**
- * Helper Private: Automation (FR-15)
- * Mengubah status produk induk ke OUT_OF_STOCK / INACTIVE jika semua variannya habis/nonaktif.
- */
-const checkAndSyncParentProductStatus = async (
-  tx: Prisma.TransactionClient,
-  productId: string,
-) => {
-  const activeVariants = await tx.productVariant.findMany({
-    where: {
-      productId: productId,
-      isActive: true,
-    },
-  });
-
-  if (activeVariants.length === 0) {
-    // Jika tidak ada lagi varian yang aktif, ubah produk induk menjadi OUT_OF_STOCK
-    await tx.product.update({
-      where: { id: productId },
-      data: { status: ProductStatus.OUT_OF_STOCK },
+    const current = await tx.product.findFirst({
+      where: { id: productId, isDeleted: false },
+      select: { id: true },
     });
-  }
+    if (!current) {
+      throw new ConflictError("Produk tidak ditemukan");
+    }
+
+    const stats = await tx.productImage.aggregate({
+      where: { productId },
+      _count: { _all: true },
+      _max: { sortOrder: true },
+    });
+
+    if (stats._count._all + uploaded.length > MAX_IMAGES_PER_PRODUCT) {
+      throw new ConflictError(
+        `Maksimal ${MAX_IMAGES_PER_PRODUCT} gambar per produk`,
+      );
+    }
+
+    const hasPrimary =
+      (await tx.productImage.count({
+        where: { productId, isPrimary: true },
+      })) > 0;
+
+    // max+1 (bukan count) supaya tetap benar kalau ada gambar yang pernah dihapus
+    const startOrder = (stats._max.sortOrder ?? -1) + 1;
+
+    const images = [];
+    for (const [index, img] of uploaded.entries()) {
+      images.push(
+        await tx.productImage.create({
+          data: {
+            productId,
+            url: img.url,
+            isPrimary: !hasPrimary && index === 0,
+            sortOrder: startOrder + index,
+          },
+        }),
+      );
+    }
+    return images;
+  });
 };
