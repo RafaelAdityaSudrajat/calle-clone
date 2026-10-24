@@ -35,16 +35,10 @@ export const CartErrors = {
       "CART_ITEM_NOT_FOUND",
     ),
 
-  invalidQuantity: (message = "Invalid quantity") =>
-    new AppError(message, 400, "INVALID_QUANTITY"),
-
   stockInsufficient: () =>
     new AppError("Insufficient stock", 400, "STOCK_INSUFFICIENT"),
 
   cartEmpty: () => new AppError("Cart is empty", 400, "CART_EMPTY"),
-
-  invalidAddress: () =>
-    new AppError("Incomplete address", 400, "INVALID_ADDRESS"),
 
   priceChanged: (priceChanges: PriceChangeDetail[]) =>
     new AppError(

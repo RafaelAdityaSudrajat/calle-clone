@@ -226,6 +226,23 @@ describe("updateCartItemService", () => {
         data: { quantity: 4 },
       });
     });
+
+    it("melempar CART_ITEM_NOT_FOUND jika updateMany tidak mengubah baris", async () => {
+      mockExistingOwnedItem();
+
+      mockUpdateMany.mockResolvedValueOnce({ count: 0 });
+
+      await expect(
+        updateCartItemService("user-1", "item-1", {
+          quantity: 3,
+        }),
+      ).rejects.toMatchObject({
+        statusCode: 404,
+        code: "CART_ITEM_NOT_FOUND",
+      });
+
+      expect(mockUpdateMany).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("sukses -> mengembalikan hasil getCart(userId), bukan data custom lain", async () => {
