@@ -262,7 +262,6 @@ model Cart {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([status])
 }
 
 model CartItem {
@@ -287,7 +286,6 @@ model CartItem {
   updatedAt DateTime @updatedAt
 
   @@unique([cartId, productVariantId])
-  @@index([cartId])
   @@index([productVariantId])
 }
 
@@ -321,7 +319,6 @@ model Order {
 
   @@unique([userId, idempotencyKey])
   @@index([userId])
-  @@index([status])
   @@index([userId, status, createdAt])
 }
 
