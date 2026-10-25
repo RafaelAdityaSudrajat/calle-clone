@@ -123,7 +123,7 @@ export const getPublicProductsService = async (filter: BuyerProductFilter) => {
   const whereCondition: Prisma.ProductWhereInput = {
     isDeleted: false,
     status: {
-      in: [ProductStatus.DRAFT, ProductStatus.OUT_OF_STOCK],
+      in: [ProductStatus.ACTIVE, ProductStatus.OUT_OF_STOCK],
     },
   };
 
@@ -220,37 +220,6 @@ export const getPublicProductBySlugService = async (slug: string) => {
 
   return product;
 };
-
-/**
- * FR-07: Produk ARCHIVED tetap bisa diakses via ID (untuk histori order di level Buyer/System)
- */
-export const getProductByIdForOrderHistoryService = async (id: string) => {
-  const product = await prisma.product.findFirst({
-    where: {
-      id,
-      isDeleted: false,
-      status: {
-        in: [
-          ProductStatus.ACTIVE,
-          ProductStatus.OUT_OF_STOCK,
-          ProductStatus.ARCHIVED,
-        ],
-      },
-    },
-    include: {
-      category: true,
-      images: true,
-      variants: true, // Tampilkan semua varian agar detail histori order tidak rusak
-    },
-  });
-
-  if (!product) {
-    throw new NotFoundError("Data produk untuk histori ini tidak ditemukan");
-  }
-
-  return product;
-};
-
 // ==========================================
 // GET PRODUCT ADMIN
 // ==========================================
@@ -318,9 +287,9 @@ export const getAdminProductsService = async (filter: AdminProductFilter) => {
 /**
  * Admin: Get detail lengkap produk tanpa restriksi status atau isDeleted
  */
-export const getAdminProductByIdService = async (id: string) => {
+export const getAdminProductByIdService = async (productId: string) => {
   const product = await prisma.product.findUnique({
-    where: { id },
+    where: { id: productId },
     include: {
       category: true,
       images: {
@@ -446,13 +415,13 @@ export const updateProductService = async (
 };
 
 export const updateProductVariantService = async (
-  variantId: string,
+  product_variant_id: string,
   input: UpdateVariantInput,
 ) => {
   return await prisma.$transaction(async (tx) => {
     // 1. Cek eksistensi varian
     const existingVariant = await tx.productVariant.findUnique({
-      where: { id: variantId },
+      where: { id: product_variant_id },
       include: { product: true },
     });
 
@@ -470,7 +439,7 @@ export const updateProductVariantService = async (
 
     // 3. Lakukan Update pada Variant
     const updatedVariant = await tx.productVariant.update({
-      where: { id: variantId },
+      where: { id: product_variant_id },
       data: {
         sku: input.sku,
         size: input.size,
