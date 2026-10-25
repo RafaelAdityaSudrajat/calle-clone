@@ -1,10 +1,15 @@
 import { z } from "zod";
+import { ProductStatus } from "../../generated/prisma";
 
 // --- Sub-schema: variant ---
 // Business rule: minimal 1 variant wajib ada saat create.
 // Kalau produk tanpa variasi ukuran/warna, tetap wajib kirim 1 default variant
 // (misal size: "One Size") dari sisi frontend.
-const variantSchema = z.object({
+
+const uuid = (field: string) =>
+  z.uuid({ error: `${field} must be a valid UUID` });
+
+export const variantBodySchema = z.object({
   sku: z
     .string()
     .min(3, "SKU minimal 3 karakter")
@@ -21,6 +26,10 @@ const variantSchema = z.object({
     .nonnegative("Stock tidak boleh negatif"),
 });
 
+export const variantSchema = {
+  body: variantBodySchema,
+};
+
 // --- Sub-schema: image ---
 const imageSchema = z.object({
   url: z.string().url("URL gambar tidak valid"),
@@ -29,56 +38,62 @@ const imageSchema = z.object({
 });
 
 // --- Main schema: create product ---
-export const createProductSchema = z.object({
-  body: z
-    .object({
-      categoryId: z.string().uuid("categoryId harus berupa UUID valid"),
-      name: z
-        .string()
-        .min(3, "Nama produk minimal 3 karakter")
-        .max(255, "Nama produk maksimal 255 karakter"),
-      description: z.string().min(10, "Deskripsi minimal 10 karakter"),
-      basePrice: z.number().positive("Harga dasar harus lebih dari 0"),
-      images: z
-        .array(imageSchema)
-        .min(1, "Produk wajib punya minimal 1 gambar"),
-      variants: z
-        .array(variantSchema)
-        .min(1, "Produk wajib punya minimal 1 variant"),
-    })
-    .refine(
-      (data) => {
-        // Business rule: kombinasi SKU dalam satu payload tidak boleh duplikat
-        const skus = data.variants.map((v) => v.sku);
-        return new Set(skus).size === skus.length;
-      },
-      { message: "SKU pada variant tidak boleh duplikat", path: ["variants"] },
-    )
-    .refine(
-      (data) => {
-        // Business rule: kombinasi size+color per produk tidak boleh duplikat
-        const combos = data.variants.map(
-          (v) => `${v.size ?? ""}-${v.color ?? ""}`,
-        );
-        return new Set(combos).size === combos.length;
-      },
-      {
-        message: "Kombinasi size & color pada variant tidak boleh duplikat",
-        path: ["variants"],
-      },
-    ),
-});
+export const createProductBodySchema = z
+  .object({
+    categoryId: z.string().uuid("categoryId harus berupa UUID valid"),
+    name: z
+      .string()
+      .min(3, "Nama produk minimal 3 karakter")
+      .max(255, "Nama produk maksimal 255 karakter"),
+    description: z.string().min(10, "Deskripsi minimal 10 karakter"),
+    basePrice: z.number().positive("Harga dasar harus lebih dari 0"),
+    images: z.array(imageSchema).min(1, "Produk wajib punya minimal 1 gambar"),
+    variants: z
+      .array(variantBodySchema)
+      .min(1, "Produk wajib punya minimal 1 variant"),
+  })
+  .refine(
+    (data) => {
+      // Business rule: kombinasi SKU dalam satu payload tidak boleh duplikat
+      const skus = data.variants.map((v) => v.sku);
+      return new Set(skus).size === skus.length;
+    },
+    { message: "SKU pada variant tidak boleh duplikat", path: ["variants"] },
+  )
+  .refine(
+    (data) => {
+      // Business rule: kombinasi size+color per produk tidak boleh duplikat
+      const combos = data.variants.map(
+        (v) => `${v.size ?? ""}-${v.color ?? ""}`,
+      );
+      return new Set(combos).size === combos.length;
+    },
+    {
+      message: "Kombinasi size & color pada variant tidak boleh duplikat",
+      path: ["variants"],
+    },
+  );
 
-export const updateProductSchema = z.object({
-  name: z.string().min(3, "Name must be at least 3 characters").optional(),
-  description: z.string().optional(),
-  price: z.number().positive("Price must be positive").optional(),
-  stock: z.number().int().nonnegative("Stock must be non-negative").optional(),
-  categoryId: z.string().uuid("Invalid category ID").optional(),
-  isActive: z.boolean().optional(),
-});
+export const createProductSchema = {
+  body: createProductBodySchema,
+};
 
-export type UpdateProductInputZod = z.infer<typeof updateProductSchema>;
+export const updateProductBodySchema = z
+  .object({
+    name: z.string().trim().min(3).max(255).optional(),
+    description: z.string().trim().min(10).nullable().optional(),
+    basePrice: z.number().positive("Harga dasar harus lebih dari 0").optional(),
+    categoryId: z.string().uuid("categoryId harus UUID valid").optional(),
+    status: z.nativeEnum(ProductStatus).optional(),
+  })
+  .strict()
+  .refine((d) => Object.keys(d).length > 0, {
+    message: "Minimal satu field harus diubah",
+  });
+
+export const updateProductSchema = {
+  body: updateProductBodySchema,
+};
 
 export const getProductsQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -88,6 +103,25 @@ export const getProductsQuerySchema = z.object({
   isActive: z.coerce.boolean().optional(),
 });
 
-export type GetProductsQuery = z.infer<typeof getProductsQuerySchema>;
+export const slugParamsSchema = z.strictObject({
+  slug: z.string({ error: "slug must be a valid string" }),
+});
 
-export type CreateProductInput = z.infer<typeof createProductSchema>["body"];
+export const productIdParamsSchema = z.strictObject({
+  productId: uuid("ProductId"),
+});
+
+export const productVarintIdParamsSchema = z.strictObject({
+  product_variant_id: uuid("product_variant_id"),
+});
+
+export type variantInput = z.output<typeof variantBodySchema>;
+export type CreateProductInput = z.infer<typeof createProductBodySchema>;
+export type UpdateProductInput = z.infer<typeof updateProductBodySchema>;
+
+export type SlugParams = z.output<typeof slugParamsSchema>;
+export type ProductIdParams = z.output<typeof productIdParamsSchema>;
+export type productVarintIdParams = z.output<
+  typeof productVarintIdParamsSchema
+>;
+export type GetProductsQuery = z.infer<typeof getProductsQuerySchema>;
