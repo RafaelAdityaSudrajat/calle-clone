@@ -18,8 +18,6 @@ import {
   SlugParams,
 } from "./product.validation";
 import { createProductService } from "./product.service";
-import { getProductsQuerySchema } from "./product.validation";
-import { updateProductSchema } from "./product.validation";
 import { updateProductService } from "./product.service";
 import { deleteProductService } from "./product.service";
 import catchAsync from "../../lib/catchAsync";

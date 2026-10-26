@@ -1,4 +1,4 @@
-import { CreateProductInput } from "./product.validation";
+import { CreateProductInput, UpdateVariantInput } from "./product.validation";
 import { GetProductsQuery } from "./product.validation";
 import { NotFoundError, ConflictError } from "../../lib/errors";
 import { slugify, withUniqueSuffix } from "./product.utils";
@@ -9,7 +9,6 @@ import {
   AdminProductFilter,
   BuyerProductFilter,
   UpdateProductInput,
-  UpdateVariantInput,
 } from "./product.type";
 
 const MAX_SLUG_RETRY = 3;
@@ -429,15 +428,10 @@ export const updateProductVariantService = async (
       throw new NotFoundError("Variant produk tidak ditemukan");
     }
 
-    // 2. Validasi Stok Tidak Boleh Negatif (Section 3.2)
-    if (input.stock !== undefined && input.stock < 0) {
-      throw new ConflictError("Stok tidak boleh bernilai negatif");
-    }
-
     // Gerbang: transaction lain untuk produk yang sama menunggu di sini
     await lockProductRow(tx, existingVariant.productId);
 
-    // 3. Lakukan Update pada Variant
+    // 2. Lakukan Update pada Variant
     const updatedVariant = await tx.productVariant.update({
       where: { id: product_variant_id },
       data: {
@@ -450,12 +444,11 @@ export const updateProductVariantService = async (
               ? null
               : new Prisma.Decimal(input.priceOverride)
             : undefined,
-        stock: input.stock,
         isActive: input.isActive,
       },
     });
 
-    // 4. SYSTEM AUTOMATION (FR-14, FR-15, FR-16)
+    // 3. SYSTEM AUTOMATION (FR-14, FR-15, FR-16)
     await runStockAutomation(tx, existingVariant.productId);
 
     return updatedVariant;
