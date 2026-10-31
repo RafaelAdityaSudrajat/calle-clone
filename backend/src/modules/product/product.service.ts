@@ -1,15 +1,15 @@
-import { CreateProductInput, UpdateVariantInput } from "./product.validation";
+import {
+  CreateProductInput,
+  UpdateProductInput,
+  UpdateVariantInput,
+} from "./product.validation";
 import { GetProductsQuery } from "./product.validation";
 import { NotFoundError, ConflictError } from "../../lib/errors";
 import { slugify, withUniqueSuffix } from "./product.utils";
 import { prisma } from "../../lib/prisma";
 import { Prisma, ProductStatus } from "../../generated/prisma";
 import { uploadManyToCloudinary } from "../../middlewares/upload";
-import {
-  AdminProductFilter,
-  BuyerProductFilter,
-  UpdateProductInput,
-} from "./product.type";
+import { AdminProductFilter, BuyerProductFilter } from "./product.type";
 
 const MAX_SLUG_RETRY = 3;
 const MAX_IMAGES_PER_PRODUCT = 8;
