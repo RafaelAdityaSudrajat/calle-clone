@@ -1,6 +1,6 @@
 import { prisma } from "../../../src/lib/prisma";
 
-interface SeedProductOpts {
+export interface SeedProductOpts {
   name: string;
   status?: "DRAFT" | "ACTIVE" | "INACTIVE";
   categoryId?: string | null;
