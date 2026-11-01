@@ -149,7 +149,7 @@ export const unpublishProductController = catchAsync(
 
     res.status(200).json({
       success: true,
-      message: "Product unpublished  successfully",
+      message: "Product unpublished successfully",
       data,
     });
   },
