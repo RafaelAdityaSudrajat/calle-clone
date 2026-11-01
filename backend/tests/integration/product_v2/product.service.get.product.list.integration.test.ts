@@ -5,6 +5,7 @@ import app from "../../../src/app";
 import { prisma } from "../../../src/lib/prisma";
 import { cleanCartDatabase } from "../helpers/database";
 import { getAccesTokenCookie, getAccesTokenCookieAdmin } from "../helpers/auth";
+import { seedProduct } from "./helpers.product.integration";
 
 /**
  * Integration test untuk `GET /api/v1/admin/products_v2`.
@@ -28,73 +29,6 @@ const CATEGORY_ID = "11111111-1111-4111-8111-111111111111";
 async function seedCategory() {
   await prisma.category.create({
     data: { id: CATEGORY_ID, name: "Atasan", slug: "atasan" },
-  });
-}
-
-interface SeedProductOpts {
-  name: string;
-  status?: "DRAFT" | "ACTIVE" | "INACTIVE";
-  categoryId?: string | null;
-  deletedAt?: Date | null;
-  createdBy: string;
-  variants?: Array<{
-    sku: string;
-    price: number;
-    stock: number;
-    size?: string | null;
-    color?: string | null;
-    deletedAt?: Date | null;
-  }>;
-  images?: Array<{ url: string; isPrimary: boolean }>;
-  createdAt?: Date;
-}
-
-/**
- * Seed satu produk beserta varian dan gambar.
- *
- * Catatan:
- *  - `size` default "L" — CHECK constraint di DB mensyaratkan minimal
- *    salah satu dari size/color terisi (BR-11). Tanpa default ini,
- *    insert akan gagal di level DB.
- *  - `fileKey` di-generate dari url karena kolom NOT NULL dan tidak
- *    dipakai assertion DTO.
- */
-async function seedProduct(opts: SeedProductOpts) {
-  return prisma.product.create({
-    data: {
-      name: opts.name,
-      status: opts.status ?? "DRAFT",
-      categoryId: opts.categoryId ?? null,
-      deletedAt: opts.deletedAt ?? null,
-      createdBy: opts.createdBy,
-      updatedBy: opts.createdBy,
-
-      variants: opts.variants?.length
-        ? {
-            create: opts.variants.map((v) => ({
-              sku: v.sku,
-              price: v.price,
-              stock: v.stock,
-              size: v.size ?? "L",
-              color: v.color ?? null,
-              deletedAt: v.deletedAt ?? null,
-              createdBy: opts.createdBy,
-              updatedBy: opts.createdBy,
-            })),
-          }
-        : undefined,
-      images: opts.images?.length
-        ? {
-            create: opts.images.map((i) => ({
-              url: i.url,
-              fileKey: `key-${i.url}`,
-              isPrimary: i.isPrimary,
-              createdBy: opts.createdBy,
-            })),
-          }
-        : undefined,
-      ...(opts.createdAt ? { createdAt: opts.createdAt } : {}),
-    },
   });
 }
 
@@ -345,7 +279,7 @@ describe("GET /api/v1/admin/products_v2", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.items.map((i: any) => i.name)).toEqual([
-      "Produk 3",
+      "Produk 4",
       "Produk 2",
     ]);
     expect(res.body.data.pagination).toEqual({

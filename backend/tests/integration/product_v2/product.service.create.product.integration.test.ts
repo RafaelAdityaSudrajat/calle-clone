@@ -160,8 +160,6 @@ describe("POST /api/v1/admin/products", () => {
       .set("Cookie", [accessTokenCookie])
       .send({ category_id: CATEGORY_ID });
 
-    console.log(res.status, JSON.stringify(res.body, null, 2));
-
     expect(res.status).toBe(400);
     expect(res.body.code).toBe("VALIDATION_ERROR");
     expect(res.body.data.errors[0].message).toMatch(/name/i);
@@ -215,8 +213,6 @@ describe("POST /api/v1/admin/products", () => {
       .post(productEndpoint)
       .set("Cookie", [accessTokenCookie])
       .send({ name: "Kaos", category_id: fakeId });
-
-    console.log(res.status, JSON.stringify(res.body, null, 2));
 
     expect(res.status).toBe(404);
     expect(res.body.code).toBe("CATEGORY_NOT_FOUND");

@@ -29,13 +29,13 @@ const CATEGORY_ID = "00000000-0000-0000-0000-0000000c0001";
  * Dipakai untuk mensimulasikan pelanggaran foreign-key — mis. saat kategori
  * dihapus di antara pre-check dan insert (race condition).
  */
-function makeP2003(fieldName: string): Prisma.PrismaClientKnownRequestError {
+
+function makeP2003() {
   return new Prisma.PrismaClientKnownRequestError(
     "Foreign key constraint failed",
     {
       code: "P2003",
       clientVersion: "test",
-      meta: { field_name: fieldName },
     },
   );
 }
@@ -170,25 +170,28 @@ describe("createProductService", () => {
   });
 
   // ── Case 4: Race condition — P2003 dengan FK kategori ─────────
-  it("memetakan P2003 FK kategori menjadi CATEGORY_NOT_FOUND (race)", async () => {
-    mockCategoryFind.mockResolvedValue({ id: CATEGORY_ID } as any);
-    mockProductCreate.mockRejectedValue(makeP2003("categoryId"));
+  it("memetakan P2003 menjadi CATEGORY_NOT_FOUND saat kategori hilang di antara cek dan insert (race)", async () => {
+    mockCategoryFind
+      .mockResolvedValueOnce({ id: CATEGORY_ID } as any) // pre-check: ada
+      .mockResolvedValueOnce(null); // re-check di catch: sudah hilang
+    mockProductCreate.mockRejectedValue(makeP2003());
 
     await expect(
       createProductService(
         { name: "Kaos", description: null, category_id: CATEGORY_ID },
         ADMIN_ID,
       ),
-    ).rejects.toMatchObject({
-      code: "CATEGORY_NOT_FOUND",
-      statusCode: 404,
-    });
+    ).rejects.toMatchObject({ code: "CATEGORY_NOT_FOUND", statusCode: 404 });
+
+    expect(mockCategoryFind).toHaveBeenCalledTimes(2);
   });
 
   // ── Case 5: P2003 non-kategori (mis. createdBy FK) ────────────
-  it("meneruskan P2003 non-kategori apa adanya (tidak di-map)", async () => {
-    mockCategoryFind.mockResolvedValue({ id: CATEGORY_ID } as any);
-    const original = makeP2003("createdBy");
+  it("meneruskan P2003 apa adanya saat kategori masih ada (mis. FK createdBy)", async () => {
+    mockCategoryFind
+      .mockResolvedValueOnce({ id: CATEGORY_ID } as any) // pre-check
+      .mockResolvedValueOnce({ id: CATEGORY_ID } as any); // re-check: masih ada
+    const original = makeP2003();
     mockProductCreate.mockRejectedValue(original);
 
     await expect(
