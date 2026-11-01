@@ -15,6 +15,7 @@ import {
   getProductDetailController,
   publishProductController,
   softDeleteProductController,
+  unpublishProductController,
   updateProductController,
 } from "./product_v2.controller";
 import { requireAdmin } from "../../middlewares/requireAdmin";
@@ -70,6 +71,14 @@ router.post(
   requireAdmin,
   validate(getProductDetailParams),
   publishProductController,
+);
+
+router.post(
+  "/:id/unpublish",
+  authenticate,
+  requireAdmin,
+  validate(getProductDetailParams),
+  unpublishProductController,
 );
 
 export default router;

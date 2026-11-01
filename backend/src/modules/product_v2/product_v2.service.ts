@@ -11,6 +11,7 @@ import {
   toProductDetailResponse,
   toProductListItem,
   toUpdateProductResponse,
+  UnpublishProductResponse,
   UpdateProductResponse,
 } from "./product_v2.dto";
 import { ProductErrors } from "./product_v2.errors";
@@ -633,4 +634,42 @@ export async function publishProductService(
   }
 
   return { id, status: "ACTIVE" };
+}
+
+export async function unpublishProductService(
+  id: string,
+  adminId: string,
+): Promise<UnpublishProductResponse> {
+  // ── Transisi atomik ──────────────────────────────────────────
+  // WHERE `status: "ACTIVE"` menjamin:
+  //  - Tidak overwrite status yang sudah berubah (unpublish
+  //    concurrent / publish concurrent).
+  // WHERE `deletedAt: null` menjamin:
+  //  - Tidak menyentuh produk yang baru saja di-soft-delete
+  //    (BR-05 race-safe).
+  // `updatedBy` di-set agar audit trail mencerminkan actor terakhir.
+  const result = await prisma.product.updateMany({
+    where: { id, status: "ACTIVE", deletedAt: null },
+    data: { status: "INACTIVE", updatedBy: adminId },
+  });
+
+  // ── count=0 → disambiguasi ───────────────────────────────────
+  // Tiga kemungkinan:
+  //  1. Produk tidak ada (id tidak match).
+  //  2. Produk soft-deleted (deletedAt != null).
+  //  3. Status bukan ACTIVE (DRAFT / INACTIVE / berubah concurrent).
+  //
+  // Re-read untuk membedakan not-found vs status-transition.
+  // Not-found & soft-deleted digabung → PRODUCT_NOT_FOUND (anti-
+  // enumeration).
+  if (result.count === 0) {
+    const current = await prisma.product.findFirst({
+      where: { id, deletedAt: null },
+      select: { status: true },
+    });
+    if (!current) throw ProductErrors.productNotFound();
+    throw ProductErrors.invalidStatusTransition(current.status, "INACTIVE");
+  }
+
+  return { id, status: "INACTIVE" };
 }

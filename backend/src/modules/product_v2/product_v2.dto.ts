@@ -380,8 +380,7 @@ export interface PublishProductResponse {
   status: "ACTIVE";
 }
 
-// Tipe internal untuk multi-error collection di service
-// export interface PublishFailure {
-//   code: ErrorCode;
-//   message: string;
-// }
+export interface UnpublishProductResponse {
+  id: string;
+  status: "INACTIVE";
+}
