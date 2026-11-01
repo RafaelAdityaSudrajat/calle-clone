@@ -2,12 +2,20 @@ import { Router } from "express";
 import { authenticate } from "../../middlewares/authenticate";
 import {
   createProductSchema,
+  getProductDetailParams,
+  getProductDetailQuery,
   listProductsParamsQuerySchema,
+  updateProductBody,
+  updateProductParams,
 } from "./product_v2.schema";
 import { validate } from "../../middlewares/validate";
 import {
   createProductController,
   getListController,
+  getProductDetailController,
+  publishProductController,
+  softDeleteProductController,
+  updateProductController,
 } from "./product_v2.controller";
 import { requireAdmin } from "../../middlewares/requireAdmin";
 import { listOrdersSchema } from "../order/order.schema";
@@ -28,6 +36,40 @@ router.get(
   requireAdmin,
   validate(listProductsParamsQuerySchema),
   getListController,
+);
+
+router.get(
+  "/:id",
+  authenticate,
+  requireAdmin,
+  validate(getProductDetailParams),
+  validate(getProductDetailQuery),
+  getProductDetailController,
+);
+
+router.put(
+  "/:id",
+  authenticate,
+  requireAdmin,
+  validate(updateProductParams),
+  validate(updateProductBody),
+  updateProductController,
+);
+
+router.delete(
+  "/:id",
+  authenticate,
+  requireAdmin,
+  validate(getProductDetailParams),
+  softDeleteProductController,
+);
+
+router.post(
+  "/:id/publish",
+  authenticate,
+  requireAdmin,
+  validate(getProductDetailParams),
+  publishProductController,
 );
 
 export default router;

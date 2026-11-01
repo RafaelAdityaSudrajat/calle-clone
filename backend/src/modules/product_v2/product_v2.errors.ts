@@ -1,5 +1,10 @@
 import { AppError } from "../../lib/errors";
 
+export interface ErrorDetail {
+  code: string;
+  message: string;
+}
+
 export const ProductErrors = {
   productNotFound: () =>
     new AppError("Product not found", 404, "PRODUCT_NOT_FOUND"),
@@ -42,13 +47,12 @@ export const ProductErrors = {
   invalidStock: () =>
     new AppError("Stock cannot be negative", 400, "INVALID_STOCK"),
 
-  invalidStatusTransition: () =>
+  invalidStatusTransition: (from: string, to: string) =>
     new AppError(
-      "Invalid product status transition",
+      `Cannot transition product status from ${from} to ${to}`,
       400,
       "INVALID_STATUS_TRANSITION",
     ),
-
   attributeRequired: () =>
     new AppError(
       "At least one of size or color must be provided",
@@ -74,4 +78,16 @@ export const ProductErrors = {
 
   internalError: () =>
     new AppError("An unexpected server error occurred", 500, "INTERNAL_ERROR"),
+
+  publishValidationFailed: (failures: ErrorDetail[]) => {
+    if (failures.length === 0) {
+      return new AppError("Publish validation failed", 400, "VALIDATION_ERROR");
+    }
+    return new AppError(
+      "Product cannot be published",
+      400,
+      "VALIDATION_ERROR",
+      failures,
+    );
+  },
 };

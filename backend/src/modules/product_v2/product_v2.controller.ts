@@ -2,10 +2,21 @@ import { NextFunction, Response } from "express";
 import catchAsync from "../../lib/catchAsync";
 import { AuthRequest } from "../../middlewares/authenticate";
 import { UnauthorizedError } from "../../lib/errors";
-import { CreateProductInput, ListProductsQuery } from "./product_v2.schema";
+import {
+  CreateProductInput,
+  GetProductParams,
+  GetProductQuery,
+  ListProductsQuery,
+  UpdateProductInput,
+  UpdateProductParamsType,
+} from "./product_v2.schema";
 import {
   createProductService,
   getListProductService,
+  getProductDetailService,
+  publishProductService,
+  softDeleteProductService,
+  updateProductService,
 } from "./product_v2.service";
 
 export const createProductController = catchAsync(
@@ -41,6 +52,84 @@ export const getListController = catchAsync(
     res.status(200).json({
       success: true,
       message: "Products retrieved successfully",
+      data,
+    });
+  },
+);
+
+export const getProductDetailController = catchAsync(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    const userId = req.auth?.userId;
+    const { id } = req.params as unknown as GetProductParams;
+    const query = (req as any).validatedQuery as GetProductQuery;
+
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
+
+    const data = await getProductDetailService(id, query);
+
+    res.status(200).json({
+      success: true,
+      message: "Product retrieved successfully",
+      data,
+    });
+  },
+);
+
+export const updateProductController = catchAsync(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    const userId = req.auth?.userId;
+    const { id } = req.params as unknown as UpdateProductParamsType;
+    const input = req.body as UpdateProductInput;
+
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
+
+    const data = await updateProductService(id, input, userId);
+
+    res.status(200).json({
+      success: true,
+      message: "Product updated successfully",
+      data,
+    });
+  },
+);
+
+export const softDeleteProductController = catchAsync(
+  async (req: AuthRequest, res: Response) => {
+    const { id } = req.params as unknown as GetProductParams;
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
+
+    await softDeleteProductService(id, userId);
+
+    res.status(200).json({
+      success: true,
+      message: "Product archived successfully",
+      data: null,
+    });
+  },
+);
+
+export const publishProductController = catchAsync(
+  async (req: AuthRequest, res: Response) => {
+    const { id } = req.params as unknown as GetProductParams;
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
+
+    const data = await publishProductService(id, userId);
+
+    res.status(200).json({
+      success: true,
+      message: "Product published successfully",
       data,
     });
   },
