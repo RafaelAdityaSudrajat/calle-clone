@@ -7,6 +7,7 @@ import {
   ProductDetailResponse,
   ProductVariantStats,
   PublishProductResponse,
+  RepublishProductResponse,
   toCreateProductResponse,
   toProductDetailResponse,
   toProductListItem,
@@ -55,6 +56,8 @@ interface PublishFailure {
   code: string;
   message: string;
 }
+
+type PublishEntryStatus = "DRAFT" | "INACTIVE";
 
 // ── Helper: read snapshot ──────────────────────────────────────────
 // Query dipisah (bukan inline) karena dipakai 2x:
@@ -148,6 +151,65 @@ export function collectPublishFailures(
   }
 
   return failures;
+}
+
+async function assertPublishableAndGetSnapshot(
+  id: string,
+  fromStatus: PublishEntryStatus,
+): Promise<PublishSnapshot> {
+  const snapshot = await readPublishSnapshot(id);
+  if (!snapshot) throw ProductErrors.productNotFound();
+
+  // Keputusan #1: publish dari DRAFT, republish dari INACTIVE.
+  // Status lain (sudah ACTIVE, atau mismatch) → INVALID_STATUS_TRANSITION.
+  if (snapshot.status !== fromStatus) {
+    throw ProductErrors.invalidStatusTransition(snapshot.status, "ACTIVE");
+  }
+
+  const failures = collectPublishFailures(snapshot);
+  if (failures.length > 0) {
+    throw ProductErrors.publishValidationFailed(failures);
+  }
+
+  return snapshot;
+}
+
+/**
+ * Disambiguasi setelah `$executeRaw` mengembalikan affected=0.
+ *
+ * Tiga kemungkinan penyebab WHERE tidak match:
+ *  1. Produk tidak ada / soft-deleted → PRODUCT_NOT_FOUND.
+ *  2. Status berubah (mis. publish concurrent) → INVALID_STATUS_TRANSITION.
+ *  3. Syarat BR-07 baru gagal (mis. varian dihapus di tengah) → multi-error.
+ *
+ * Re-read snapshot untuk menghasilkan error yang akurat terhadap
+ * state SEKARANG, bukan snapshot basi saat read awal.
+ *
+ * Return type `Promise<never>` karena fungsi ini SELALU throw —
+ * memudahkan caller cukup `return disambiguateTransitionFailure(...)`.
+ */
+async function disambiguateTransitionFailure(
+  id: string,
+  fromStatus: PublishEntryStatus,
+): Promise<never> {
+  const current = await readPublishSnapshot(id);
+  if (!current) throw ProductErrors.productNotFound();
+  if (current.status !== fromStatus) {
+    throw ProductErrors.invalidStatusTransition(current.status, "ACTIVE");
+  }
+  const currentFailures = collectPublishFailures(current);
+  if (currentFailures.length > 0) {
+    throw ProductErrors.publishValidationFailed(currentFailures);
+  }
+
+  // Defensive — tidak reachable secara logika. Artinya siklus
+  // DRAFT→X→DRAFT sangat sempit (atau bug di WHERE). Fail-closed,
+  // jangan return sukses palsu.
+  throw new AppError(
+    "Status transition race detected; please retry",
+    500,
+    "INTERNAL_ERROR",
+  );
 }
 
 /**
@@ -636,6 +698,52 @@ export async function publishProductService(
   return { id, status: "ACTIVE" };
 }
 
+export async function republishProductService(
+  id: string,
+  adminId: string,
+): Promise<RepublishProductResponse> {
+  // Read + validasi BR-07 + status guard "harus INACTIVE".
+  await assertPublishableAndGetSnapshot(id, "INACTIVE");
+
+  // Transisi atomik — IDENTIK dengan publish kecuali literal
+  // 'INACTIVE' di WHERE status. Literal (bukan parameter)
+  // supaya SQL-nya compile-time constant, gampang di-grep, dan
+  // unit test bisa assert exact string.
+  const affected = await prisma.$executeRaw`
+    UPDATE "Product"
+    SET
+      "status"     = 'ACTIVE'::"ProductStatus",
+      "updated_at" = NOW(),
+      "updated_by" = ${adminId}
+    WHERE "id" = ${id}
+      AND "status" = 'INACTIVE'::"ProductStatus"
+      AND "deleted_at" IS NULL
+      AND "category_id" IS NOT NULL
+      AND EXISTS (
+        SELECT 1 FROM "ProductVariant"
+        WHERE "product_id" = ${id}
+          AND "deleted_at" IS NULL
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM "ProductVariant"
+        WHERE "product_id" = ${id}
+          AND "deleted_at" IS NULL
+          AND "price" <= 0
+      )
+      AND EXISTS (
+        SELECT 1 FROM "ProductImage"
+        WHERE "product_id" = ${id}
+          AND "is_primary" = true
+      )
+  `;
+
+  if (affected === 0) {
+    return disambiguateTransitionFailure(id, "INACTIVE");
+  }
+
+  return { id, status: "ACTIVE" };
+}
+
 export async function unpublishProductService(
   id: string,
   adminId: string,
@@ -673,3 +781,28 @@ export async function unpublishProductService(
 
   return { id, status: "INACTIVE" };
 }
+
+/**
+ * FR-PM-08 — Republish produk (`INACTIVE` → `ACTIVE`).
+ *
+ * Identik dengan publish KECUALI entry status `INACTIVE` (bukan
+ * `DRAFT`). Validasi BR-07 sama persis — republish hanya boleh
+ * kalau produk masih layak tayang.
+ *
+ * Lihat komentar lengkap di `publishProductService` untuk analisis
+ * race & keamanan — semua berlaku identik di sini.
+ *
+ * ─── Kenapa endpoint terpisah, bukan publish yang handle dua-duanya ─
+ *
+ * FR-PM-08 mendefinisikan endpoint berbeda untuk aksi berbeda:
+ *  - publish  = masuk katalog pertama kali (DRAFT → ACTIVE)
+ *  - republish = masuk katalog kembali (INACTIVE → ACTIVE)
+ *
+ * Pemisahan memberi klien semantic hint (mis. analytics, UI label
+ * "Publish" vs "Republish"), dan memudahkan audit log di masa depan
+ * tanpa mengubah publish.
+ *
+ * @throws {AppError} PRODUCT_NOT_FOUND — produk tidak ada / soft-deleted.
+ * @throws {AppError} INVALID_STATUS_TRANSITION — bukan INACTIVE saat republish.
+ * @throws {AppError} publishValidationFailed — multi-error BR-07.
+ */

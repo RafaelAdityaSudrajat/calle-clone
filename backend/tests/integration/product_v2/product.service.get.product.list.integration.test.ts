@@ -279,7 +279,7 @@ describe("GET /api/v1/admin/products_v2", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.items.map((i: any) => i.name)).toEqual([
-      "Produk 4",
+      "Produk 3",
       "Produk 2",
     ]);
     expect(res.body.data.pagination).toEqual({

@@ -384,3 +384,5 @@ export interface UnpublishProductResponse {
   id: string;
   status: "INACTIVE";
 }
+
+export type RepublishProductResponse = PublishProductResponse;

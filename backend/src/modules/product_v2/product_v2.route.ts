@@ -14,6 +14,7 @@ import {
   getListController,
   getProductDetailController,
   publishProductController,
+  republishProductController,
   softDeleteProductController,
   unpublishProductController,
   updateProductController,
@@ -71,6 +72,14 @@ router.post(
   requireAdmin,
   validate(getProductDetailParams),
   publishProductController,
+);
+
+router.post(
+  "/:id/republish",
+  authenticate,
+  requireAdmin,
+  validate(getProductDetailParams),
+  republishProductController,
 );
 
 router.post(

@@ -15,6 +15,7 @@ import {
   getListProductService,
   getProductDetailService,
   publishProductService,
+  republishProductService,
   softDeleteProductService,
   unpublishProductService,
   updateProductService,
@@ -131,6 +132,25 @@ export const publishProductController = catchAsync(
     res.status(200).json({
       success: true,
       message: "Product published successfully",
+      data,
+    });
+  },
+);
+
+export const republishProductController = catchAsync(
+  async (req: AuthRequest, res: Response) => {
+    const { id } = req.params as unknown as GetProductParams;
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
+
+    const data = await republishProductService(id, userId);
+
+    res.status(200).json({
+      success: true,
+      message: "Product republished successfully",
       data,
     });
   },
