@@ -28,22 +28,11 @@ const CATEGORY_ID = "11111111-1111-4111-8111-111111111111";
  * Seed minimal: 1 admin (FK `createdBy`/`updatedBy`) + 1 kategori
  * (FK `categoryId`). Tanpa ini, semua insert akan gagal P2003.
  */
-async function seed() {
-  await prisma.category.create({
-    data: { id: CATEGORY_ID, name: "Atasan", slug: "atasan" },
-  });
-}
-
 /**
  * Bersihkan DB dengan urutan yang menghormati FK RESTRICT:
  *   Product → Category → User
  * (Product punya FK ke dua lainnya; Category dan User independen).
  */
-async function cleanup() {
-  await prisma.product.deleteMany();
-  await prisma.category.deleteMany();
-  await prisma.user.deleteMany();
-}
 
 describe("POST /api/v1/admin/products", () => {
   beforeEach(async () => {

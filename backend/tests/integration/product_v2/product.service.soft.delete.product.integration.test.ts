@@ -5,6 +5,7 @@ import app from "../../../src/app";
 import { prisma } from "../../../src/lib/prisma";
 import { cleanCartDatabase } from "../helpers/database";
 import { getAccesTokenCookieAdmin } from "../helpers/auth";
+import { seedProduct } from "./helpers.product.integration";
 
 /**
  * Integration test untuk `DELETE /api/v1/admin/products_v2/:id`.
@@ -19,27 +20,6 @@ import { getAccesTokenCookieAdmin } from "../helpers/auth";
  */
 
 const CATEGORY_ID = "11111111-1111-4111-8111-111111111111";
-
-interface SeedProductOpts {
-  name: string;
-  status?: "DRAFT" | "ACTIVE" | "INACTIVE";
-  categoryId?: string | null;
-  deletedAt?: Date | null;
-  createdBy: string;
-}
-
-async function seedProduct(opts: SeedProductOpts) {
-  return prisma.product.create({
-    data: {
-      name: opts.name,
-      status: opts.status ?? "DRAFT",
-      categoryId: opts.categoryId ?? null,
-      deletedAt: opts.deletedAt ?? null,
-      createdBy: opts.createdBy,
-      updatedBy: opts.createdBy,
-    },
-  });
-}
 
 describe("DELETE /api/v1/admin/products_v2/:id", () => {
   beforeEach(async () => {

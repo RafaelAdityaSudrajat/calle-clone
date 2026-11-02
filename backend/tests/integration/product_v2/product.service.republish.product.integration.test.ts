@@ -13,6 +13,7 @@ import app from "../../../src/app";
 import { prisma } from "../../../src/lib/prisma";
 import { cleanCartDatabase } from "../helpers/database";
 import { getAccesTokenCookieAdmin } from "../helpers/auth";
+import { SeedProductOpts } from "./helpers.product.integration";
 
 /**
  * Integration test untuk `POST /api/v1/admin/products_v2/:id/republish`.
@@ -37,25 +38,6 @@ import { getAccesTokenCookieAdmin } from "../helpers/auth";
 
 const CATEGORY_ID = "11111111-1111-4111-8111-111111111111";
 const baseEndpoint = "/api/v1/admin/products_v2";
-
-// ── Seed helper ────────────────────────────────────────────────────
-
-interface SeedProductOpts {
-  name: string;
-  status?: "DRAFT" | "ACTIVE" | "INACTIVE";
-  categoryId?: string | null;
-  deletedAt?: Date | null;
-  createdBy: string;
-  variants?: Array<{
-    sku: string;
-    price: number;
-    stock: number;
-    size?: string | null;
-    color?: string | null;
-    deletedAt?: Date | null;
-  }>;
-  images?: Array<{ url: string; isPrimary: boolean }>;
-}
 
 /**
  * Seed satu produk + nested variants & images.

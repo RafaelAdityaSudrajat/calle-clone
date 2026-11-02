@@ -5,6 +5,7 @@ import app from "../../../src/app";
 import { prisma } from "../../../src/lib/prisma";
 import { cleanCartDatabase } from "../helpers/database";
 import { getAccesTokenCookieAdmin } from "../helpers/auth";
+import { seedProduct } from "./helpers.product.integration";
 
 /**
  * Integration test untuk `POST /api/v1/admin/products_v2/:id/unpublish`.
@@ -26,33 +27,6 @@ import { getAccesTokenCookieAdmin } from "../helpers/auth";
 
 const CATEGORY_ID = "11111111-1111-4111-8111-111111111111";
 const baseEndpoint = "/api/v1/admin/products_v2";
-
-// ── Seed helper ────────────────────────────────────────────────────
-
-interface SeedProductOpts {
-  name: string;
-  status?: "DRAFT" | "ACTIVE" | "INACTIVE";
-  categoryId?: string | null;
-  deletedAt?: Date | null;
-  createdBy: string;
-}
-
-/**
- * Seed satu produk minimal. Varian & gambar tidak wajib untuk
- * unpublish — endpoint ini hanya transisi status, tidak validasi BR-07.
- */
-async function seedProduct(opts: SeedProductOpts) {
-  return prisma.product.create({
-    data: {
-      name: opts.name,
-      status: opts.status ?? "DRAFT",
-      categoryId: opts.categoryId === undefined ? CATEGORY_ID : opts.categoryId,
-      deletedAt: opts.deletedAt ?? null,
-      createdBy: opts.createdBy,
-      updatedBy: opts.createdBy,
-    },
-  });
-}
 
 // ── Test suite ─────────────────────────────────────────────────────
 
