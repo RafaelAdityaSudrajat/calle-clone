@@ -10,6 +10,12 @@ import { createVariantService } from "../../../src/modules/product_v2/product_v2
 vi.mock("../../../src/lib/prisma", () => ({
   prisma: {
     $transaction: vi.fn(),
+    productVariant: {
+      // Dipakai oleh mapVariantUniqueViolation sebagai DB fallback
+      // saat P2002 meta ambigu (jarang — hanya race P2002 dengan
+      // meta tidak mengandung "sku"/"size"/"color").
+      findUnique: vi.fn(),
+    },
   },
 }));
 
@@ -17,6 +23,7 @@ import { prisma } from "../../../src/lib/prisma";
 import { AppError } from "../../../src/lib/errors";
 
 const mockTransaction = vi.mocked(prisma.$transaction);
+const mockFindUnique = vi.mocked(prisma.productVariant.findUnique);
 
 const ADMIN_ID = "00000000-0000-0000-0000-00000000ad01";
 const PRODUCT_ID = "11111111-1111-4111-8111-111111111111";
@@ -342,16 +349,35 @@ describe("createVariantService", () => {
       });
     });
 
-    it("P2002 dengan meta unknown → fallback VARIANT_DUPLICATE (fail-safe 409)", async () => {
+    it("P2002 dengan meta unknown → fallback: SKU tidak dipakai → VARIANT_DUPLICATE", async () => {
       const tx = setupTx();
       tx.productVariant.create.mockRejectedValue(
         makeP2002({ some_new_constraint: "whatever" }),
       );
+      // Fallback query: SKU TIDAK ada di DB → kemungkinan besar
+      // yang bentrok adalah kombinasi (size,color) → VARIANT_DUPLICATE.
+      mockFindUnique.mockResolvedValue(null);
 
       await expect(
         createVariantService(PRODUCT_ID, baseInput(), ADMIN_ID),
       ).rejects.toMatchObject({
         code: "VARIANT_DUPLICATE",
+        statusCode: 409,
+      });
+    });
+
+    it("P2002 dengan meta unknown → fallback: SKU sudah dipakai → SKU_DUPLICATE", async () => {
+      const tx = setupTx();
+      tx.productVariant.create.mockRejectedValue(
+        makeP2002({ some_new_constraint: "whatever" }),
+      );
+      // Fallback query: SKU ADA di DB → SKU_DUPLICATE.
+      mockFindUnique.mockResolvedValue({ id: "existing-variant" } as any);
+
+      await expect(
+        createVariantService(PRODUCT_ID, baseInput(), ADMIN_ID),
+      ).rejects.toMatchObject({
+        code: "SKU_DUPLICATE",
         statusCode: 409,
       });
     });

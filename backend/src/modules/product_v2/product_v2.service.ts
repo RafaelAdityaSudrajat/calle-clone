@@ -253,32 +253,36 @@ function isPrismaUniqueViolation(
  * constraint baru di masa depan), default ke VARIANT_DUPLICATE
  * (lebih baik 409 yang generik daripada 500 yang menakutkan user).
  */
-function mapVariantUniqueViolation(
+async function mapVariantUniqueViolation(
   err: Prisma.PrismaClientKnownRequestError,
-): AppError {
-  const parts: string[] = [];
+  input: { sku: string; size: string | null; color: string | null },
+): Promise<AppError> {
+  // ── Lapis 1: message + meta ────────────────────────────────────
+  const haystack = [
+    err.message ?? "",
+    typeof err.meta?.target === "string" ? err.meta.target : "",
+    Array.isArray(err.meta?.target)
+      ? err.meta.target.map(String).join(" ")
+      : "",
+    typeof err.meta?.constraint === "string" ? err.meta.constraint : "",
+  ]
+    .join(" ")
+    .toLowerCase();
 
-  const target = err.meta?.target;
-  if (Array.isArray(target)) {
-    parts.push(...target.map(String));
-  } else if (target != null) {
-    parts.push(String(target));
-  }
-
-  const constraint = err.meta?.constraint;
-  if (constraint != null) {
-    parts.push(String(constraint));
-  }
-
-  const haystack = parts.join(" ").toLowerCase();
-
-  if (haystack.includes("sku")) {
-    return ProductErrors.skuDuplicate();
-  }
-
+  if (haystack.includes("sku")) return ProductErrors.skuDuplicate();
   if (haystack.includes("size") || haystack.includes("color")) {
     return ProductErrors.variantDuplicate();
   }
+
+  // ── Lapis 2: DB fallback ───────────────────────────────────────
+  // SKU unique adalah full index (tanpa `WHERE deleted_at IS NULL`),
+  // jadi SKU yang sudah ada di row mana pun (termasuk soft-deleted)
+  // dianggap bentrok. Query langsung cukup untuk konfirmasi.
+  const skuExists = await prisma.productVariant.findUnique({
+    where: { sku: input.sku },
+    select: { id: true },
+  });
+  if (skuExists) return ProductErrors.skuDuplicate();
 
   return ProductErrors.variantDuplicate();
 }
@@ -899,7 +903,7 @@ export async function createVariantService(
     //  - `ProductVariant_sku_key` → SKU_DUPLICATE
     //  - `ProductVariant_product_size_color_active_key` → VARIANT_DUPLICATE
     if (isPrismaUniqueViolation(err)) {
-      throw mapVariantUniqueViolation(err);
+      throw await mapVariantUniqueViolation(err, input);
     }
     throw err;
   }
