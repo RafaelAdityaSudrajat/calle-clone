@@ -2,6 +2,7 @@ import { Router } from "express";
 import { authenticate } from "../../middlewares/authenticate";
 import {
   createProductSchema,
+  createVariantSchema,
   getProductDetailParams,
   getProductDetailQuery,
   listProductsParamsQuerySchema,
@@ -11,6 +12,7 @@ import {
 import { validate } from "../../middlewares/validate";
 import {
   createProductController,
+  createVariantController,
   getListController,
   getProductDetailController,
   publishProductController,
@@ -88,6 +90,15 @@ router.post(
   requireAdmin,
   validate(getProductDetailParams),
   unpublishProductController,
+);
+
+router.post(
+  "/:id/variants",
+  authenticate,
+  requireAdmin,
+  validate(getProductDetailParams),
+  validate(createVariantSchema),
+  createVariantController,
 );
 
 export default router;

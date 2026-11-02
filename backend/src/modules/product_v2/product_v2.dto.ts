@@ -386,3 +386,96 @@ export interface UnpublishProductResponse {
 }
 
 export type RepublishProductResponse = PublishProductResponse;
+
+// src/modules/product_v2/product_v2.dto.ts (tambahan di bawah RepublishProductResponse)
+
+/**
+ * FR-PM-09 — Response 201 untuk POST /products/:id/variants.
+ *
+ * Shape sesuai API Contract PRD:
+ *   { id, sku, size, color, price, stock, low_stock }
+ *
+ * ── Kenapa field ini, bukan yang lain ──────────────────────────────
+ *
+ *  - `size` / `color`: string | null. Null = tidak diisi, bukan
+ *    "kosong string". Klien bisa langsung bandingkan `=== null`.
+ *  - `price`: number (bukan Decimal string). Prisma mengembalikan
+ *    Decimal; mapper yang konversi via `Number()`. Untuk Rupiah,
+ *    presisi Decimal(12,2) aman di JS number.
+ *  - `stock`: number. Non-negatif.
+ *  - `low_stock`: boolean derived — `stock < LOW_STOCK_THRESHOLD`
+ *    (BR-23). BUKAN kolom DB; dihitung di mapper supaya satu
+ *    sumber kebenaran threshold (di konstanta `LOW_STOCK_THRESHOLD`).
+ *
+ * ── Kenapa TIDAK ada `deleted_at` ─────────────────────────────────
+ *
+ * Varian yang baru di-create PASTI `deletedAt: null` (fresh insert).
+ * Menyertakan field itu di response create = noise. `deleted_at`
+ * hanya relevan di endpoint list/detail yang bisa mengembalikan
+ * varian soft-deleted (`?include_deleted=true`).
+ *
+ * ── Kenapa TIDAK ada `product_id` ─────────────────────────────────
+ *
+ * Produk sudah ada di URL (`/products/:id/variants`). Redundan.
+ *
+ * ── Kenapa TIDAK ada `created_at` / `created_by` ──────────────────
+ *
+ * Tidak di kontrak PRD. Klien yang butuh detail audit bisa GET
+ * variant via detail endpoint product.
+ */
+export interface CreateVariantResponse {
+  id: string;
+  sku: string;
+  size: string | null;
+  color: string | null;
+  price: number;
+  stock: number;
+  low_stock: boolean;
+}
+
+/**
+ * Input mapper untuk `toCreateVariantResponse`.
+ *
+ * Interface lokal — decoupled dari Prisma `ProductVariant`. Service
+ * cukup passing hasil `create` dengan select yang cocok dengan
+ * shape ini; test bisa membuat object kecil ini tanpa Prisma runtime.
+ *
+ * `price` bertipe union: Prisma menghasilkan Decimal (yang punya
+ * `toString()`), tapi mapper tidak boleh assume — test bisa kirim
+ * number langsung. Cast defensif via `.toString()`.
+ */
+export interface VariantRowForCreate {
+  id: string;
+  sku: string;
+  size: string | null;
+  color: string | null;
+  price: { toString(): string } | number;
+  stock: number;
+}
+
+/**
+ * Mapper: row Prisma → DTO response create variant.
+ *
+ * Konversi:
+ *  - `price`: Decimal → number via `.toString()` lalu `Number()`.
+ *    Pola ini aman untuk Decimal (punya toString), number, maupun
+ *    string — tidak bergantung pada Prisma runtime.
+ *  - `low_stock`: derived dari `stock < LOW_STOCK_THRESHOLD`.
+ *    Konstanta di-import dari file ini (didefinisikan lebih awal
+ *    untuk endpoint detail/list).
+ *  - Field lain: direct mapping (nama sama, snake_case sudah sama
+ *    dengan field Prisma karena single-word).
+ */
+export function toCreateVariantResponse(
+  row: VariantRowForCreate,
+): CreateVariantResponse {
+  return {
+    id: row.id,
+    sku: row.sku,
+    size: row.size,
+    color: row.color,
+    price: Number(row.price.toString()),
+    stock: row.stock,
+    low_stock: row.stock < LOW_STOCK_THRESHOLD,
+  };
+}

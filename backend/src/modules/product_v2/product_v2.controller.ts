@@ -4,6 +4,7 @@ import { AuthRequest } from "../../middlewares/authenticate";
 import { UnauthorizedError } from "../../lib/errors";
 import {
   CreateProductInput,
+  CreateVariantBodyInput,
   GetProductParams,
   GetProductQuery,
   ListProductsQuery,
@@ -12,6 +13,7 @@ import {
 } from "./product_v2.schema";
 import {
   createProductService,
+  createVariantService,
   getListProductService,
   getProductDetailService,
   publishProductService,
@@ -170,6 +172,26 @@ export const unpublishProductController = catchAsync(
     res.status(200).json({
       success: true,
       message: "Product unpublished successfully",
+      data,
+    });
+  },
+);
+
+export const createVariantController = catchAsync(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    const userId = req.auth?.userId;
+    const { id } = req.params as unknown as GetProductParams;
+    const input = req.body as CreateVariantBodyInput;
+
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
+
+    const data = await createVariantService(id, input, userId);
+
+    res.status(201).json({
+      success: true,
+      message: "Variant created successfully",
       data,
     });
   },

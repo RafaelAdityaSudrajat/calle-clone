@@ -41,11 +41,23 @@ export const ProductErrors = {
       "PRODUCT_NEEDS_PRIMARY_IMAGE",
     ),
 
-  invalidPrice: () =>
-    new AppError("Price must be greater than zero", 400, "INVALID_PRICE"),
+  invalidPrice: (price?: number) =>
+    new AppError(
+      price !== undefined
+        ? `Price must be greater than 0 (got ${price})`
+        : "Price must be greater than 0",
+      400,
+      "INVALID_PRICE",
+    ),
 
-  invalidStock: () =>
-    new AppError("Stock cannot be negative", 400, "INVALID_STOCK"),
+  invalidStock: (stock?: number) =>
+    new AppError(
+      stock !== undefined
+        ? `Stock cannot be negative (got ${stock})`
+        : "Stock cannot be negative",
+      400,
+      "INVALID_STOCK",
+    ),
 
   invalidStatusTransition: (from: string, to: string) =>
     new AppError(

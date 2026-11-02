@@ -3,12 +3,14 @@ import { AppError } from "../../lib/errors";
 import { prisma } from "../../lib/prisma";
 import {
   CreateProductResponse,
+  CreateVariantResponse,
   ListProductsResponse,
   ProductDetailResponse,
   ProductVariantStats,
   PublishProductResponse,
   RepublishProductResponse,
   toCreateProductResponse,
+  toCreateVariantResponse,
   toProductDetailResponse,
   toProductListItem,
   toUpdateProductResponse,
@@ -18,6 +20,7 @@ import {
 import { ProductErrors } from "./product_v2.errors";
 import {
   CreateProductInput,
+  CreateVariantBodyInput,
   GetProductQuery,
   ListProductsQuery,
   UpdateProductInput,
@@ -213,28 +216,73 @@ async function disambiguateTransitionFailure(
 }
 
 /**
- * FR-PM-01 — Buat produk.
- *
- * Kontrak:
- *  - `name` wajib, `description` opsional, `category_id` opsional.
- *  - Status dipaksa `DRAFT` (BR-03) — tidak bisa di-override client.
- *  - `created_by` / `updated_by` diambil dari admin yang terautentikasi (BR-26).
- *  - Kategori (jika dikirim) harus ada → 404 `CATEGORY_NOT_FOUND`.
- *
- * Penanganan race condition:
- *  - Pre-check `findUnique` menangani kasus normal (cepat, pesan jelas).
- *  - Kalau kategori dihapus di antara cek dan insert, FK RESTRICT
- *    menolak write (P2003). Kita map error itu ke `CATEGORY_NOT_FOUND`
- *    yang sama, supaya client selalu menerima error konsisten terlepas
- *    dari timing.
- *  - Tidak pakai `$transaction` di sini: single write, dan transaksi
- *    tidak akan menyelesaikan race ini tanpa naik ke isolasi `Serializable`
- *    (overkill untuk MVP). NFR-PM-01 berlaku untuk write multi-tabel
- *    (variant, publish, image) — bukan endpoint ini.
- *
- * @throws {AppError} CATEGORY_NOT_FOUND — `category_id` dikirim tapi tidak ada.
- * @throws {AppError} INTERNAL_ERROR — error DB yang tidak terduga.
+ * Deteksi Prisma unique violation (P2002). Defensive type guard.
  */
+function isPrismaUniqueViolation(
+  err: unknown,
+): err is Prisma.PrismaClientKnownRequestError {
+  return (
+    err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002"
+  );
+}
+
+/**
+ * Map Prisma `P2002` ke error code spesifik sesuai constraint yang
+ * dilanggar.
+ *
+ * Dua unique constraint di tabel ProductVariant:
+ *
+ *  1. `ProductVariant_sku_key`
+ *     - UNIQUE (sku), TANPA partial filter
+ *     - Meliputi varian soft-deleted (BR-12, EC-PM-C13)
+ *     - Pelanggaran → SKU_DUPLICATE (409)
+ *
+ *  2. `ProductVariant_product_size_color_active_key`
+ *     - UNIQUE (product_id, COALESCE(size,''), COALESCE(color,''))
+ *       WHERE deleted_at IS NULL
+ *     - Hanya varian AKTIF (DD-PM-08)
+ *     - Pelanggaran → VARIANT_DUPLICATE (409)
+ *
+ * Format meta P2002 berbeda antar versi Prisma:
+ *  - Versi lama: meta.target = string[] (nama kolom)
+ *  - Versi baru (Postgres): meta.constraint = nama constraint/index
+ *
+ * Cek keduanya (defensive) — jangan andalkan satu format.
+ *
+ * Fallback: kalau tidak match pola apa pun (bisa jadi ada unique
+ * constraint baru di masa depan), default ke VARIANT_DUPLICATE
+ * (lebih baik 409 yang generik daripada 500 yang menakutkan user).
+ */
+function mapVariantUniqueViolation(
+  err: Prisma.PrismaClientKnownRequestError,
+): AppError {
+  const parts: string[] = [];
+
+  const target = err.meta?.target;
+  if (Array.isArray(target)) {
+    parts.push(...target.map(String));
+  } else if (target != null) {
+    parts.push(String(target));
+  }
+
+  const constraint = err.meta?.constraint;
+  if (constraint != null) {
+    parts.push(String(constraint));
+  }
+
+  const haystack = parts.join(" ").toLowerCase();
+
+  if (haystack.includes("sku")) {
+    return ProductErrors.skuDuplicate();
+  }
+
+  if (haystack.includes("size") || haystack.includes("color")) {
+    return ProductErrors.variantDuplicate();
+  }
+
+  return ProductErrors.variantDuplicate();
+}
+
 export async function createProductService(
   input: CreateProductInput,
   adminId: string,
@@ -782,27 +830,77 @@ export async function unpublishProductService(
   return { id, status: "INACTIVE" };
 }
 
-/**
- * FR-PM-08 — Republish produk (`INACTIVE` → `ACTIVE`).
- *
- * Identik dengan publish KECUALI entry status `INACTIVE` (bukan
- * `DRAFT`). Validasi BR-07 sama persis — republish hanya boleh
- * kalau produk masih layak tayang.
- *
- * Lihat komentar lengkap di `publishProductService` untuk analisis
- * race & keamanan — semua berlaku identik di sini.
- *
- * ─── Kenapa endpoint terpisah, bukan publish yang handle dua-duanya ─
- *
- * FR-PM-08 mendefinisikan endpoint berbeda untuk aksi berbeda:
- *  - publish  = masuk katalog pertama kali (DRAFT → ACTIVE)
- *  - republish = masuk katalog kembali (INACTIVE → ACTIVE)
- *
- * Pemisahan memberi klien semantic hint (mis. analytics, UI label
- * "Publish" vs "Republish"), dan memudahkan audit log di masa depan
- * tanpa mengubah publish.
- *
- * @throws {AppError} PRODUCT_NOT_FOUND — produk tidak ada / soft-deleted.
- * @throws {AppError} INVALID_STATUS_TRANSITION — bukan INACTIVE saat republish.
- * @throws {AppError} publishValidationFailed — multi-error BR-07.
- */
+export async function createVariantService(
+  productId: string,
+  input: CreateVariantBodyInput,
+  adminId: string,
+): Promise<CreateVariantResponse> {
+  // ── 1. Business rules (fast fail, tanpa sentuh DB) ──────────────
+  //
+  // Sengaja di sini (bukan Zod) supaya error code spesifik per PRD:
+  // ATTRIBUTE_REQUIRED / INVALID_PRICE / INVALID_STOCK — bukan
+  // VALIDATION_ERROR generik.
+
+  if (input.size === null && input.color === null) {
+    throw ProductErrors.attributeRequired();
+  }
+
+  if (input.price <= 0) {
+    throw ProductErrors.invalidPrice(input.price);
+  }
+
+  if (input.stock < 0) {
+    throw ProductErrors.invalidStock(input.stock);
+  }
+
+  // ── 2. Transaction: lock product + insert ──────────────────────
+  try {
+    const row = await prisma.$transaction(async (tx) => {
+      // Lock product row (FOR UPDATE) — block concurrent soft-delete
+      // sampai transaksi ini commit. Filter `deleted_at IS NULL`:
+      //  - Product tidak ada  → 0 rows
+      //  - Product soft-deleted → 0 rows (tidak lock, tidak insert)
+      //  - Product valid → 1 row, row-locked
+      //
+      // Parameterization: `productId` di-parameterize Prisma (tagged
+      // template) — bukan interpolasi string, tidak ada SQL injection.
+      const locked = await tx.$queryRaw<{ id: string }[]>`
+        SELECT id FROM "Product"
+        WHERE id = ${productId} AND deleted_at IS NULL
+        FOR UPDATE
+      `;
+      if (locked.length === 0) throw ProductErrors.productNotFound();
+
+      return tx.productVariant.create({
+        data: {
+          productId,
+          sku: input.sku,
+          size: input.size,
+          color: input.color,
+          price: input.price,
+          stock: input.stock,
+          createdBy: adminId,
+          updatedBy: adminId,
+        },
+        select: {
+          id: true,
+          sku: true,
+          size: true,
+          color: true,
+          price: true,
+          stock: true,
+        },
+      });
+    });
+
+    return toCreateVariantResponse(row);
+  } catch (err) {
+    // P2002 = unique violation. Bisa dari:
+    //  - `ProductVariant_sku_key` → SKU_DUPLICATE
+    //  - `ProductVariant_product_size_color_active_key` → VARIANT_DUPLICATE
+    if (isPrismaUniqueViolation(err)) {
+      throw mapVariantUniqueViolation(err);
+    }
+    throw err;
+  }
+}

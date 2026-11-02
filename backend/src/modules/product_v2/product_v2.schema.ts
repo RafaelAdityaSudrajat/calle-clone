@@ -313,3 +313,94 @@ export const updateProductBody = {
 
 export type UpdateProductParamsType = z.infer<typeof updateProductParamsSchema>;
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
+
+// src/modules/product_v2/product_v2.schema.ts (tambahan)
+
+/**
+ * FR-PM-09 — Body untuk POST /products/:id/variants.
+ *
+ * Zod menangani STRUKTUR (tipe, panjang, trim, normalisasi null).
+ * Business rules (price > 0, stock >= 0, attribute required) DITANGANI
+ * SERVICE — supaya error code spesifik dari PRD (INVALID_PRICE,
+ * INVALID_STOCK, ATTRIBUTE_REQUIRED) bisa di-throw, bukan
+ * VALIDATION_ERROR generik dari Zod.
+ *
+ * Ini konsisten dengan pattern project:
+ *  - Zod → VALIDATION_ERROR (format input salah)
+ *  - Service → code spesifik (business rule violated)
+ *
+ * ── Field mapping ke constraint DB ─────────────────────────────────
+ *
+ *   sku    VARCHAR(100) NOT NULL UNIQUE
+ *   size   VARCHAR(20)  NULL
+ *   color  VARCHAR(50)  NULL
+ *   price  DECIMAL(12,2) NOT NULL CHECK (price > 0)
+ *   stock  INTEGER      NOT NULL DEFAULT 0 CHECK (stock >= 0)
+ *
+ * Zod max-length di sini mencegah insert gagal dengan P2000
+ * (column too long) — gagal di validation layer, bukan DB layer.
+ *
+ * ── Transformasi ─────────────────────────────────────────────────
+ *
+ *  - sku: trim → min(1) — mencegah "   " lolos sebagai SKU
+ *  - size/color: trim → "" → null — normalisasi untuk partial unique
+ *    index `(product_id, COALESCE(size,''), COALESCE(color,''))`.
+ *    Kalau kita simpan "" (empty string), partial unique index akan
+ *    menganggap "" sebagai nilai berbeda dari null, padahal
+ *    semantiknya sama-sama "tidak ada". Selalu normalize ke null.
+ *  - price/stock: tidak di-coerce — input harus benar-benar number.
+ *    `z.coerce.number()` akan terima "100" (string) → tidak diinginkan
+ *    untuk API JSON. Client harus kirim number.
+ *
+ * ── Yang TIDAK divalidasi di sini (kenapa) ────────────────────────
+ *
+ *  - price > 0          → service (INVALID_PRICE per BR-15)
+ *  - stock >= 0         → service (INVALID_STOCK per BR-21)
+ *  - attribute required → service (ATTRIBUTE_REQUIRED per BR-11)
+ *  - SKU uniqueness     → service + DB (P2002 → SKU_DUPLICATE)
+ *  - kombinasi unique   → service + DB (P2002 → VARIANT_DUPLICATE)
+ *
+ * Duplikasi validasi di Zod akan mengubah code yang dilihat klien —
+ * tidak diinginkan untuk kontrak API.
+ */
+export const createVariantBodySchema = z.object({
+  sku: z
+    .string({ error: "sku must be a string" })
+    .trim()
+    .min(1, "sku cannot be empty")
+    .max(100, "sku must be at most 100 characters"),
+
+  size: z
+    .string({ error: "size must be a string" })
+    .trim()
+    .max(20, "size must be at most 20 characters")
+    .nullish()
+    // Normalisasi: "" / whitespace → null. Mencegah partial unique
+    // index memperlakukan "" berbeda dari null.
+    .transform((v) => (v && v.length > 0 ? v : null)),
+
+  color: z
+    .string({ error: "color must be a string" })
+    .trim()
+    .max(50, "color must be at most 50 characters")
+    .nullish()
+    .transform((v) => (v && v.length > 0 ? v : null)),
+
+  price: z
+    .number({ error: "price must be a number" })
+    // `.finite()` menolak NaN & Infinity — bukan error bisnis
+    // (INVALID_PRICE), tapi error format (VALIDATION_ERROR).
+    .finite("price must be a finite number"),
+
+  stock: z
+    .number({ error: "stock must be a number" })
+    // `.int()` menolak 5.5 dst — stok selalu unit bulat. Bukan
+    // INVALID_STOCK (yang berarti negatif), tapi VALIDATION_ERROR.
+    .int("stock must be an integer"),
+});
+
+export const createVariantSchema = {
+  body: createVariantBodySchema,
+};
+
+export type CreateVariantBodyInput = z.infer<typeof createVariantBodySchema>;
