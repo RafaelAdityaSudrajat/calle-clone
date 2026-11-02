@@ -404,3 +404,141 @@ export const createVariantSchema = {
 };
 
 export type CreateVariantBodyInput = z.infer<typeof createVariantBodySchema>;
+
+/**
+ * FR-PM-12 — Query params untuk GET /products/:id/variants.
+ *
+ * Dua flag boolean independent:
+ *
+ *  - `include_deleted=true` → tampilkan juga varian soft-deleted.
+ *    (default false: hanya varian aktif). Produk sendiri SELALU
+ *    harus non-soft-deleted — kalau produk soft-deleted → 404,
+ *    sama seperti GET detail (audit view produk lewat endpoint detail).
+ *
+ *  - `low_stock=true`       → filter hanya varian dengan `stock < 5`
+ *    (BR-23). Filter independent dari `include_deleted` — kombinasi
+ *    keduanya sah: `?include_deleted=true&low_stock=true` menampilkan
+ *    varian low-stock termasuk yang soft-deleted.
+ *
+ * Parsing boolean: JANGAN `z.coerce.boolean()`.
+ *   `Boolean("false") === true` di JS → bug klasik. Pakai
+ *   `z.enum(["true", "false"])` — hanya dua nilai diterima, nilai
+ *   lain (`"1"`, `"yes"`, array) → 400 VALIDATION_ERROR.
+ *
+ * Tidak ada `.strict()`: parameter tak dikenal di-strip (default
+ * Zod). Konsisten dengan `listProductsQuerySchema`.
+ */
+export const listVariantsQuerySchema = z.object({
+  include_deleted: z
+    .enum(["true", "false"])
+    .optional()
+    .default("false")
+    .transform((v) => v === "true"),
+
+  low_stock: z
+    .enum(["true", "false"])
+    .optional()
+    .default("false")
+    .transform((v) => v === "true"),
+});
+
+export const listVariantsQuery = {
+  query: listVariantsQuerySchema,
+};
+
+export type ListVariantsQuery = z.infer<typeof listVariantsQuerySchema>;
+
+/**
+ * FR-PM-10 — Body untuk PUT /products/:id/variants/:variantId.
+ *
+ * Partial update (mirror PUT /products/:id). Semua field optional;
+ * minimal 1 harus dikirim. `.strict()` menolak field terlarang
+ * (`created_by`, `updated_by`, `product_id`, `id`, `deleted_at`, dst.).
+ *
+ * ── Semantik size/color: undefined vs null ────────────────────────
+ *
+ *  - `size: undefined` (tidak dikirim) → field TIDAK diubah
+ *  - `size: null`                      → field dikosongkan (set null)
+ *  - `size: ""` atau whitespace-only   → dinormalisasi ke null
+ *  - `size: "L"`                       → di-set ke "L"
+ *
+ * `.transform((v) => v === undefined ? undefined : (v && v.length > 0 ? v : null))`
+ * — membedakan "tidak dikirim" dari "di-clear". Tanpa ini,
+ * `v || null` akan mengubah `undefined` jadi `null` → semua field
+ * yang tidak dikirim akan ter-clear (bug fatal).
+ *
+ * ── Business rules di SERVICE (bukan Zod) ─────────────────────────
+ *
+ *  - `price > 0`         → INVALID_PRICE (BR-15)
+ *  - `stock >= 0`        → INVALID_STOCK (BR-21)
+ *  - attribute required  → ATTRIBUTE_REQUIRED (BR-11) — WAJIB cek
+ *    merged state (input + existing), bukan hanya input. Contoh:
+ *    input `{ size: null }` dengan existing color `null` →
+ *    merged state invalid → ATTRIBUTE_REQUIRED. Schema tidak bisa
+ *    tahu existing state → service yang validasi.
+ *  - SKU & kombinasi unique → DB constraint → P2002 → map (BR-12, BR-13)
+ *
+ * Zod hanya menangani STRUKTUR (tipe, panjang, normalisasi) — sama
+ * seperti create variant.
+ */
+export const updateVariantBodySchema = z
+  .object({
+    sku: z
+      .string({ error: "sku must be a string" })
+      .trim()
+      .min(1, "sku cannot be empty")
+      .max(100, "sku must be at most 100 characters")
+      .optional(),
+
+    size: z
+      .string({ error: "size must be a string" })
+      .trim()
+      .max(20, "size must be at most 20 characters")
+      .nullish()
+      // undefined = tidak diubah; null/"" = clear; string = set.
+      .transform((v) =>
+        v === undefined ? undefined : v && v.length > 0 ? v : null,
+      ),
+
+    color: z
+      .string({ error: "color must be a string" })
+      .trim()
+      .max(50, "color must be at most 50 characters")
+      .nullish()
+      .transform((v) =>
+        v === undefined ? undefined : v && v.length > 0 ? v : null,
+      ),
+
+    price: z
+      .number({ error: "price must be a number" })
+      .finite("price must be a finite number")
+      .optional(),
+
+    stock: z
+      .number({ error: "stock must be a number" })
+      .int("stock must be an integer")
+      .optional(),
+  })
+  .strict()
+  .refine((d) => Object.keys(d).length > 0, {
+    message: "At least one field must be provided for update",
+  });
+
+/**
+ * FR-PM-10 — Params untuk PUT /products/:id/variants/:variantId.
+ *
+ * Dua UUID: `:id` (product) & `:variantId` (variant). Keduanya
+ * divalidasi sebelum service — mencegah sampling endpoint dengan
+ * string arbitrary dan mencegah query DB dengan format invalid.
+ *
+ * IDOR (NFR-PM-08): `variantId` HARUS milik `productId`. Validasi
+ * ini di SERVICE (bukan schema) — karena butuh query DB untuk cek
+ * relasi. Schema hanya memvalidasi FORMAT.
+ */
+export const updateVariantParamsSchema = z.object({
+  id: z.uuid({ error: "id must be a valid UUID" }),
+  variantId: z.uuid({ error: "variantId must be a valid UUID" }),
+});
+
+export type UpdateVariantParams = z.infer<typeof updateVariantParamsSchema>;
+export type UpdateVariantBodyInput = z.infer<typeof updateVariantBodySchema>;

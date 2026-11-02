@@ -8,6 +8,7 @@ import {
   GetProductParams,
   GetProductQuery,
   ListProductsQuery,
+  ListVariantsQuery,
   UpdateProductInput,
   UpdateProductParamsType,
 } from "./product_v2.schema";
@@ -16,6 +17,7 @@ import {
   createVariantService,
   getListProductService,
   getProductDetailService,
+  listVariantService,
   publishProductService,
   republishProductService,
   softDeleteProductService,
@@ -192,6 +194,26 @@ export const createVariantController = catchAsync(
     res.status(201).json({
       success: true,
       message: "Variant created successfully",
+      data,
+    });
+  },
+);
+
+export const listVariantController = catchAsync(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    const userId = req.auth?.userId;
+    const { id } = req.params as unknown as GetProductParams;
+    const query = (req as any).validatedQuery as ListVariantsQuery;
+
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
+
+    const data = await listVariantService(id, query);
+
+    res.status(200).json({
+      success: true,
+      message: "Variants retrieved successfully",
       data,
     });
   },

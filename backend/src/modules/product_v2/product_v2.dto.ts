@@ -479,3 +479,73 @@ export function toCreateVariantResponse(
     low_stock: row.stock < LOW_STOCK_THRESHOLD,
   };
 }
+
+/**
+ * FR-PM-12 — Satu item dalam list varian.
+ *
+ * Shape IDENTIK dengan `VariantDetail` (varian nested di detail
+ * produk, FR-PM-03):
+ *   { id, sku, size, color, price, stock, low_stock, deleted_at }
+ *
+ * Kenapa alias (bukan interface baru):
+ *  - Field set sama persis di PRD.
+ *  - Mapper `toVariantDetail` reusable — tidak duplikat konversi
+ *    Decimal → number & Date → ISO di dua tempat.
+ *  - Kalau nanti divergen (mis. list tambah `product_name` untuk
+ *    dashboard lintas produk), pecah jadi interface terpisah saat itu.
+ *
+ * Detail:
+ *  - `price`: number (bukan Decimal string). Konversi di mapper.
+ *  - `low_stock`: derived dari `stock < LOW_STOCK_THRESHOLD` (BR-23).
+ *    BUKAN kolom DB — dihitung di mapper supaya satu sumber
+ *    kebenaran threshold.
+ *  - `deleted_at`: string ISO atau null. Selalu disertakan (null
+ *    untuk varian aktif) — klien butuh untuk audit kalau request
+ *    pakai `?include_deleted=true`.
+ */
+export type VariantListItem = VariantDetail;
+
+/**
+ * FR-PM-12 — Response 200 untuk GET /products/:id/variants.
+ *
+ * Shape sesuai API Contract PRD:
+ *   { items: [...] }
+ *
+ * Tidak ada `pagination`:
+ *  - PRD tidak menyertakan pagination untuk endpoint ini.
+ *  - Varian per produk biasanya kecil (5-30). Menambah pagination
+ *    = breaking change DTO; tunggu kebutuhan konkret.
+ *
+ * Tidak ada `total`:
+ *  - Tidak diminta PRD.
+  - `items.length` sudah cukup untuk UI count saat list kecil.
+ */
+export interface ListVariantsResponse {
+  items: VariantListItem[];
+}
+
+/**
+ * FR-PM-10 — Response 200 untuk PUT /products/:id/variants/:variantId.
+ *
+ * Shape IDENTIK dengan `CreateVariantResponse`:
+ *   { id, sku, size, color, price, stock, low_stock }
+ *
+ * Alias (bukan interface duplikat) karena:
+ *  - Field set sama persis di PRD (create & update response simetris).
+ *  - Kalau nanti divergen (mis. update tambah `previous_sku` untuk
+ *    audit, atau create tidak punya field tertentu), pecah saat itu.
+ *  - Mapper `toCreateVariantResponse` reusable — konversi Decimal →
+ *    number, `low_stock` derived, semua sama.
+ *
+ * ── Kenapa TIDAK ada `deleted_at` ─────────────────────────────────
+ *
+ * Endpoint update tidak akan pernah mengembalikan variant yang
+ * soft-deleted (WHERE `deleted_at IS NULL` di service). Menyertakan
+ * field = noise (`deleted_at: null` selalu). Konsisten dengan create.
+ *
+ * ── Kenapa TIDAK ada `created_at` / `updated_at` ──────────────────
+ *
+ * Tidak di kontrak PRD. Klien yang butuh audit trail bisa GET list
+ * atau detail product (nested variants).
+ */
+export type UpdateVariantResponse = CreateVariantResponse;

@@ -6,6 +6,7 @@ import {
   getProductDetailParams,
   getProductDetailQuery,
   listProductsParamsQuerySchema,
+  listVariantsQuery,
   updateProductBody,
   updateProductParams,
 } from "./product_v2.schema";
@@ -15,6 +16,7 @@ import {
   createVariantController,
   getListController,
   getProductDetailController,
+  listVariantController,
   publishProductController,
   republishProductController,
   softDeleteProductController,
@@ -99,6 +101,15 @@ router.post(
   validate(getProductDetailParams),
   validate(createVariantSchema),
   createVariantController,
+);
+
+router.get(
+  "/:id/variants",
+  authenticate,
+  requireAdmin,
+  validate(getProductDetailParams),
+  validate(listVariantsQuery),
+  listVariantController,
 );
 
 export default router;

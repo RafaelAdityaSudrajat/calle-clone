@@ -5,6 +5,8 @@ import {
   CreateProductResponse,
   CreateVariantResponse,
   ListProductsResponse,
+  ListVariantsResponse,
+  LOW_STOCK_THRESHOLD,
   ProductDetailResponse,
   ProductVariantStats,
   PublishProductResponse,
@@ -14,8 +16,10 @@ import {
   toProductDetailResponse,
   toProductListItem,
   toUpdateProductResponse,
+  toVariantDetail,
   UnpublishProductResponse,
   UpdateProductResponse,
+  VariantListItem,
 } from "./product_v2.dto";
 import { ProductErrors } from "./product_v2.errors";
 import {
@@ -23,6 +27,7 @@ import {
   CreateVariantBodyInput,
   GetProductQuery,
   ListProductsQuery,
+  ListVariantsQuery,
   UpdateProductInput,
 } from "./product_v2.schema";
 
@@ -907,4 +912,88 @@ export async function createVariantService(
     }
     throw err;
   }
+}
+
+export async function listVariantService(
+  productId: string,
+  query: ListVariantsQuery,
+): Promise<ListVariantsResponse> {
+  // ── Susun filter variants ────────────────────────────────────
+  // Prisma otomatis menambahkan FK filter (`productId = ...`) saat
+  // nested select pada relasi — jadi kita hanya menambahkan filter
+  // turunan (deletedAt, stock).
+  //
+  // Filter composition:
+  //  - default            → { deletedAt: null }
+  //  - include_deleted    → {} (semua varian)
+  //  - low_stock          → { stock: { lt: THRESHOLD } }
+  //  - kombinasi keduanya → { stock: { lt: THRESHOLD } }
+  //    (deletedAt tidak difilter → termasuk yang soft-deleted)
+  const variantWhere: Prisma.ProductVariantWhereInput = {};
+
+  if (!query.include_deleted) {
+    variantWhere.deletedAt = null;
+  }
+
+  if (query.low_stock) {
+    variantWhere.stock = { lt: LOW_STOCK_THRESHOLD };
+  }
+
+  // ── Single nested query ──────────────────────────────────────
+  // `findFirst` (bukan `findUnique`) karena butuh filter
+  // `deletedAt: null` — bukan unique constraint, jadi Prisma
+  // `findUnique` extended where tidak portable di semua versi.
+  //
+  // Kalau product tidak ada / soft-deleted → parent query return
+  // null → 404. Kalau ada tapi varian kosong → return
+  // `{ variants: [] }` → 200 dengan `items: []`.
+  const product = await prisma.product.findFirst({
+    where: {
+      id: productId,
+      // BR-05: soft-deleted product diperlakukan seolah tidak ada
+      // (404), konsisten dengan endpoint detail.
+      deletedAt: null,
+    },
+    select: {
+      variants: {
+        where: variantWhere,
+        // Order deterministik:
+        //  - `createdAt: asc` → varian terlama tampil dulu
+        //    (konsisten dengan nested variants di endpoint detail).
+        //  - `id: asc` sebagai TIEBREAKER — dua varian bisa punya
+        //    `createdAt` identik (bulk insert dalam satu transaksi),
+        //    dan Postgres tidak menjamin urutan stabil tanpa
+        //    tiebreaker. `id` UUID adalah PK unique → urutan
+        //    konsisten antar request.
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        // Select hanya field yang dibutuhkan DTO + mapper. Field
+        // sensitif internal (createdBy, updatedBy) sengaja tidak
+        // di-select → tidak bisa bocor ke response.
+        select: {
+          id: true,
+          sku: true,
+          size: true,
+          color: true,
+          price: true, // Prisma Decimal — dikonversi di mapper
+          stock: true,
+          deletedAt: true, // dibutuhkan mapper untuk `deleted_at`
+        },
+      },
+    },
+  });
+
+  // Product tidak ada atau soft-deleted → 404. Keduanya digabung
+  // (anti-enumeration) — tidak bisa dibedakan dari luar.
+  if (!product) throw ProductErrors.productNotFound();
+
+  // ── Map ke DTO ────────────────────────────────────────────────
+  // Reuse `toVariantDetail` dari DTO detail produk — shape item
+  // identik (PRD FR-PM-03 & FR-PM-12). Satu mapper, satu tempat
+  // konversi Decimal → number & Date → ISO.
+  //
+  // `product.variants` dijamin array (bisa kosong), bukan undefined
+  // — Prisma mengembalikan `[]` untuk relasi list tanpa rows.
+  const items: VariantListItem[] = product.variants.map(toVariantDetail);
+
+  return { items };
 }
