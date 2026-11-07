@@ -597,3 +597,72 @@ export function toUpdateStockResponse(
     low_stock: stock < LOW_STOCK_THRESHOLD,
   };
 }
+
+/**
+ * FR-PM-17 — Satu item dalam list low-stock.
+ *
+ * Shape sesuai API Contract PRD:
+ *   { variant_id, product_id, product_name, sku, size, color, stock }
+ *
+ * Perhatikan field `variant_id` & `product_id` (snake_case) — berbeda
+ * dari DTO varian lain (`id`, `productId`). Ini karena response-nya
+ * cross-produk: klien butuh identifier kedua entity untuk navigasi
+ * (klik variant → buka detail produk).
+ *
+ * Tidak ada `price` / `low_stock`:
+ *  - `price` relevan untuk inventory cost, tidak diminta PRD.
+ *  - `low_stock` implisit `true` (semua item lolos filter `stock < 5`).
+ *    Menyertakan flag konstan = noise.
+ */
+export interface LowStockVariantItem {
+  variant_id: string;
+  product_id: string;
+  product_name: string;
+  sku: string;
+  size: string | null;
+  color: string | null;
+  stock: number;
+}
+
+/**
+ * FR-PM-17 — Response 200 untuk GET /products/low-stock.
+ *
+ * Tidak ada `pagination`:
+ *  - PRD Finalisasi #5 eksplisit: "Low stock list: tanpa pagination".
+ *  - Jumlah varian low-stock umumnya kecil (puluhan). Kalau ternyata
+ *    besar, admin bisa filter via UI (client-side).
+ *  - Menambah pagination = breaking change DTO; tunggu kebutuhan.
+ *
+ * Tidak ada `total`:
+ *  - `items.length` cukup untuk UI count.
+ */
+export interface LowStockListResponse {
+  items: LowStockVariantItem[];
+}
+
+/**
+ * Mapper: row Prisma → DTO item low-stock.
+ *
+ * Row shape dari service `select`:
+ *   { id, sku, size, color, stock, product: { id, name } }
+ */
+export interface LowStockRow {
+  id: string;
+  sku: string;
+  size: string | null;
+  color: string | null;
+  stock: number;
+  product: { id: string; name: string };
+}
+
+export function toLowStockVariantItem(row: LowStockRow): LowStockVariantItem {
+  return {
+    variant_id: row.id,
+    product_id: row.product.id,
+    product_name: row.product.name,
+    sku: row.sku,
+    size: row.size,
+    color: row.color,
+    stock: row.stock,
+  };
+}

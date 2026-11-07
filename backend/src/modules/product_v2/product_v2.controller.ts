@@ -20,6 +20,7 @@ import {
   createVariantService,
   getListProductService,
   getProductDetailService,
+  listLowStockVariantsService,
   listVariantService,
   publishProductService,
   republishProductService,
@@ -287,6 +288,24 @@ export const updateStockController = catchAsync(
     res.status(200).json({
       success: true,
       message: "Stock updated successfully",
+      data,
+    });
+  },
+);
+
+export const listLowStockVariantsController = catchAsync(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
+
+    const data = await listLowStockVariantsService();
+
+    res.status(200).json({
+      success: true,
+      message: "Low stock variants retrieved",
       data,
     });
   },

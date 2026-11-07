@@ -19,6 +19,7 @@ import {
   createVariantController,
   getListController,
   getProductDetailController,
+  listLowStockVariantsController,
   listVariantController,
   publishProductController,
   republishProductController,
@@ -47,6 +48,13 @@ router.get(
   requireAdmin,
   validate(listProductsParamsQuerySchema),
   getListController,
+);
+
+router.get(
+  "/low-stock",
+  authenticate,
+  requireAdmin,
+  listLowStockVariantsController,
 );
 
 router.get(
