@@ -243,7 +243,7 @@ export const updateVariantController = catchAsync(
 
     res.status(200).json({
       success: true,
-      message: "Variant created successfully",
+      message: "Variant updated successfully",
       data,
     });
   },

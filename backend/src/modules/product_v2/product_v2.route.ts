@@ -7,11 +7,10 @@ import {
   getProductDetailQuery,
   listProductsParamsQuerySchema,
   listVariantsQuery,
-  testBody,
-  testParams,
+  updateVariantBodyConfig,
+  updateVariantParamsConfig,
   updateProductBody,
   updateProductParams,
-  updateVariantParamsSchema,
 } from "./product_v2.schema";
 import { validate } from "../../middlewares/validate";
 import {
@@ -29,7 +28,6 @@ import {
   updateVariantController,
 } from "./product_v2.controller";
 import { requireAdmin } from "../../middlewares/requireAdmin";
-import { listOrdersSchema } from "../order/order.schema";
 
 const router = Router();
 
@@ -121,8 +119,8 @@ router.put(
   "/:productId/variants/:variantId",
   authenticate,
   requireAdmin,
-  validate(testParams),
-  validate(testBody),
+  validate(updateVariantParamsConfig),
+  validate(updateVariantBodyConfig),
   updateVariantController,
 );
 
@@ -130,7 +128,7 @@ router.delete(
   "/:productId/variants/:variantId",
   authenticate,
   requireAdmin,
-  validate(testParams),
+  validate(updateVariantParamsConfig),
   softDeleteVariantController,
 );
 export default router;
