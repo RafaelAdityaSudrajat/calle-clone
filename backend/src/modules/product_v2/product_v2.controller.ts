@@ -286,7 +286,7 @@ export const updateStockController = catchAsync(
 
     res.status(200).json({
       success: true,
-      message: "Variant updated successfully",
+      message: "Stock updated successfully",
       data,
     });
   },
