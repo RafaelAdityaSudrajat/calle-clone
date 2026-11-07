@@ -344,3 +344,52 @@ export type UpdateVariantBodyInput = {
   price?: number;
   stock?: number;
 };
+
+// src/modules/product_v2/product_v2.schema.ts (tambahan)
+
+/**
+ * FR-PM-16 — Body untuk PATCH /products/:id/variants/:variantId/stock.
+ *
+ * Hanya 1 field: `stock`. Endpoint "quick stock update" — bukan
+ * update variant penuh (yang handle semua field via PUT).
+ *
+ * ── Zod vs business rule ─────────────────────────────────────────
+ *
+ *   Zod → STRUKTUR:
+ *     - `stock` adalah number valid (bukan string, NaN, Infinity)
+ *     - `stock` adalah integer (bukan 5.5 — stok adalah unit barang)
+ *     - Missing field → VALIDATION_ERROR
+ *
+ *   Service → BUSINESS RULE:
+ *     - `stock >= 0` → INVALID_STOCK (BR-21) — bukan VALIDATION_ERROR
+ *
+ * Kenapa `min(0)` tidak di Zod: PRD secara eksplisit mendefinisikan
+ * `INVALID_STOCK` sebagai code tersendiri. Kalau Zod yang tangkap,
+ * client akan dapat `VALIDATION_ERROR` generik, bukan `INVALID_STOCK`.
+ * Konsisten dengan create variant & update variant.
+ *
+ * `.strict()` menolak field terlarang (`updated_by`, `created_by`,
+ * `id`, dst.). Defense-in-depth — endpoint ini hanya boleh ubah
+ * `stock`, bukan field lain.
+ */
+export const updateStockBodySchema = z
+  .object({
+    stock: z
+      .number({
+        error: (issue) =>
+          issue.input === undefined
+            ? "stock is required"
+            : "stock must be a number",
+      })
+      .finite("stock must be a finite number")
+      .int("stock must be an integer"),
+  })
+  .strict();
+
+export const updateVariantConfig = {
+  body: updateStockBodySchema,
+};
+
+export type UpdateStockBodyInput = z.infer<typeof updateStockBodySchema>;
+
+// update/delete variant (`{ id, variantId }`).

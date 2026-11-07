@@ -16,9 +16,11 @@ import {
   toProductDetailResponse,
   toProductListItem,
   toUpdateProductResponse,
+  toUpdateStockResponse,
   toVariantDetail,
   UnpublishProductResponse,
   UpdateProductResponse,
+  UpdateStockResponse,
   UpdateVariantResponse,
   VariantListItem,
 } from "./product_v2.dto";
@@ -1283,4 +1285,69 @@ export async function softDeleteVariantService(
       });
     }
   });
+}
+
+export async function updateStockService(
+  productId: string,
+  variantId: string,
+  stock: number,
+  adminId: string,
+): Promise<UpdateStockResponse> {
+  // ── 1. Business rule (BR-21) ────────────────────────────────
+  // Zod sudah pastikan `stock` integer & finite. Di sini kita
+  // validasi `stock >= 0` → code spesifik INVALID_STOCK (bukan
+  // VALIDATION_ERROR generik dari Zod).
+  if (stock < 0) throw ProductErrors.invalidStock(stock);
+
+  // ── 2. Atomic UPDATE dengan semua guard di WHERE ────────────
+  // Semua kondisi dievaluasi Postgres dalam 1 statement dengan
+  // row lock yang tepat. Tidak ada window check-then-act.
+  const affected = await prisma.$executeRaw`
+    UPDATE "ProductVariant"
+    SET
+      "stock"      = ${stock},
+      "updated_at" = NOW(),
+      "updated_by" = ${adminId}
+    WHERE "id" = ${variantId}
+      AND "product_id" = ${productId}
+      AND "deleted_at" IS NULL
+      AND EXISTS (
+        SELECT 1 FROM "Product"
+        WHERE "id" = ${productId}
+          AND "deleted_at" IS NULL
+      )
+  `;
+
+  // ── 3. Disambiguasi 404 ─────────────────────────────────────
+  // affected=0 menggabungkan 4 kondisi:
+  //   a. Variant tidak ada (id tidak match)
+  //   b. Variant soft-deleted (deleted_at != null)
+  //   c. Variant milik product lain (product_id mismatch — IDOR)
+  //   d. Product soft-deleted / tidak ada
+  //
+  // Disambiguasi:
+  //   - Product ada & aktif? → a/b/c → VARIANT_NOT_FOUND
+  //   - Product tidak ada / soft-deleted → PRODUCT_NOT_FOUND
+  //
+  // Kedua 404 tidak membedakan "tidak ada" vs "sudah dihapus" —
+  // anti-enumeration. Konsisten dengan endpoint lain.
+  if (affected === 0) {
+    const product = await prisma.product.findFirst({
+      where: { id: productId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!product) throw ProductErrors.productNotFound();
+    throw ProductErrors.variantNotFound();
+  }
+
+  // ── 4. Return dari input (bukan re-fetch) ───────────────────
+  // `$executeRaw` mengembalikan affected count, bukan row. Kita
+  // tahu persis nilai yang baru di-set (`stock`) — konstruksi
+  // response langsung dari input.
+  //
+  // Minor staleness risk: concurrent update stock setelah kita
+  // (sebelum response sampai client) — state akhir adalah yang
+  // terakhir commit (Last Write Wins). Client yang butuh current
+  // state bisa GET /variants.
+  return toUpdateStockResponse(variantId, stock);
 }

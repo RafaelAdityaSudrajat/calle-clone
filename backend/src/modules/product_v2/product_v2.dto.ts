@@ -549,3 +549,51 @@ export interface ListVariantsResponse {
  * atau detail product (nested variants).
  */
 export type UpdateVariantResponse = CreateVariantResponse;
+
+// src/modules/product_v2/product_v2.dto.ts (tambahan)
+
+/**
+ * FR-PM-16 — Response 200 untuk PATCH /products/:id/variants/:variantId/stock.
+ *
+ * Shape sesuai API Contract PRD (minimal):
+ *   { id, stock, low_stock }
+ *
+ * BUKAN alias dari `VariantDetail` karena:
+ *  - Endpoint "quick stock update" hanya perlu konfirmasi nilai baru
+ *    + flag low_stock untuk UX badge.
+ *  - Field lain (sku, size, color, price) tidak berubah — mengirimnya
+ *    hanya menambah payload tanpa nilai.
+ *  - Kalau klien butuh state lengkap, GET /variants (list) atau
+ *    GET /products/:id (detail) tetap tersedia.
+ *
+ * `low_stock` derived (`stock < LOW_STOCK_THRESHOLD`, BR-23) — bukan
+ * kolom DB. Satu sumber kebenaran threshold di konstanta.
+ */
+export interface UpdateStockResponse {
+  id: string;
+  stock: number;
+  low_stock: boolean;
+}
+
+/**
+ * Mapper untuk response quick stock update.
+ *
+ * Berbeda dari mapper lain yang menerima row Prisma — di sini kita
+ * konstruksi langsung dari `variantId` & `stock` yang BARU SAJA
+ * di-set. Alasan:
+ *  - Endpoint ini pakai `$executeRaw` (returns affected count, bukan
+ *    row). Re-fetch DB setelah update = 1 query tambahan tanpa
+ *    manfaat — kita tahu persis nilai yang di-set.
+ *  - Minor staleness risk (concurrent update setelah kita) — acceptable
+ *    karena Last Write Wins. Client yang butuh current state bisa GET.
+ */
+export function toUpdateStockResponse(
+  id: string,
+  stock: number,
+): UpdateStockResponse {
+  return {
+    id,
+    stock,
+    low_stock: stock < LOW_STOCK_THRESHOLD,
+  };
+}

@@ -11,6 +11,7 @@ import {
   ListVariantsQuery,
   UpdateProductInput,
   UpdateProductParamsType,
+  UpdateStockBodyInput,
   UpdateVariantBodyInput,
   UpdateVariantParams,
 } from "./product_v2.schema";
@@ -26,6 +27,7 @@ import {
   softDeleteVariantService,
   unpublishProductService,
   updateProductService,
+  updateStockService,
   updateVariantService,
 } from "./product_v2.service";
 
@@ -265,6 +267,27 @@ export const softDeleteVariantController = catchAsync(
       success: true,
       message: "Variant deleted successfully",
       data: null,
+    });
+  },
+);
+
+export const updateStockController = catchAsync(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    const userId = req.auth?.userId;
+    const { productId, variantId } =
+      req.params as unknown as UpdateVariantParams;
+    const { stock } = req.body as UpdateStockBodyInput;
+
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
+
+    const data = await updateStockService(productId, variantId, stock, userId);
+
+    res.status(200).json({
+      success: true,
+      message: "Variant updated successfully",
+      data,
     });
   },
 );

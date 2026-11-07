@@ -11,6 +11,7 @@ import {
   updateVariantParamsConfig,
   updateProductBody,
   updateProductParams,
+  updateVariantConfig,
 } from "./product_v2.schema";
 import { validate } from "../../middlewares/validate";
 import {
@@ -25,6 +26,7 @@ import {
   softDeleteVariantController,
   unpublishProductController,
   updateProductController,
+  updateStockController,
   updateVariantController,
 } from "./product_v2.controller";
 import { requireAdmin } from "../../middlewares/requireAdmin";
@@ -130,5 +132,14 @@ router.delete(
   requireAdmin,
   validate(updateVariantParamsConfig),
   softDeleteVariantController,
+);
+
+router.patch(
+  "/:productId/variants/:variantId/stock",
+  authenticate,
+  requireAdmin,
+  validate(updateVariantParamsConfig),
+  validate(updateVariantConfig),
+  updateStockController,
 );
 export default router;
