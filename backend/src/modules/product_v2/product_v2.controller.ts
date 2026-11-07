@@ -23,6 +23,7 @@ import {
   publishProductService,
   republishProductService,
   softDeleteProductService,
+  softDeleteVariantService,
   unpublishProductService,
   updateProductService,
   updateVariantService,
@@ -229,7 +230,6 @@ export const updateVariantController = catchAsync(
       req.params as unknown as UpdateVariantParams;
     const input = req.body as UpdateVariantBodyInput;
 
-    console.log({ productId, variantId });
     if (!userId) {
       throw new UnauthorizedError("Silakan login terlebih dahulu");
     }
@@ -245,6 +245,26 @@ export const updateVariantController = catchAsync(
       success: true,
       message: "Variant created successfully",
       data,
+    });
+  },
+);
+
+export const softDeleteVariantController = catchAsync(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    const userId = req.auth?.userId;
+    const { productId, variantId } =
+      req.params as unknown as UpdateVariantParams;
+
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
+
+    await softDeleteVariantService(productId, variantId, userId);
+
+    res.status(200).json({
+      success: true,
+      message: "Variant deleted successfully",
+      data: null,
     });
   },
 );

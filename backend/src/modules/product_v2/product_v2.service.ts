@@ -1220,3 +1220,67 @@ export async function updateVariantService(
     throw err;
   }
 }
+
+export async function softDeleteVariantService(
+  productId: string,
+  variantId: string,
+  adminId: string,
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    // ── 1. Lock product (parent) ─────────────────────────────
+    // `status` di-select karena dibutuhkan untuk BR-27 (branch
+    // ACTIVE vs lainnya). Lock mencegah product soft-deleted
+    // concurrent & serialize concurrent delete varian lain dari
+    // produk yang sama.
+    const products = await tx.$queryRaw<Array<{ id: string; status: string }>>`
+      SELECT id, status FROM "Product"
+      WHERE id = ${productId} AND deleted_at IS NULL
+      FOR UPDATE
+    `;
+    if (products.length === 0) throw ProductErrors.productNotFound();
+    const productStatus = products[0].status;
+
+    // ── 2. Lock variant (child) ──────────────────────────────
+    // IDOR: `product_id = productId` — variant milik produk lain
+    // tidak ter-select.
+    // Race guard: `deleted_at IS NULL` — double-delete concurrent
+    // → yang kalah tidak match → 404.
+    const variants = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM "ProductVariant"
+      WHERE id = ${variantId}
+        AND product_id = ${productId}
+        AND deleted_at IS NULL
+      FOR UPDATE
+    `;
+    if (variants.length === 0) throw ProductErrors.variantNotFound();
+
+    // ── 3. Soft delete variant (BR-14) ───────────────────────
+    // `@updatedAt` di schema Prisma otomatis meng-update
+    // `updatedAt` — tidak perlu set manual.
+    await tx.productVariant.update({
+      where: { id: variantId },
+      data: { deletedAt: new Date(), updatedBy: adminId },
+    });
+
+    // ── 4. Count remaining active variants ───────────────────
+    // `deletedAt: null` otomatis exclude variant yang baru
+    // di-soft-delete di langkah 3.
+    const remaining = await tx.productVariant.count({
+      where: { productId, deletedAt: null },
+    });
+
+    // ── 5. BR-27: varian terakhir di-soft-delete + produk ACTIVE
+    //    → INACTIVE. Status lain (DRAFT, INACTIVE) dibiarkan.
+    //
+    // Cek `productStatus === "ACTIVE"` (dari SELECT FOR UPDATE
+    // di langkah 1) — bukan re-query, karena lock product sudah
+    // dipegang dari awal transaksi, status tidak bisa berubah
+    // sampai transaksi commit.
+    if (remaining === 0 && productStatus === "ACTIVE") {
+      await tx.product.update({
+        where: { id: productId },
+        data: { status: "INACTIVE", updatedBy: adminId },
+      });
+    }
+  });
+}

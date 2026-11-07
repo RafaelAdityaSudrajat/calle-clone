@@ -23,6 +23,7 @@ import {
   publishProductController,
   republishProductController,
   softDeleteProductController,
+  softDeleteVariantController,
   unpublishProductController,
   updateProductController,
   updateVariantController,
@@ -125,4 +126,11 @@ router.put(
   updateVariantController,
 );
 
+router.delete(
+  "/:productId/variants/:variantId",
+  authenticate,
+  requireAdmin,
+  validate(testParams),
+  softDeleteVariantController,
+);
 export default router;
