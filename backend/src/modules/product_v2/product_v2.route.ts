@@ -7,8 +7,11 @@ import {
   getProductDetailQuery,
   listProductsParamsQuerySchema,
   listVariantsQuery,
+  testBody,
+  testParams,
   updateProductBody,
   updateProductParams,
+  updateVariantParamsSchema,
 } from "./product_v2.schema";
 import { validate } from "../../middlewares/validate";
 import {
@@ -22,6 +25,7 @@ import {
   softDeleteProductController,
   unpublishProductController,
   updateProductController,
+  updateVariantController,
 } from "./product_v2.controller";
 import { requireAdmin } from "../../middlewares/requireAdmin";
 import { listOrdersSchema } from "../order/order.schema";
@@ -110,6 +114,15 @@ router.get(
   validate(getProductDetailParams),
   validate(listVariantsQuery),
   listVariantController,
+);
+
+router.put(
+  "/:productId/variants/:variantId",
+  authenticate,
+  requireAdmin,
+  validate(testParams),
+  validate(testBody),
+  updateVariantController,
 );
 
 export default router;

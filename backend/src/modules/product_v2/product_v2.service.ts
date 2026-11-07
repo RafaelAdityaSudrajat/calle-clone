@@ -19,6 +19,7 @@ import {
   toVariantDetail,
   UnpublishProductResponse,
   UpdateProductResponse,
+  UpdateVariantResponse,
   VariantListItem,
 } from "./product_v2.dto";
 import { ProductErrors } from "./product_v2.errors";
@@ -29,6 +30,7 @@ import {
   ListProductsQuery,
   ListVariantsQuery,
   UpdateProductInput,
+  UpdateVariantBodyInput,
 } from "./product_v2.schema";
 
 /**
@@ -260,9 +262,9 @@ function isPrismaUniqueViolation(
  */
 async function mapVariantUniqueViolation(
   err: Prisma.PrismaClientKnownRequestError,
-  input: { sku: string; size: string | null; color: string | null },
+  input: { sku?: string; size?: string | null; color?: string | null },
+  excludeId?: string,
 ): Promise<AppError> {
-  // ── Lapis 1: message + meta ────────────────────────────────────
   const haystack = [
     err.message ?? "",
     typeof err.meta?.target === "string" ? err.meta.target : "",
@@ -279,15 +281,17 @@ async function mapVariantUniqueViolation(
     return ProductErrors.variantDuplicate();
   }
 
-  // ── Lapis 2: DB fallback ───────────────────────────────────────
-  // SKU unique adalah full index (tanpa `WHERE deleted_at IS NULL`),
-  // jadi SKU yang sudah ada di row mana pun (termasuk soft-deleted)
-  // dianggap bentrok. Query langsung cukup untuk konfirmasi.
-  const skuExists = await prisma.productVariant.findUnique({
-    where: { sku: input.sku },
-    select: { id: true },
-  });
-  if (skuExists) return ProductErrors.skuDuplicate();
+  // Fallback — hanya cek SKU kalau input.sku adalah string (create:
+  // selalu; update: hanya kalau user mengirim field sku).
+  if (typeof input.sku === "string") {
+    const found = await prisma.productVariant.findUnique({
+      where: { sku: input.sku },
+      select: { id: true },
+    });
+    // Self-exclusion: kalau yang ditemukan row kita sendiri, bukan
+    // konflik SKU — kemungkinan P2002 dipicu oleh constraint lain.
+    if (found && found.id !== excludeId) return ProductErrors.skuDuplicate();
+  }
 
   return ProductErrors.variantDuplicate();
 }
@@ -996,4 +1000,223 @@ export async function listVariantService(
   const items: VariantListItem[] = product.variants.map(toVariantDetail);
 
   return { items };
+}
+
+/**
+ * FR-PM-10 — Update varian.
+ *
+ * Partial update: hanya field yang dikirim yang diubah.
+ *
+ * ─── Alur ─────────────────────────────────────────────────────────
+ *
+ * 1. Transaction:
+ *    a. `SELECT ... FOR UPDATE` di product → block soft-delete concurrent.
+ *    b. `SELECT ... FOR UPDATE` di variant (WHERE product_id =
+ *       productId) → block soft-delete variant concurrent, prevent
+ *       concurrent update merge, enforce IDOR.
+ *    c. Merge `input` dengan `existing` → validasi BR-11, BR-15, BR-21
+ *       terhadap MERGED STATE (bukan hanya input).
+ *    d. UPDATE variant dengan field yang berubah + updatedBy.
+ * 2. Catch P2002 → map ke SKU_DUPLICATE / VARIANT_DUPLICATE
+ *    (self-exclusion untuk row sendiri).
+ *
+ * ─── Kenapa FOR UPDATE di dua level ──────────────────────────────
+ *
+ * Level product:
+ *   Mencegah race "product soft-deleted antara SELECT variant &
+ *   UPDATE variant". Product tetap valid saat update commit.
+ *
+ * Level variant:
+ *   - Mencegah variant soft-deleted concurrent (delete variant
+ *     endpoint juga akan pakai FOR UPDATE — konsisten ordering).
+ *   - Mencegah concurrent update SAME variant: dua request akan
+ *     serialize. Setelah request pertama commit, request kedua
+ *     membaca state terbaru untuk merge → merged validation akurat.
+ *   - Tanpa lock, dua update concurrent bisa masing-masing merge
+ *     dari state STALE, menghasilkan state yang melanggar BR-11:
+ *       T1: { size: null } on existing { size: "L", color: null }
+ *       T2: { color: null } on existing { size: "L", color: null }
+ *       → keduanya lihat existing color "L", lolos ATTRIBUTE_REQUIRED
+ *       → T1 clear size, T2 clear color
+ *       → state akhir: { size: null, color: null } → INVALID
+ *     Dengan FOR UPDATE, T2 menunggu T1 commit, T2 merge dengan
+ *     state baru (size=null, color=null), T2 lolos refine?  Ya,
+ *     karena merged state = { size: null, color: null } →
+ *     ATTRIBUTE_REQUIRED ditolak. Race tertutup.
+ *
+ * Lock ordering: product → variant. Konsisten di create variant,
+ * delete variant (future), & semua transisi product. Mencegah
+ * deadlock.
+ *
+ * ─── Kenapa merge validation, bukan hanya input ──────────────────
+ *
+ * BR-11 (minimal satu dari size/color) adalah constraint pada STATE,
+ * bukan pada input:
+ *   - Input `{ size: null }` pada existing `{ color: null }` →
+ *     merged `{ size: null, color: null }` → INVALID.
+ *   - Input `{ size: null }` pada existing `{ color: "Hitam" }` →
+ *     merged valid.
+ *   - Input `{ size: "M" }` pada existing `{ size: "L" }` →
+ *     merged `{ size: "M" }` → valid.
+ *
+ * Zod sudah handle `.refine` "minimal 1 field dikirim" — tapi tidak
+ * bisa cek merged state (tidak tahu existing). Service yang validasi.
+ *
+ * ─── Kenapa TIDAK check-then-insert untuk SKU/kombinasi ──────────
+ *
+ * Sama seperti create variant — andalkan DB constraint (NFR-PM-03).
+ * Pre-check "SELECT WHERE sku = X AND id != variantId" akan lolos
+ * di dua request concurrent, keduanya INSERT/UPDATE, yang kalah
+ * dapat P2002 → map ke 409.
+ *
+ * Self-exclusion: kalau `input.sku === existing.sku` (tidak
+ * berubah), tidak mungkin trigger SKU unique (same row, same value).
+ * Tapi kalau input.sku = existing.sku DAN size diubah ke kombinasi
+ * yang konflik, P2002 bisa dari kombinasi — fallback `findUnique`
+ * memeriksa `excludeId` untuk menghindari false SKU_DUPLICATE.
+ *
+ * ─── Race yang TIDAK di-handle (dan kenapa) ──────────────────────
+ *
+ * - Concurrent create variant lain pada produk yang sama:
+ *   Lock product mencegah race pada level product, tapi create
+ *   variant lain tidak wajib lock variant kita (mereka INSERT
+ *   row baru). Ini fine — P2002 di DB yang jaga unique SKU &
+ *   kombinasi.
+ *
+ * - Publish concurrent: publish baca snapshot variant, lalu
+ *   update status product. Update variant concurrent bisa
+ *   mengubah harga/stok — konsisten dengan semantik "publish
+ *   snapshot saat itu".
+ *
+ * ─── Keamanan ─────────────────────────────────────────────────────
+ *
+ * - SQL injection: `productId`/`variantId` di-parameterize
+ *   Prisma tagged template. `input.*` di-parameterize PrismaClient.
+ * - IDOR: WHERE `product_id = productId` di variant lock →
+ *   variant milik product lain → 0 rows → 404 VARIANT_NOT_FOUND
+ *   (tidak bisa dibedakan dari "variant tidak ada").
+ * - Spoofing actor: `updated_by` dari adminId (session). Schema
+ *   `.strict()` tolak `created_by`/`updated_by`/`id`/dst.
+ * - Field injection: `data` di-service whitelist eksplisit —
+ *   field yang tidak ada di DTO update tidak disentuh meski ada
+ *   di body (defense-in-depth setelah Zod `.strict()`).
+ *
+ * @throws {AppError} PRODUCT_NOT_FOUND — product tidak ada / soft-deleted.
+ * @throws {AppError} VARIANT_NOT_FOUND — variant tidak ada / soft-deleted / milik product lain.
+ * @throws {AppError} ATTRIBUTE_REQUIRED — merged state size & color dua-duanya null.
+ * @throws {AppError} INVALID_PRICE — merged price <= 0.
+ * @throws {AppError} INVALID_STOCK — merged stock < 0.
+ * @throws {AppError} SKU_DUPLICATE — SKU baru sudah dipakai (termasuk soft-deleted).
+ * @throws {AppError} VARIANT_DUPLICATE — kombinasi baru sudah ada di variant aktif lain.
+ */
+export async function updateVariantService(
+  productId: string,
+  variantId: string,
+  input: UpdateVariantBodyInput,
+  adminId: string,
+): Promise<UpdateVariantResponse> {
+  try {
+    const row = await prisma.$transaction(async (tx) => {
+      // ── 1. Lock product (parent) ────────────────────────────
+      // Product soft-deleted concurrent → block. Kalau produk
+      // hilang / soft-deleted sebelum lock → 0 rows → 404.
+      const products = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM "Product"
+        WHERE id = ${productId} AND deleted_at IS NULL
+        FOR UPDATE
+      `;
+      if (products.length === 0) throw ProductErrors.productNotFound();
+
+      // ── 2. Lock & fetch variant (child) ─────────────────────
+      // IDOR guard: `product_id = productId` → variant milik
+      // product lain tidak ter-select.
+      // Soft-delete-safe: `deleted_at IS NULL` → variant yang baru
+      // di-soft-delete tidak ter-select.
+      const variants = await tx.$queryRaw<
+        Array<{
+          id: string;
+          sku: string;
+          size: string | null;
+          color: string | null;
+          price: unknown; // Prisma Decimal | string — konversi via Number()
+          stock: number;
+        }>
+      >`
+        SELECT id, sku, size, color, price, stock
+        FROM "ProductVariant"
+        WHERE id = ${variantId}
+          AND product_id = ${productId}
+          AND deleted_at IS NULL
+        FOR UPDATE
+      `;
+      if (variants.length === 0) throw ProductErrors.variantNotFound();
+
+      const current = variants[0];
+
+      // ── 3. Merge validation (BR-11, BR-15, BR-21) ───────────
+      // Field yang tidak dikirim (undefined) memakai existing.
+      // Field yang dikirim null (explicit clear) tetap null.
+      // Field yang dikirim string memakai string.
+      const mergedSize = input.size !== undefined ? input.size : current.size;
+      const mergedColor =
+        input.color !== undefined ? input.color : current.color;
+      if (mergedSize === null && mergedColor === null) {
+        throw ProductErrors.attributeRequired();
+      }
+
+      const mergedPrice =
+        input.price !== undefined ? input.price : Number(current.price);
+      if (mergedPrice <= 0) throw ProductErrors.invalidPrice(mergedPrice);
+
+      const mergedStock =
+        input.stock !== undefined ? input.stock : current.stock;
+      if (mergedStock < 0) throw ProductErrors.invalidStock(mergedStock);
+
+      // ── 4. Build data (whitelist eksplisit) ─────────────────
+      // Defense-in-depth setelah Zod `.strict()`: hanya field
+      // yang diizinkan yang masuk ke `data`, meski (secara bug)
+      // ada field lain di `input`.
+      const data: Prisma.ProductVariantUncheckedUpdateInput = {
+        updatedBy: adminId,
+      };
+      if (input.sku !== undefined) data.sku = input.sku;
+      if (input.size !== undefined) data.size = input.size;
+      if (input.color !== undefined) data.color = input.color;
+      if (input.price !== undefined) data.price = input.price;
+      if (input.stock !== undefined) data.stock = input.stock;
+
+      // ── 5. UPDATE (WHERE id saja — product & deleted_at sudah
+      //    dijaga oleh FOR UPDATE sebelumnya) ────────────────
+      return tx.productVariant.update({
+        where: { id: variantId },
+        data,
+        select: {
+          id: true,
+          sku: true,
+          size: true,
+          color: true,
+          price: true,
+          stock: true,
+        },
+      });
+    });
+
+    return toCreateVariantResponse(row);
+  } catch (err) {
+    if (isPrismaUniqueViolation(err)) {
+      // Pass `variantId` sebagai excludeId — mencegah false
+      // SKU_DUPLICATE saat input.sku = current sku (fallback
+      // findUnique akan menemukan row kita sendiri → di-skip).
+      throw await mapVariantUniqueViolation(
+        err,
+        {
+          sku: input.sku,
+          size: input.size,
+          color: input.color,
+        },
+        variantId,
+      );
+    }
+    throw err;
+  }
 }

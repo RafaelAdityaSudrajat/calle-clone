@@ -536,9 +536,17 @@ export const updateVariantBodySchema = z
  * relasi. Schema hanya memvalidasi FORMAT.
  */
 export const updateVariantParamsSchema = z.object({
-  id: z.uuid({ error: "id must be a valid UUID" }),
+  productId: z.uuid({ error: "id must be a valid UUID" }),
   variantId: z.uuid({ error: "variantId must be a valid UUID" }),
 });
+
+export const testParams = {
+  params: updateVariantParamsSchema,
+};
+
+export const testBody = {
+  body: updateVariantBodySchema,
+};
 
 export type UpdateVariantParams = z.infer<typeof updateVariantParamsSchema>;
 export type UpdateVariantBodyInput = z.infer<typeof updateVariantBodySchema>;
