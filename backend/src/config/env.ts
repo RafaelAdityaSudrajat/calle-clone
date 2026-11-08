@@ -10,12 +10,17 @@ const requiredEnvVars = [
   "CLOUDINARY_API_SECRET",
   "RESEND_API_KEY",
   "EMAIL_FROM",
-  "FRONTEND_URL"
+  "FRONTEND_URL",
 ] as const;
 
 type EnvVars = (typeof requiredEnvVars)[number];
 
 function validateEnv(): Record<EnvVars, string> {
+  // Skip di test environment — test memakai mock atau default values.
+  // Fail-fast tetap berlaku di dev & production.
+  if (process.env.NODE_ENV === "test") {
+    return process.env as unknown as Record<EnvVars, string>;
+  }
   const missing: string[] = [];
 
   for (const key of requiredEnvVars) {
