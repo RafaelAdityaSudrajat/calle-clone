@@ -666,3 +666,5 @@ export function toLowStockVariantItem(row: LowStockRow): LowStockVariantItem {
     stock: row.stock,
   };
 }
+
+export type UploadImageResponse = ImageDetail;

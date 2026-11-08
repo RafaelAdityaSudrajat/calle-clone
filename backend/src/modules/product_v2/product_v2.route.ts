@@ -29,8 +29,10 @@ import {
   updateProductController,
   updateStockController,
   updateVariantController,
+  uploadImageController,
 } from "./product_v2.controller";
 import { requireAdmin } from "../../middlewares/requireAdmin";
+import { imageUpload } from "../../shared/storage";
 
 const router = Router();
 
@@ -150,4 +152,14 @@ router.patch(
   validate(updateVariantConfig),
   updateStockController,
 );
+
+router.post(
+  "/:id/images",
+  authenticate,
+  requireAdmin,
+  validate(getProductDetailParams),
+  imageUpload,
+  uploadImageController,
+);
+
 export default router;

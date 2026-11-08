@@ -1,7 +1,7 @@
 import { NextFunction, Response } from "express";
 import catchAsync from "../../lib/catchAsync";
 import { AuthRequest } from "../../middlewares/authenticate";
-import { UnauthorizedError } from "../../lib/errors";
+import { AppError, UnauthorizedError } from "../../lib/errors";
 import {
   CreateProductInput,
   CreateVariantBodyInput,
@@ -30,6 +30,7 @@ import {
   updateProductService,
   updateStockService,
   updateVariantService,
+  uploadImageService,
 } from "./product_v2.service";
 
 export const createProductController = catchAsync(
@@ -306,6 +307,41 @@ export const listLowStockVariantsController = catchAsync(
     res.status(200).json({
       success: true,
       message: "Low stock variants retrieved",
+      data,
+    });
+  },
+);
+
+export const uploadImageController = catchAsync(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    const userId = req.auth?.userId;
+    const { id } = req.params as unknown as GetProductParams;
+
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
+
+    if (!req.file) {
+      throw new AppError(
+        'Missing file (field: "file")',
+        400,
+        "VALIDATION_ERROR",
+      );
+    }
+
+    const data = await uploadImageService(
+      id,
+      {
+        buffer: req.file.buffer,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+      },
+      userId,
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Image uploaded successfully",
       data,
     });
   },

@@ -8,7 +8,7 @@ import { NotFoundError, ConflictError } from "../../lib/errors";
 import { slugify, withUniqueSuffix } from "./product.utils";
 import { prisma } from "../../lib/prisma";
 import { Prisma, ProductStatus } from "../../generated/prisma";
-import { uploadManyToCloudinary } from "../../middlewares/upload";
+// import { uploadManyToCloudinary } from "../../middlewares/upload";
 import { AdminProductFilter, BuyerProductFilter } from "./product.type";
 
 const MAX_SLUG_RETRY = 3;

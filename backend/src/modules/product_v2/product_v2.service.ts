@@ -1,4 +1,8 @@
 import { Prisma } from "../../generated/prisma";
+import {
+  deleteFromCloudinary,
+  uploadBufferToCloudinary,
+} from "../../lib/cloudinary-uploader";
 import { AppError } from "../../lib/errors";
 import { prisma } from "../../lib/prisma";
 import {
@@ -14,6 +18,7 @@ import {
   RepublishProductResponse,
   toCreateProductResponse,
   toCreateVariantResponse,
+  toImageDetail,
   toLowStockVariantItem,
   toProductDetailResponse,
   toProductListItem,
@@ -24,6 +29,7 @@ import {
   UpdateProductResponse,
   UpdateStockResponse,
   UpdateVariantResponse,
+  UploadImageResponse,
   VariantListItem,
 } from "./product_v2.dto";
 import { ProductErrors } from "./product_v2.errors";
@@ -1270,4 +1276,97 @@ export async function listLowStockVariantsService(): Promise<LowStockListRespons
   });
 
   return { items: rows.map(toLowStockVariantItem) };
+}
+
+export async function uploadImageService(
+  productId: string,
+  file: { buffer: Buffer; mimetype: string; size: number },
+  adminId: string,
+): Promise<UploadImageResponse> {
+  // ── 0. Defense-in-depth: file kosong ────────────────────────────
+  // Multer memoryStorage tidak reject file 0-byte (hanya > limit).
+  // Cloudinary upload file kosong akan gagal dengan error yang
+  // membingungkan — fail-fast lebih jelas.
+  if (file.size === 0) {
+    throw new AppError("File is empty", 400, "VALIDATION_ERROR");
+  }
+
+  // ── 1. Pre-check product (fast-fail sebelum upload Cloudinary) ──
+  // Menghemat Cloudinary quota untuk request ke product yang tidak
+  // ada. Bukan pengganti lock di fase insert (lihat fase 3).
+  const product = await prisma.product.findFirst({
+    where: { id: productId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!product) throw ProductErrors.productNotFound();
+
+  // ── 2. Upload Cloudinary (di luar transaction) ─────────────────
+  // Folder per produk: `products/{productId}`. productId UUID →
+  // tidak ada path traversal. Folder root (`bloods` atau
+  // CLOUDINARY_FOLDER) di-set oleh CloudinaryStorageProvider /
+  // default SDK config.
+  const folder = `products/${productId}`;
+  const upload = await uploadBufferToCloudinary(file.buffer, folder);
+
+  // ── 3. Insert DB (transaction + lock product) ──────────────────
+  try {
+    const row = await prisma.$transaction(async (tx) => {
+      // Re-check product dengan lock. Menggabungkan:
+      //  - Not-found / soft-deleted → 404 (race-safe terhadap
+      //    soft-delete concurrent setelah fase 1).
+      //  - Lock di-hold sampai commit → serialize concurrent
+      //    upload + set primary + delete image (future) yang
+      //    memakai urutan lock sama.
+      const lock = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM "Product"
+        WHERE id = ${productId} AND deleted_at IS NULL
+        FOR UPDATE
+      `;
+      if (lock.length === 0) throw ProductErrors.productNotFound();
+
+      // Cek primary existing — di dalam lock, atomic terhadap
+      // concurrent upload. Kalau lock benar, tidak ada P2002 di
+      // bawah. Partial unique index tetap jaga sebagai backup.
+      const existingPrimary = await tx.productImage.findFirst({
+        where: { productId, isPrimary: true },
+        select: { id: true },
+      });
+
+      // Insert dengan is_primary = !hasPrimary. `sortOrder: 0` —
+      // MVP tidak punya reorder (PRD Out of Scope #16). Kalau
+      // nanti reorder diimplement, ubah ke `max(sortOrder)+1`.
+      return tx.productImage.create({
+        data: {
+          productId,
+          url: upload.url,
+          fileKey: upload.publicId,
+          isPrimary: existingPrimary === null,
+          sortOrder: 0,
+          createdBy: adminId,
+        },
+        select: {
+          id: true,
+          url: true,
+          isPrimary: true,
+          sortOrder: true,
+        },
+      });
+    });
+
+    return toImageDetail(row);
+  } catch (err) {
+    // ── 4. Compensating delete — Cloudinary sukses tapi DB gagal ──
+    // Best-effort: kalau cleanup gagal, log warning — JANGAN
+    // menutupi error asli. Orphan file (kalau ada) jadi tanggung
+    // jawab cleanup job future, bukan blocker.
+    try {
+      await deleteFromCloudinary(upload.publicId);
+    } catch (cleanupErr) {
+      console.warn(
+        "[uploadImageService] Cloudinary cleanup failed — orphan file may remain",
+        { publicId: upload.publicId, error: cleanupErr },
+      );
+    }
+    throw err;
+  }
 }

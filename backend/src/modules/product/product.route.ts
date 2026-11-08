@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { authenticate } from "../../middlewares/authenticate";
-import {
-  ensureMultipartFormData,
-  productImageUploadFields,
-  upload,
-} from "../../middlewares/upload";
+// import {
+//   ensureMultipartFormData,
+//   productImageUploadFields,
+//   upload,
+// } from "../../middlewares/upload";
 import {
   createProductController,
   deleteProductController,
@@ -25,15 +25,15 @@ import { requireAdmin } from "../../middlewares/requireAdmin";
 const router = Router();
 
 // create product
-router.post(
-  "/",
-  authenticate,
-  ensureMultipartFormData,
-  upload.fields(productImageUploadFields),
-  handleProductImageUpload,
-  validate(createProductSchema),
-  createProductController,
-);
+// router.post(
+//   "/",
+//   authenticate,
+//   ensureMultipartFormData,
+//   upload.fields(productImageUploadFields),
+//   handleProductImageUpload,
+//   validate(createProductSchema),
+//   createProductController,
+// );
 
 router.get("/admin", authenticate, requireAdmin, getAdminProductsController);
 // GET PRODUCT PUBLIC
@@ -67,12 +67,12 @@ router.delete(
 );
 
 // update images product
-router.post(
-  "/:productId/images",
-  authenticate,
-  ensureMultipartFormData,
-  upload.fields(productImageUploadFields),
-  uploadImagesController,
-);
+// router.post(
+//   "/:productId/images",
+//   authenticate,
+//   ensureMultipartFormData,
+//   upload.fields(productImageUploadFields),
+//   uploadImagesController,
+// );
 
 export default router;

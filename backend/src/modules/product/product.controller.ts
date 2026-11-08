@@ -10,7 +10,7 @@ import {
 } from "./product.service";
 import { ValidationError } from "../../lib/errors";
 import { AuthRequest } from "../../middlewares/authenticate";
-import { normalizeUploadedFiles } from "../../middlewares/upload";
+// import { normalizeUploadedFiles } from "../../middlewares/upload";
 import {
   createProductSchema,
   ProductIdParams,
