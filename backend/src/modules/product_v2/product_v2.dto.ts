@@ -668,3 +668,41 @@ export function toLowStockVariantItem(row: LowStockRow): LowStockVariantItem {
 }
 
 export type UploadImageResponse = ImageDetail;
+
+/**
+ * FR-PM-14 — Response 200 untuk PATCH /products/:id/images/:imageId/primary.
+ *
+ * Shape sesuai API Contract PRD (minimal):
+ *   { id, is_primary: true }
+ *
+ * ── Kenapa `is_primary` di-literal `true` (bukan boolean) ────────
+ *
+ * Sama seperti `PublishProductResponse.status` (literal `"ACTIVE"`)
+ * dan `UnpublishProductResponse.status` (literal `"INACTIVE"`):
+ *  - Endpoint ini HANYA bisa sukses kalau image menjadi primary.
+ *  - Literal type memberi jaminan compile-time ke klien: kalau
+ *    `success: true`, `data.is_primary` pasti `true`.
+ *  - Klien tidak perlu handle cabang `false` yang tidak mungkin
+ *    muncul dari endpoint ini.
+ *
+ * ── Kenapa TIDAK alias `ImageDetail` ──────────────────────────────
+ *
+ * Berbeda dengan `UploadImageResponse` (alias `ImageDetail`), endpoint
+ * ini tidak mengembalikan `url` / `sort_order`:
+ *  - Set primary tidak mengubah field tersebut — klien sudah tahu
+ *    nilai sebelumnya (dari upload atau GET detail).
+ *  - Menyertakan field yang tidak berubah = noise di response.
+ *  - Kontrak PRD eksplisit: `{ id, is_primary: true }`.
+ *
+ * ── Kenapa TIDAK ada `updated_at` / `updated_by` ──────────────────
+ *
+ * `ProductImage` schema tidak punya kolom `updated_at` / `updated_by`
+ * (hanya `created_by` / `created_at`). Konsisten dengan DD-PM-13
+ * (audit trail minimal; images dianggap konten turunan produk).
+ * Kalau nanti butuh audit "siapa set primary", tambahkan migrasi +
+ * field — breaking change DTO saat itu.
+ */
+export interface SetPrimaryImageResponse {
+  id: string;
+  is_primary: true;
+}

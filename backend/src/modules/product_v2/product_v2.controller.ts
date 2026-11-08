@@ -7,6 +7,7 @@ import {
   CreateVariantBodyInput,
   GetProductParams,
   GetProductQuery,
+  ImageParams,
   ListProductsQuery,
   ListVariantsQuery,
   UpdateProductInput,
@@ -18,12 +19,14 @@ import {
 import {
   createProductService,
   createVariantService,
+  deleteImageService,
   getListProductService,
   getProductDetailService,
   listLowStockVariantsService,
   listVariantService,
   publishProductService,
   republishProductService,
+  setPrimaryImageService,
   softDeleteProductService,
   softDeleteVariantService,
   unpublishProductService,
@@ -343,6 +346,44 @@ export const uploadImageController = catchAsync(
       success: true,
       message: "Image uploaded successfully",
       data,
+    });
+  },
+);
+
+export const setPrimaryImageController = catchAsync(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    const userId = req.auth?.userId;
+    const { id, imageId } = req.params as unknown as ImageParams;
+
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
+
+    const data = await setPrimaryImageService(id, imageId);
+
+    res.status(200).json({
+      success: true,
+      message: "Primary image set successfully",
+      data,
+    });
+  },
+);
+
+export const deleteImageController = catchAsync(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    const userId = req.auth?.userId;
+    const { id, imageId } = req.params as unknown as ImageParams;
+
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
+
+    await deleteImageService(id, imageId, userId);
+
+    res.status(200).json({
+      success: true,
+      message: "Image deleted successfully",
+      data: null,
     });
   },
 );

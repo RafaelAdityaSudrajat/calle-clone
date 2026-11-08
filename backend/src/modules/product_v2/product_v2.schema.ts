@@ -392,4 +392,32 @@ export const updateVariantConfig = {
 
 export type UpdateStockBodyInput = z.infer<typeof updateStockBodySchema>;
 
-// update/delete variant (`{ id, variantId }`).
+/**
+ * FR-PM-14 — Params untuk PATCH /products/:id/images/:imageId/primary.
+ *
+ * Dua UUID: `:id` (product) & `:imageId` (image). Keduanya divalidasi
+ * sebelum service — mencegah sampling dengan string arbitrary & query
+ * DB dengan format invalid.
+ *
+ * IDOR (NFR-PM-08): `imageId` HARUS milik `productId`. Validasi di
+ * SERVICE (butuh query DB), bukan schema — schema hanya validasi FORMAT.
+ *
+ * Reusable untuk endpoint DELETE image (future): params identik
+ * (`{ id, imageId }`).
+ *
+ * Tidak ada body schema:
+ *  - PRD: request body kosong (server yang menentukan target
+ *    `is_primary: true`, bukan client).
+ *  - Body yang dikirim diabaikan (tidak diparse, tidak di-validate)
+ *    — konsisten dengan kontrak "operasi param-driven".
+ */
+export const imageParamsSchema = z.object({
+  id: z.uuid({ error: "id must be a valid UUID" }),
+  imageId: z.uuid({ error: "imageId must be a valid UUID" }),
+});
+
+export const imageParamsConfig = {
+  params: imageParamsSchema,
+};
+
+export type ImageParams = z.infer<typeof imageParamsSchema>;

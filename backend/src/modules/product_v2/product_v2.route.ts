@@ -12,17 +12,20 @@ import {
   updateProductBody,
   updateProductParams,
   updateVariantConfig,
+  imageParamsConfig,
 } from "./product_v2.schema";
 import { validate } from "../../middlewares/validate";
 import {
   createProductController,
   createVariantController,
+  deleteImageController,
   getListController,
   getProductDetailController,
   listLowStockVariantsController,
   listVariantController,
   publishProductController,
   republishProductController,
+  setPrimaryImageController,
   softDeleteProductController,
   softDeleteVariantController,
   unpublishProductController,
@@ -160,6 +163,22 @@ router.post(
   validate(getProductDetailParams),
   imageUpload,
   uploadImageController,
+);
+
+router.patch(
+  "/:id/images/:imageId/primary",
+  authenticate,
+  requireAdmin,
+  validate(imageParamsConfig),
+  setPrimaryImageController,
+);
+
+router.delete(
+  "/:id/images/:imageId",
+  authenticate,
+  requireAdmin,
+  validate(imageParamsConfig),
+  deleteImageController,
 );
 
 export default router;

@@ -16,6 +16,7 @@ import {
   ProductVariantStats,
   PublishProductResponse,
   RepublishProductResponse,
+  SetPrimaryImageResponse,
   toCreateProductResponse,
   toCreateVariantResponse,
   toImageDetail,
@@ -1368,5 +1369,178 @@ export async function uploadImageService(
       );
     }
     throw err;
+  }
+}
+
+export async function setPrimaryImageService(
+  productId: string,
+  imageId: string,
+): Promise<SetPrimaryImageResponse> {
+  return prisma.$transaction(async (tx) => {
+    // ── 1. Lock product ──────────────────────────────────────────
+    // `deleted_at IS NULL` di WHERE → produk soft-deleted dianggap
+    // tidak ada. Lock serialize concurrent writer (set-primary,
+    // upload, delete-image) pada produk yang sama.
+    const locked = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM "Product"
+      WHERE id = ${productId} AND deleted_at IS NULL
+      FOR UPDATE
+    `;
+    if (locked.length === 0) throw ProductErrors.productNotFound();
+
+    // ── 2. Verify target exists & belongs to product (IDOR guard) ─
+    // `findFirst` (bukan `findUnique`) karena butuh filter
+    // `productId` — image milik produk lain tidak boleh lolos.
+    // `deletedAt: null` (future-proof): kalau someday image
+    // support soft-delete, filter ini otomatis aktif.
+    const target = await tx.productImage.findFirst({
+      where: { id: imageId, productId },
+      select: { id: true },
+    });
+    if (!target) throw ProductErrors.imageNotFound();
+
+    // ── 3. Unset primaries OTHER than target ─────────────────────
+    // Dijalankan SEBELUM set target → menghindari partial unique
+    // index violation `(product_id) WHERE is_primary = true`.
+    // `id: { not: imageId }` → target bukan disentuh (state-nya
+    // dipertahankan; kalau sudah true, tetap true; kalau false,
+    // akan di-set di step 4).
+    await tx.productImage.updateMany({
+      where: {
+        productId,
+        isPrimary: true,
+        id: { not: imageId },
+      },
+      data: { isPrimary: false },
+    });
+
+    // ── 4. Set target as primary ─────────────────────────────────
+    // Idempotent: kalau target sudah primary, update ini no-op
+    // (tetap `is_primary: true`). `update` (single row by PK)
+    // lebih jelas intent-nya dari `updateMany` untuk 1 target.
+    // `productId` tetap di-include sebagai defense-in-depth
+    // (kalau step 2 lolos, pasti match; tetap aman kalau ada
+    // logika aneh di masa depan).
+    await tx.productImage.update({
+      where: { id: imageId, productId },
+      data: { isPrimary: true },
+    });
+
+    // ── 5. Return minimal (kontrak PRD) ──────────────────────────
+    // Tidak re-fetch DB — kita tahu persis state akhir: target
+    // primary, yang lain non-primary.
+    return { id: imageId, is_primary: true };
+  });
+}
+
+export async function deleteImageService(
+  productId: string,
+  imageId: string,
+  adminId: string,
+): Promise<void> {
+  // ── Transaksi: semua DB write + BR-20 logic di bawah lock product ─
+  const deleted = await prisma.$transaction(async (tx) => {
+    // ── 1. Lock product ──────────────────────────────────────────
+    // `deleted_at IS NULL` → produk soft-deleted = tidak ada.
+    // `status` di-select karena dibutuhkan BR-20 (branch ACTIVE).
+    // Lock serialize terhadap concurrent writer (delete/set-primary/
+    // upload/soft-delete) pada produk yang sama.
+    const products = await tx.$queryRaw<Array<{ id: string; status: string }>>`
+      SELECT id, status FROM "Product"
+      WHERE id = ${productId} AND deleted_at IS NULL
+      FOR UPDATE
+    `;
+    if (products.length === 0) throw ProductErrors.productNotFound();
+    const productStatus = products[0].status;
+
+    // ── 2. Lock & fetch image (IDOR guard) ───────────────────────
+    // `product_id = productId` → image milik produk lain tidak
+    // ter-select (404, anti-enumeration).
+    // `is_primary` + `file_key` di-select karena dibutuhkan:
+    //  - `is_primary` → branch BR-20 auto-pick
+    //  - `file_key` → Cloudinary publicId untuk deleteFromCloudinary
+    //    SETELAH commit (bukan di dalam transaksi).
+    const images = await tx.$queryRaw<
+      Array<{ id: string; is_primary: boolean; file_key: string }>
+    >`
+      SELECT id, is_primary, file_key
+      FROM "ProductImage"
+      WHERE id = ${imageId} AND product_id = ${productId}
+      FOR UPDATE
+    `;
+    if (images.length === 0) throw ProductErrors.imageNotFound();
+    const image = images[0];
+
+    // ── 3. Hard DELETE (DD-PM-12) ───────────────────────────────
+    // `delete` by PK (unique), di bawah lock image — atomic
+    // terhadap concurrent delete-image-sama. Yang kalah sudah
+    // dapat 404 di step 2 (row tidak ada setelah lock release).
+    await tx.productImage.delete({ where: { id: imageId } });
+
+    // ── 4. BR-20: auto-pick new primary ─────────────────────────
+    // Kalau yang dihapus adalah primary, pilih image lain.
+    // Urutan WAJIB: delete dulu (step 3) → set primary baru →
+    // menghindari partial unique index violation
+    // `(product_id) WHERE is_primary = true`. Kalau set-dulu,
+    // constraint Postgres cek per-row saat UPDATE → reject
+    // karena primary lama (target) masih ada.
+    //
+    // Order candidate: `sortOrder ASC, id ASC` — deterministik
+    // antar request. MVP: sortOrder selalu 0, tiebreaker id ASC
+    // yang menjamin stabil.
+    //
+    // Kalau tidak ada image tersisa, skip — BR-20 (auto-INACTIVE)
+    // akan ditangani di step 5.
+    if (image.is_primary) {
+      const newPrimary = await tx.productImage.findFirst({
+        where: { productId },
+        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+        select: { id: true },
+      });
+      if (newPrimary) {
+        await tx.productImage.update({
+          where: { id: newPrimary.id },
+          data: { isPrimary: true },
+        });
+      }
+    }
+
+    // ── 5. BR-20: auto-INACTIVE kalau gambar terakhir ───────────
+    // `count` meng-exclude baris yang sudah dihapus di step 3
+    // (dalam transaction yang sama, state terlihat konsisten).
+    // Cek status === "ACTIVE" — DRAFT/INACTIVE tidak berubah,
+    // konsisten dengan BR-27 (delete variant) & BR-20.
+    //
+    // `updatedBy = adminId` → BR-26 audit trail produk
+    // (siapa yang memicu auto-INACTIVE).
+    const remaining = await tx.productImage.count({ where: { productId } });
+    if (remaining === 0 && productStatus === "ACTIVE") {
+      await tx.product.update({
+        where: { id: productId },
+        data: { status: "INACTIVE", updatedBy: adminId },
+      });
+    }
+
+    // Kembalikan publicId ke outer scope untuk Cloudinary delete
+    // setelah commit.
+    return { publicId: image.file_key };
+  });
+
+  // ── 6. Cloudinary delete (SETELAH commit, best-effort) ─────
+  // Kalau gagal: log warning, JANGAN rethrow. Alasan:
+  //  - DELETE di DB sudah sukses → state authoritative.
+  //  - Rethrow → client dapat 500 padahal delete sukses → retry
+  //    → 404 (confusing UX).
+  //  - Orphan file di Cloudinary tidak user-visible (tidak
+  //    direferensikan DB).
+  //  - Cleanup job future bisa scan orphan.
+  try {
+    await deleteFromCloudinary(deleted.publicId);
+  } catch (cleanupErr) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      "[deleteImageService] Cloudinary cleanup failed — orphan file may remain",
+      { publicId: deleted.publicId, error: cleanupErr },
+    );
   }
 }
