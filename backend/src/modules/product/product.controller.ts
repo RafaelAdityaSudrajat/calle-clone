@@ -3,7 +3,6 @@ import {
   deleteProductVariantService,
   getAdminProductByIdService,
   getAdminProductsService,
-  getProductByIdForOrderHistoryService,
   getPublicProductBySlugService,
   getPublicProductsService,
   updateProductVariantService,
@@ -11,13 +10,14 @@ import {
 } from "./product.service";
 import { ValidationError } from "../../lib/errors";
 import { AuthRequest } from "../../middlewares/authenticate";
-import { normalizeUploadedFiles } from "../../middlewares/upload";
-import { createProductSchema } from "./product.validation";
+// import { normalizeUploadedFiles } from "../../middlewares/upload";
+import {
+  createProductSchema,
+  ProductIdParams,
+  productVarintIdParams,
+  SlugParams,
+} from "./product.validation";
 import { createProductService } from "./product.service";
-import { getProductsQuerySchema } from "./product.validation";
-import { getProductsService } from "./product.service";
-import { getProductByIdService } from "./product.service";
-import { updateProductSchema } from "./product.validation";
 import { updateProductService } from "./product.service";
 import { deleteProductService } from "./product.service";
 import catchAsync from "../../lib/catchAsync";
@@ -26,19 +26,13 @@ type Params = {
   productId: string;
 };
 
-export const createProduct = async (
+export const createProductController = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const parsed = createProductSchema.safeParse(req);
-
-    if (!parsed.success) {
-      return next(parsed.error);
-    }
-
-    const product = await createProductService(parsed.data.body);
+    const product = await createProductService(req.body);
 
     res.status(201).json({
       status: "success",
@@ -52,7 +46,7 @@ export const createProduct = async (
 
 // GET PUBLIC
 
-export const getPublicProducts = catchAsync(
+export const getPublicProductsController = catchAsync(
   async (req: Request, res: Response) => {
     const result = await getPublicProductsService(req.query);
 
@@ -64,9 +58,9 @@ export const getPublicProducts = catchAsync(
   },
 );
 
-export const getPublicProductBySlug = catchAsync(
+export const getPublicProductBySlugController = catchAsync(
   async (req: Request, res: Response) => {
-    const { slug } = req.params;
+    const { slug } = req.params as SlugParams;
     const product = await getPublicProductBySlugService(slug);
 
     res.status(200).json({
@@ -77,22 +71,9 @@ export const getPublicProductBySlug = catchAsync(
   },
 );
 
-export const getProductForOrderHistory = catchAsync(
-  async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const product = await getProductByIdForOrderHistoryService(id);
-
-    res.status(200).json({
-      status: "success",
-      message: "Berhasil mengambil data produk untuk histori order",
-      data: product,
-    });
-  },
-);
-
 // ADMIN GET
 
-export const getAdminProducts = catchAsync(
+export const getAdminProductsController = catchAsync(
   async (req: Request, res: Response) => {
     const result = await getAdminProductsService(req.query);
 
@@ -104,10 +85,11 @@ export const getAdminProducts = catchAsync(
   },
 );
 
-export const getAdminProductById = catchAsync(
+export const getAdminProductByIdController = catchAsync(
   async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const product = await getAdminProductByIdService(id);
+    const { productId } = req.params as ProductIdParams;
+    console.log(productId);
+    const product = await getAdminProductByIdService(productId);
 
     res.status(200).json({
       status: "success",
@@ -122,24 +104,11 @@ export const getAdminProductById = catchAsync(
 /**
  * FR-11 & FR-12: Endpoint Delete Product Induk oleh Admin
  */
-export const deleteProduct = catchAsync(async (req: Request, res: Response) => {
-  const { id } = req.params;
-
-  const result = await deleteProductService(id);
-
-  res.status(200).json({
-    status: "success",
-    deleteType: result.deleteType,
-    message: result.message,
-    data: result.data,
-  });
-});
-
-export const deleteProductVariant = catchAsync(
+export const deleteProductController = catchAsync(
   async (req: Request, res: Response) => {
-    const { id } = req.params;
+    const { productId } = req.params as ProductIdParams;
 
-    const result = await deleteProductVariantService(id);
+    const result = await deleteProductService(productId);
 
     res.status(200).json({
       status: "success",
@@ -150,18 +119,35 @@ export const deleteProductVariant = catchAsync(
   },
 );
 
-export const updateProduct = catchAsync(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const updatedData = await updateProductService(id, req.body);
+export const deleteProductVariantController = catchAsync(
+  async (req: Request, res: Response) => {
+    const { product_variant_id } = req.params as productVarintIdParams;
 
-  res.status(200).json({
-    status: "success",
-    message: "Berhasil memperbarui data produk",
-    data: updatedData,
-  });
-});
+    const result = await deleteProductVariantService(product_variant_id);
 
-export const updateProductVariant = catchAsync(
+    res.status(200).json({
+      status: "success",
+      deleteType: result.deleteType,
+      message: result.message,
+      data: result.data,
+    });
+  },
+);
+
+export const updateProductController = catchAsync(
+  async (req: Request, res: Response) => {
+    const { productId } = req.params as ProductIdParams;
+    const updatedData = await updateProductService(productId, req.body);
+
+    res.status(200).json({
+      status: "success",
+      message: "Berhasil memperbarui data produk",
+      data: updatedData,
+    });
+  },
+);
+
+export const updateProductVariantController = catchAsync(
   async (req: Request, res: Response) => {
     const { id } = req.params;
     const updatedVariant = await updateProductVariantService(id, req.body);
@@ -199,7 +185,7 @@ export const updateProductVariant = catchAsync(
 //   }
 // };
 
-export const uploadImages = async (
+export const uploadImagesController = async (
   req: AuthRequest & { params: Params },
   res: Response,
   next: NextFunction,

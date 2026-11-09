@@ -1,66 +1,78 @@
 import { Router } from "express";
 import { authenticate } from "../../middlewares/authenticate";
+// import {
+//   ensureMultipartFormData,
+//   productImageUploadFields,
+//   upload,
+// } from "../../middlewares/upload";
 import {
-  ensureMultipartFormData,
-  productImageUploadFields,
-  upload,
-} from "../../middlewares/upload";
-import {
-  createProduct,
-  deleteProduct,
-  deleteProductVariant,
-  getAdminProductById,
-  getAdminProducts,
-  getProductForOrderHistory,
-  getPublicProductBySlug,
-  getPublicProducts,
-  updateProduct,
-  updateProductVariant,
-  uploadImages,
+  createProductController,
+  deleteProductController,
+  deleteProductVariantController,
+  getAdminProductByIdController,
+  getAdminProductsController,
+  getPublicProductBySlugController,
+  getPublicProductsController,
+  updateProductController,
+  updateProductVariantController,
+  uploadImagesController,
 } from "./product.controller";
 import { handleProductImageUpload } from "./product.middleware";
+import { validate } from "../../middlewares/validate";
+import { createProductSchema, updateProductSchema } from "./product.validation";
+import { requireAdmin } from "../../middlewares/requireAdmin";
 
 const router = Router();
 
 // create product
-router.post(
-  "/",
+// router.post(
+//   "/",
+//   authenticate,
+//   ensureMultipartFormData,
+//   upload.fields(productImageUploadFields),
+//   handleProductImageUpload,
+//   validate(createProductSchema),
+//   createProductController,
+// );
+
+router.get("/admin", authenticate, requireAdmin, getAdminProductsController);
+// GET PRODUCT PUBLIC
+router.get("/", getPublicProductsController);
+
+router.get(
+  "/admin/:productId",
   authenticate,
-  ensureMultipartFormData,
-  upload.fields(productImageUploadFields),
-  handleProductImageUpload,
-  createProduct,
+  requireAdmin,
+  getAdminProductByIdController,
 );
 
-// GET PRODUCT PUBLIC
-router.get("/", getPublicProducts);
-router.get("/:slug", getPublicProductBySlug);
-router.get("/history/:id", authenticate, getProductForOrderHistory);
-
-// GET PRODUCT ADMIN
-router.get('/admin', getAdminProducts);
-router.get('/admin/:id', getAdminProductById);
-
+router.get("/:slug", getPublicProductBySlugController);
 // UPDATE PRODUCT
-router.patch("/:id", authenticate, updateProduct);
-
+router.patch(
+  "/:productId",
+  authenticate,
+  validate(updateProductSchema),
+  updateProductController,
+);
 // UPDATE PRODUCT VARINATS
-router.patch("/variants/:id", authenticate, updateProductVariant);
-
-
+router.patch("/variants/:id", authenticate, updateProductVariantController);
 // DELETE PRODUCT
-router.delete("/:id", authenticate, deleteProduct);
-
+router.delete("/:id", authenticate, requireAdmin, deleteProductController);
 //DELETE PRODUCT VARIANT
-router.delete("/variants/:id", authenticate, deleteProductVariant);
+router.delete(
+  "/variants/:id",
+  authenticate,
+  requireAdmin,
+  deleteProductVariantController,
+);
 
 // update images product
-router.post(
-  "/:productId/images",
-  authenticate,
-  ensureMultipartFormData,
-  upload.fields(productImageUploadFields),
-  uploadImages,
-);
+// router.post(
+//   "/:productId/images",
+//   authenticate,
+//   ensureMultipartFormData,
+//   upload.fields(productImageUploadFields),
+//   uploadImagesController,
+// );
 
 export default router;

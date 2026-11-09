@@ -43,6 +43,27 @@ export const createTestUser = async ({
   });
 };
 
+export const createTestUserAdmin = async ({
+  email = `integration-${crypto.randomUUID()}@example.com`,
+  password = TEST_PASSWORD,
+  status = AccountStatus.ACTIVE, // Default ACTIVE agar bisa langsung dipakai belanja/login
+  role = Role.BUYER,
+  sessionVersion = 0,
+}: CreateTestUserInput = {}) => {
+  // Hash sangat ringan (saltRounds=4) khusus untuk mempercepat jalannya eksekusi testing
+  const passwordHash = await bcrypt.hash(password, 4);
+
+  return prisma.user.create({
+    data: {
+      email: email.toLowerCase(),
+      passwordHash,
+      status,
+      role,
+      sessionVersion,
+    },
+  });
+};
+
 /**
  * Melakukan login via endpoint asli API untuk mendapatkan Token Cookie.
  * Berguna untuk simulasi user yang sudah terotentikasi.
@@ -93,6 +114,13 @@ export const loginTestUser = async (
 
 export const getAccesTokenCookie = async () => {
   const user = await createTestUser();
+  const { accessTokenCookie } = await loginTestUser(user.email);
+
+  return { user, accessTokenCookie };
+};
+
+export const getAccesTokenCookieAdmin = async () => {
+  const user = await createTestUserAdmin({ role: Role.ADMIN });
   const { accessTokenCookie } = await loginTestUser(user.email);
 
   return { user, accessTokenCookie };
