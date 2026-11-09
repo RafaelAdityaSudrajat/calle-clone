@@ -1,5 +1,6 @@
-import { Prisma } from "../../../src/generated/prisma";
+import { Prisma, ProductStatus } from "../../../src/generated/prisma";
 import { prisma } from "../../../src/lib/prisma";
+import { createTestUserAdmin } from "./auth";
 
 /**
  * Semua helper di sini sengaja terima `overrides` dan isi default sendiri,
@@ -25,23 +26,27 @@ export async function seedCategory() {
 
 export async function seedProduct(
   overrides: {
-    status?: "DRAFT" | "ACTIVE" | "INACTIVE" | "OUT_OF_STOCK" | "ARCHIVED";
-    isDeleted?: boolean;
-    basePrice?: string;
-    categoryId?: string;
+    status?: ProductStatus;
+    deletedAt?: Date | null;
+    categoryId?: string | null;
+    actorId?: string; // dipakai untuk createdBy & updatedBy
   } = {},
 ) {
-  const categoryId = overrides.categoryId ?? (await seedCategory()).id;
-  const suffix = uniqueSuffix();
+  // createdBy/updatedBy wajib (FK ke User), jadi butuh user admin
+  const actorId = overrides.actorId ?? (await createTestUserAdmin()).id;
+  const categoryId =
+    overrides.categoryId === undefined
+      ? (await seedCategory()).id
+      : overrides.categoryId;
 
   return prisma.product.create({
     data: {
+      name: `Product ${uniqueSuffix()}`,
       categoryId,
-      name: `Product ${suffix}`,
-      slug: `product-${suffix}`,
-      basePrice: new Prisma.Decimal(overrides.basePrice ?? "100000.00"),
       status: overrides.status ?? "ACTIVE",
-      isDeleted: overrides.isDeleted ?? false,
+      deletedAt: overrides.deletedAt ?? null,
+      createdBy: actorId,
+      updatedBy: actorId,
     },
   });
 }
@@ -50,25 +55,34 @@ export async function seedVariant(
   productId: string,
   overrides: {
     stock?: number;
-    isActive?: boolean;
-    priceOverride?: string | null;
+    price?: string;
+    deletedAt?: Date | null;
     size?: string;
     color?: string;
+    actorId?: string;
   } = {},
 ) {
-  const suffix = uniqueSuffix();
+  // Default: pakai pembuat produknya, supaya tidak bikin user baru lagi
+  const actorId =
+    overrides.actorId ??
+    (
+      await prisma.product.findUniqueOrThrow({
+        where: { id: productId },
+        select: { createdBy: true },
+      })
+    ).createdBy;
 
   return prisma.productVariant.create({
     data: {
       productId,
-      sku: `SKU-${suffix}`,
+      sku: `SKU-${uniqueSuffix()}`,
       size: overrides.size ?? "M",
       color: overrides.color ?? "Black",
+      price: new Prisma.Decimal(overrides.price ?? "100000.00"),
       stock: overrides.stock ?? 10,
-      isActive: overrides.isActive ?? true,
-      priceOverride: overrides.priceOverride
-        ? new Prisma.Decimal(overrides.priceOverride)
-        : null,
+      deletedAt: overrides.deletedAt ?? null,
+      createdBy: actorId,
+      updatedBy: actorId,
     },
   });
 }
@@ -77,12 +91,16 @@ export async function seedCart(userId: string) {
   return prisma.cart.create({ data: { userId } });
 }
 
+// Dibuat nested karena `deletedAt` ada di Product dan di ProductVariant,
+// kalau flat nilainya akan masuk ke keduanya.
 export async function seedProductWithVariant(
-  overrides: Parameters<typeof seedProduct>[0] &
-    Parameters<typeof seedVariant>[1] = {},
+  overrides: {
+    product?: Parameters<typeof seedProduct>[0];
+    variant?: Parameters<typeof seedVariant>[1];
+  } = {},
 ) {
-  const product = await seedProduct(overrides);
-  const variant = await seedVariant(product.id, overrides);
+  const product = await seedProduct(overrides.product);
+  const variant = await seedVariant(product.id, overrides.variant);
   return { product, variant };
 }
 

@@ -43,26 +43,22 @@ const mockGetCartFindUnique = prisma.cart.findUnique as unknown as ReturnType<
 function buildVariant(
   overrides: {
     stock?: number;
-    isActive?: boolean;
-    priceOverride?: string | null;
-    basePrice?: string;
-    productStatus?: string;
-    isDeleted?: boolean;
+    price?: string;
+    productStatus?: "DRAFT" | "ACTIVE" | "INACTIVE";
+    productDeletedAt?: Date | null;
+    variantDeletedAt?: Date | null;
   } = {},
 ) {
   return {
     id: "variant-1",
     sku: "SKU-001",
     stock: overrides.stock ?? 10,
-    isActive: overrides.isActive ?? true,
-    priceOverride: overrides.priceOverride
-      ? new Prisma.Decimal(overrides.priceOverride)
-      : null,
+    price: new Prisma.Decimal(overrides.price ?? "100000.00"),
+    deletedAt: overrides.variantDeletedAt ?? null,
     product: {
       id: "product-1",
-      basePrice: new Prisma.Decimal(overrides.basePrice ?? "100000.00"),
       status: overrides.productStatus ?? "ACTIVE",
-      isDeleted: overrides.isDeleted ?? false,
+      deletedAt: overrides.productDeletedAt ?? null,
     },
   };
 }
@@ -124,10 +120,10 @@ describe("addToCartService", () => {
   });
 
   it.each([
-    ["produk isDeleted", { isDeleted: true }],
-    ["produk status DRAFT", { productStatus: "DRAFT" }],
-    ["produk status ARCHIVED", { productStatus: "ARCHIVED" }],
-    ["variant isActive false", { isActive: false }],
+    ["produk soft-deleted", { productDeletedAt: new Date() }],
+    ["variant soft-deleted", { variantDeletedAt: new Date() }],
+    ["produk status DRAFT", { productStatus: "DRAFT" as const }],
+    ["produk status INACTIVE", { productStatus: "INACTIVE" as const }],
   ])("melempar PRODUCT_NOT_AVAILABLE kalau %s", async (_label, overrides) => {
     txMock.productVariant.findUnique.mockResolvedValue(buildVariant(overrides));
 
@@ -221,54 +217,6 @@ describe("addToCartService", () => {
         where: { userId: "user-42" },
         create: { userId: "user-42" },
       }),
-    );
-  });
-
-  it("item baru -> create berisi priceAtAdd dari harga efektif saat ini", async () => {
-    txMock.productVariant.findUnique.mockResolvedValue(
-      buildVariant({ basePrice: "120000.00", priceOverride: null }),
-    );
-    txMock.cartItem.findUnique.mockResolvedValue(null);
-
-    await addToCartService("user-1", {
-      productVariantId: "variant-1",
-      quantity: 2,
-    });
-
-    expect(txMock.cartItem.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        create: expect.objectContaining({
-          cartId: "cart-1",
-          productVariantId: "variant-1",
-          quantity: 2,
-          priceAtAdd: expect.objectContaining({
-            // Prisma.Decimal punya method toString/toFixed, bukan primitive
-            // jadi dibandingkan lewat .toFixed, bukan toEqual langsung.
-          }),
-        }),
-      }),
-    );
-
-    const callArg = txMock.cartItem.upsert.mock.calls[0][0];
-    expect((callArg.create.priceAtAdd as Prisma.Decimal).toFixed(2)).toBe(
-      "120000.00",
-    );
-  });
-
-  it("item baru -> priceAtAdd pakai priceOverride kalau ada, bukan basePrice", async () => {
-    txMock.productVariant.findUnique.mockResolvedValue(
-      buildVariant({ basePrice: "120000.00", priceOverride: "90000.00" }),
-    );
-    txMock.cartItem.findUnique.mockResolvedValue(null);
-
-    await addToCartService("user-1", {
-      productVariantId: "variant-1",
-      quantity: 1,
-    });
-
-    const callArg = txMock.cartItem.upsert.mock.calls[0][0];
-    expect((callArg.create.priceAtAdd as Prisma.Decimal).toFixed(2)).toBe(
-      "90000.00",
     );
   });
 

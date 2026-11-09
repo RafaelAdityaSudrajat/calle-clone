@@ -21,21 +21,22 @@ const mockFindUnique = prisma.cart.findUnique as unknown as ReturnType<
 
 /**
  * Helper bikin satu CartItem + relasi lengkap, dengan default "normal"
- * (produk ACTIVE, variant aktif, stok ada). Override lewat parameter
- * sesuai skenario yang mau ditest.
+ * (produk ACTIVE, variant tidak soft-deleted, stok ada). Override lewat
+ * parameter sesuai skenario yang mau ditest.
  */
-function buildCartItem(overrides: {
-  id?: string;
-  quantity?: number;
-  priceAtAdd?: string;
-  basePrice?: string;
-  priceOverride?: string | null;
-  stock?: number;
-  isVariantActive?: boolean;
-  productStatus?: string;
-  isDeleted?: boolean;
-  isPrimaryImage?: boolean;
-}) {
+function buildCartItem(
+  overrides: {
+    id?: string;
+    quantity?: number;
+    priceAtAdd?: string;
+    price?: string;
+    stock?: number;
+    variantDeletedAt?: Date | null;
+    productStatus?: "DRAFT" | "ACTIVE" | "INACTIVE";
+    productDeletedAt?: Date | null;
+    isPrimaryImage?: boolean;
+  } = {},
+) {
   return {
     id: overrides.id ?? "item-1",
     quantity: overrides.quantity ?? 2,
@@ -46,18 +47,14 @@ function buildCartItem(overrides: {
       sku: "SKU-001",
       size: "M",
       color: "Black",
+      price: new Prisma.Decimal(overrides.price ?? "100000.00"),
       stock: overrides.stock ?? 10,
-      isActive: overrides.isVariantActive ?? true,
-      priceOverride: overrides.priceOverride
-        ? new Prisma.Decimal(overrides.priceOverride)
-        : null,
+      deletedAt: overrides.variantDeletedAt ?? null,
       product: {
         id: "product-1",
         name: "Oversized Tee",
-        slug: "oversized-tee",
-        basePrice: new Prisma.Decimal(overrides.basePrice ?? "100000.00"),
         status: overrides.productStatus ?? "ACTIVE",
-        isDeleted: overrides.isDeleted ?? false,
+        deletedAt: overrides.productDeletedAt ?? null,
         images:
           overrides.isPrimaryImage === false
             ? []
@@ -104,8 +101,8 @@ describe("getCartService", () => {
   it("menghitung subtotal, total_quantity, dan total_amount dengan benar untuk item yang tersedia", async () => {
     mockFindUnique.mockResolvedValue(
       buildCart([
-        buildCartItem({ id: "item-1", quantity: 2, basePrice: "100000.00" }),
-        buildCartItem({ id: "item-2", quantity: 3, basePrice: "50000.00" }),
+        buildCartItem({ id: "item-1", quantity: 2, price: "100000.00" }),
+        buildCartItem({ id: "item-2", quantity: 3, price: "50000.00" }),
       ]),
     );
 
@@ -119,11 +116,9 @@ describe("getCartService", () => {
     expect(result.total_amount).toBe("350000.00"); // 200000 + 150000
   });
 
-  it("memakai priceOverride sebagai unit_price kalau ada, bukan basePrice", async () => {
+  it("memakai price variant sebagai unit_price", async () => {
     mockFindUnique.mockResolvedValue(
-      buildCart([
-        buildCartItem({ basePrice: "100000.00", priceOverride: "80000.00" }),
-      ]),
+      buildCart([buildCartItem({ price: "80000.00" })]),
     );
 
     const result = await getCartService("user-1");
@@ -134,7 +129,7 @@ describe("getCartService", () => {
   it("mendeteksi price_changed = true kalau unit_price beda dari price_at_add", async () => {
     mockFindUnique.mockResolvedValue(
       buildCart([
-        buildCartItem({ priceAtAdd: "100000.00", basePrice: "120000.00" }),
+        buildCartItem({ priceAtAdd: "100000.00", price: "120000.00" }),
       ]),
     );
 
@@ -148,7 +143,7 @@ describe("getCartService", () => {
   it("price_changed = false kalau harga tidak berubah sejak ditambahkan", async () => {
     mockFindUnique.mockResolvedValue(
       buildCart([
-        buildCartItem({ priceAtAdd: "100000.00", basePrice: "100000.00" }),
+        buildCartItem({ priceAtAdd: "100000.00", price: "100000.00" }),
       ]),
     );
 
@@ -158,10 +153,13 @@ describe("getCartService", () => {
   });
 
   describe("unavailable_reason", () => {
-    it("PRODUCT_DELETED kalau product.isDeleted true, meski status masih ACTIVE", async () => {
+    it("PRODUCT_DELETED kalau product.deletedAt terisi, meski status masih ACTIVE", async () => {
       mockFindUnique.mockResolvedValue(
         buildCart([
-          buildCartItem({ isDeleted: true, productStatus: "ACTIVE" }),
+          buildCartItem({
+            productDeletedAt: new Date(),
+            productStatus: "ACTIVE",
+          }),
         ]),
       );
 
@@ -171,39 +169,37 @@ describe("getCartService", () => {
       expect(result.items[0].unavailable_reason).toBe("PRODUCT_DELETED");
     });
 
-    it("PRODUCT_NOT_ACTIVE kalau status DRAFT", async () => {
+    it.each(["DRAFT", "INACTIVE"] as const)(
+      "PRODUCT_NOT_ACTIVE kalau status %s",
+      async (status) => {
+        mockFindUnique.mockResolvedValue(
+          buildCart([buildCartItem({ productStatus: status })]),
+        );
+
+        expect(
+          (await getCartService("user-1")).items[0].unavailable_reason,
+        ).toBe("PRODUCT_NOT_ACTIVE");
+      },
+    );
+
+    it("VARIANT_DELETED kalau variant soft-deleted meski produk ACTIVE", async () => {
       mockFindUnique.mockResolvedValue(
-        buildCart([buildCartItem({ productStatus: "DRAFT" })]),
+        buildCart([buildCartItem({ variantDeletedAt: new Date() })]),
       );
-      expect((await getCartService("user-1")).items[0].unavailable_reason).toBe(
-        "PRODUCT_NOT_ACTIVE",
-      );
+
+      const result = await getCartService("user-1");
+
+      expect(result.items[0].is_available).toBe(false);
+      expect(result.items[0].unavailable_reason).toBe("VARIANT_DELETED");
     });
 
-    it("PRODUCT_NOT_ACTIVE kalau status OUT_OF_STOCK di level produk (keputusan admin)", async () => {
+    it("VARIANT_DELETED didahulukan dari OUT_OF_STOCK kalau variant soft-deleted dan stok 0", async () => {
       mockFindUnique.mockResolvedValue(
-        buildCart([buildCartItem({ productStatus: "OUT_OF_STOCK" })]),
+        buildCart([buildCartItem({ variantDeletedAt: new Date(), stock: 0 })]),
       );
-      expect((await getCartService("user-1")).items[0].unavailable_reason).toBe(
-        "PRODUCT_NOT_ACTIVE",
-      );
-    });
 
-    it("PRODUCT_NOT_ACTIVE kalau status ARCHIVED", async () => {
-      mockFindUnique.mockResolvedValue(
-        buildCart([buildCartItem({ productStatus: "ARCHIVED" })]),
-      );
       expect((await getCartService("user-1")).items[0].unavailable_reason).toBe(
-        "PRODUCT_NOT_ACTIVE",
-      );
-    });
-
-    it("VARIANT_INACTIVE kalau variant.isActive false meski produk ACTIVE", async () => {
-      mockFindUnique.mockResolvedValue(
-        buildCart([buildCartItem({ isVariantActive: false })]),
-      );
-      expect((await getCartService("user-1")).items[0].unavailable_reason).toBe(
-        "VARIANT_INACTIVE",
+        "VARIANT_DELETED",
       );
     });
 
@@ -211,6 +207,7 @@ describe("getCartService", () => {
       mockFindUnique.mockResolvedValue(
         buildCart([buildCartItem({ stock: 0 })]),
       );
+
       expect((await getCartService("user-1")).items[0].unavailable_reason).toBe(
         "OUT_OF_STOCK",
       );
@@ -240,8 +237,7 @@ describe("getCartService", () => {
       });
 
       // Item tetap ditampilkan agar user tahu barang mana yang
-      // stoknya tidak mencukupi.
-      // Namun, item tidak dihitung sebagai barang yang tersedia.
+      // stoknya tidak mencukupi, tapi tidak dihitung ke total.
       expect(result.total_quantity).toBe(0);
       expect(result.total_amount).toBe("0.00");
     });
@@ -271,7 +267,7 @@ describe("getCartService", () => {
     });
 
     it("is_available true dan unavailable_reason null kalau semua syarat terpenuhi", async () => {
-      mockFindUnique.mockResolvedValue(buildCart([buildCartItem({})]));
+      mockFindUnique.mockResolvedValue(buildCart([buildCartItem()]));
 
       const result = await getCartService("user-1");
 
@@ -283,11 +279,11 @@ describe("getCartService", () => {
   it("mengecualikan item yang tidak tersedia dari total_quantity dan total_amount, tapi tetap menampilkannya di items[]", async () => {
     mockFindUnique.mockResolvedValue(
       buildCart([
-        buildCartItem({ id: "available", quantity: 2, basePrice: "100000.00" }),
+        buildCartItem({ id: "available", quantity: 2, price: "100000.00" }),
         buildCartItem({
           id: "oos",
           quantity: 5,
-          basePrice: "999999.00",
+          price: "999999.00",
           stock: 0,
         }),
       ]),

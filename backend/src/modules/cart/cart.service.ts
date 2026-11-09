@@ -1,11 +1,5 @@
 import { Prisma } from "../../generated/prisma";
-import {
-  getEffectivePrice,
-  subtotal,
-  sumMoney,
-  hasPriceChanged,
-  toMoneyString,
-} from "./money";
+import { subtotal, sumMoney, hasPriceChanged, toMoneyString } from "./money";
 
 import { prisma } from "../../lib/prisma";
 import {
@@ -78,16 +72,14 @@ type CartItemWithRelations = CartWithItems["cartItems"][number];
 function getUnavailableReason(
   item: CartItemWithRelations,
 ): UnavailableReason | null {
-  const { product } = item.productVariant;
   const variant = item.productVariant;
+  const { product } = variant;
 
-  if (product.isDeleted) return "PRODUCT_DELETED";
+  if (product.deletedAt) return "PRODUCT_DELETED";
   if (product.status !== "ACTIVE") return "PRODUCT_NOT_ACTIVE";
-  if (!variant.isActive) return "VARIANT_INACTIVE";
+  if (variant.deletedAt) return "VARIANT_DELETED";
   if (variant.stock === 0) return "OUT_OF_STOCK";
-  if (variant.stock < item.quantity) {
-    return "INSUFFICIENT_STOCK";
-  }
+  if (variant.stock < item.quantity) return "INSUFFICIENT_STOCK";
 
   return null;
 }
@@ -97,7 +89,7 @@ function toCartItemDto(item: CartItemWithRelations): CartItemDto {
   const { product } = variant;
 
   const unavailableReason = getUnavailableReason(item);
-  const unitPrice = getEffectivePrice(product, variant);
+  const unitPrice = variant.price;
   const itemSubtotal = subtotal(unitPrice, item.quantity);
   const primaryImage = product.images[0]?.url ?? null;
 
@@ -106,7 +98,6 @@ function toCartItemDto(item: CartItemWithRelations): CartItemDto {
     product_id: product.id,
     product_variant_id: variant.id,
     product_name: product.name,
-    product_slug: product.slug,
     sku: variant.sku,
     size: variant.size,
     color: variant.color,
@@ -206,7 +197,7 @@ export async function addToCartService(
     }
 
     const { product } = variant;
-    if (product.isDeleted || product.status !== "ACTIVE" || !variant.isActive) {
+    if (product.deletedAt || product.status !== "ACTIVE" || variant.deletedAt) {
       throw CartErrors.productNotAvailable();
     }
 
@@ -224,7 +215,7 @@ export async function addToCartService(
       throw CartErrors.stockInsufficient();
     }
 
-    const unitPrice = getEffectivePrice(product, variant);
+    const unitPrice = variant.price;
 
     await tx.cartItem.upsert({
       where: {
@@ -310,7 +301,7 @@ export async function updateCartItemService(
 
     // 4. Produk yang tidak tersedia tidak boleh di-update.
     //    Delete tetap diperbolehkan melalui removeCartItemService.
-    if (product.isDeleted || product.status !== "ACTIVE" || !variant.isActive) {
+    if (product.deletedAt || product.status !== "ACTIVE" || variant.deletedAt) {
       throw CartErrors.productNotAvailable();
     }
 
@@ -430,9 +421,9 @@ export async function checkoutService(
     for (const { quantity, productVariant: variant } of cartItems) {
       const { product } = variant;
       if (
-        product.isDeleted ||
+        product.deletedAt ||
         product.status !== "ACTIVE" ||
-        !variant.isActive
+        variant.deletedAt
       ) {
         throw CartErrors.productNotAvailable();
       }
@@ -444,7 +435,7 @@ export async function checkoutService(
     // 4. Harga terkini, lalu cek perubahan harga.
     const lines = cartItems.map((item) => {
       const { productVariant: variant } = item;
-      const unitPrice = getEffectivePrice(variant.product, variant);
+      const unitPrice = variant.price;
 
       return {
         cartItemId: item.id,

@@ -14,6 +14,7 @@ import {
   seedCartItem,
 } from "../helpers/cart";
 import { prisma } from "../../../src/lib/prisma";
+import { Prisma } from "../../../src/generated/prisma";
 
 /**
  * authenticate middleware baca token dari COOKIE (`req.cookies.accessToken`),
@@ -80,11 +81,11 @@ describe("POST /api/v1/cart (integration)", () => {
     expect(res.body.code).toBe("PRODUCT_NOT_AVAILABLE");
   });
 
-  it("balas 400 PRODUCT_NOT_AVAILABLE kalau variant isActive false", async () => {
+  it("balas 400 PRODUCT_NOT_AVAILABLE kalau variant soft-deleted", async () => {
     const { accessTokenCookie } = await getAccesTokenCookie();
 
     const product = await seedProduct();
-    const variant = await seedVariant(product.id, { isActive: false });
+    const variant = await seedVariant(product.id, { deletedAt: new Date() });
 
     const res = await request(app)
       .post(cartEndpoint)
@@ -141,8 +142,11 @@ describe("POST /api/v1/cart (integration)", () => {
   it("balas 201 dan auto-create cart untuk user yang belum pernah punya cart", async () => {
     const { accessTokenCookie, user } = await getAccesTokenCookie();
 
-    const product = await seedProduct({ basePrice: "100000.00" });
-    const variant = await seedVariant(product.id, { stock: 10 });
+    const product = await seedProduct();
+    const variant = await seedVariant(product.id, {
+      stock: 10,
+      price: "100000.00",
+    });
 
     const res = await request(app)
       .post(cartEndpoint)
@@ -183,8 +187,11 @@ describe("POST /api/v1/cart (integration)", () => {
 
   it("price_at_add tetap snapshot dari add PERTAMA, walau harga berubah sebelum add kedua", async () => {
     const { accessTokenCookie } = await getAccesTokenCookie();
-    const product = await seedProduct({ basePrice: "100000.00" });
-    const variant = await seedVariant(product.id, { stock: 10 });
+    const product = await seedProduct();
+    const variant = await seedVariant(product.id, {
+      stock: 10,
+      price: "100000.00",
+    });
 
     const res1 = await request(app)
       .post(cartEndpoint)
@@ -194,13 +201,9 @@ describe("POST /api/v1/cart (integration)", () => {
     expect(res1.body.data.items[0].price_changed).toBe(false);
 
     // Harga naik SETELAH add pertama
-    await prisma.product.update({
-      where: { id: product.id },
-      data: {
-        basePrice: new (
-          await import("../../../src/generated/prisma")
-        ).Prisma.Decimal("150000.00"),
-      },
+    await prisma.productVariant.update({
+      where: { id: variant.id },
+      data: { price: new Prisma.Decimal("150000.00") },
     });
 
     const res2 = await request(app)

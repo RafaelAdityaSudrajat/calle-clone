@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import request from "supertest";
 import app from "../../../src/app";
-import { getAccesTokenCookie } from "../helpers/auth"; // ASUMSI: nama fungsi sign token, satu modul dengan verifyAccessToken
+import { ProductStatus } from "../../../src/generated/prisma";
+import { getAccesTokenCookie } from "../helpers/auth";
 import { cleanCartDatabase } from "../helpers/database";
 import {
   seedProduct,
@@ -16,19 +17,22 @@ async function setupCartItem(
   opts: {
     quantity?: number;
     stock?: number;
-    productStatus?: "ACTIVE" | "DRAFT" | "ARCHIVED";
+    price?: string;
+    productStatus?: ProductStatus;
   } = {},
 ) {
   const { user, accessTokenCookie } = await getAccesTokenCookie();
   const product = await seedProduct({
     status: opts.productStatus ?? "ACTIVE",
-    basePrice: "100000.00",
   });
-  const variant = await seedVariant(product.id, { stock: opts.stock ?? 10 });
+  const variant = await seedVariant(product.id, {
+    stock: opts.stock ?? 10,
+    price: opts.price ?? "100000.00",
+  });
   const cart = await seedCart(user.id);
   const item = await seedCartItem(cart.id, variant.id, {
     quantity: opts.quantity ?? 2,
-    priceAtAdd: "100000.00",
+    priceAtAdd: opts.price ?? "100000.00",
   });
   return { user, accessTokenCookie, product, variant, cart, item };
 }
@@ -44,7 +48,7 @@ describe("DELETE /api/v1/cart/:cartItemId (integration)", () => {
   });
 
   describe("auth & validasi", () => {
-    it("balas 401 kalau tanpa accessTokenCookie accessToken", async () => {
+    it("balas 401 kalau tanpa cookie accessToken", async () => {
       const res = await request(app).delete(
         "/api/v1/cart/00000000-0000-0000-0000-000000000000",
       );
@@ -77,12 +81,11 @@ describe("DELETE /api/v1/cart/:cartItemId (integration)", () => {
 
     it("balas 404 (bukan 403) kalau item milik user lain, dan item tetap ada di database", async () => {
       const { item } = await setupCartItem();
-      const { accessTokenCookie: attackeraccessTokenCookie } =
-        await getAccesTokenCookie();
+      const { accessTokenCookie: attackerCookie } = await getAccesTokenCookie();
 
       const res = await request(app)
         .delete(`/api/v1/cart/${item.id}`)
-        .set("Cookie", [attackeraccessTokenCookie]);
+        .set("Cookie", [attackerCookie]);
 
       expect(res.status).toBe(404);
       expect(res.body.code).toBe("CART_ITEM_NOT_FOUND");
@@ -129,9 +132,12 @@ describe("DELETE /api/v1/cart/:cartItemId (integration)", () => {
         quantity: 2,
       });
 
-      // Item kedua dari produk berbeda (produk sama akan bentrok di unique productId+size+color)
-      const product2 = await seedProduct({ basePrice: "50000.00" });
-      const variant2 = await seedVariant(product2.id, { stock: 10 });
+      // Item kedua dari variant berbeda (variant yang sama akan bentrok di unique cartId+productVariantId)
+      const product2 = await seedProduct();
+      const variant2 = await seedVariant(product2.id, {
+        stock: 10,
+        price: "50000.00",
+      });
       const item2 = await seedCartItem(cart.id, variant2.id, {
         quantity: 3,
         priceAtAdd: "50000.00",
@@ -153,9 +159,50 @@ describe("DELETE /api/v1/cart/:cartItemId (integration)", () => {
       expect(remaining).toBe(1);
     });
 
-    it("tetap boleh menghapus item dari produk ARCHIVED", async () => {
-      const { accessTokenCookie, item } = await setupCartItem({
-        productStatus: "ARCHIVED",
+    it.each(["INACTIVE", "DRAFT"] as const)(
+      "tetap boleh menghapus item dari produk %s",
+      async (productStatus) => {
+        const { accessTokenCookie, item } = await setupCartItem({
+          productStatus,
+        });
+
+        const res = await request(app)
+          .delete(`/api/v1/cart/${item.id}`)
+          .set("Cookie", [accessTokenCookie]);
+
+        expect(res.status).toBe(200);
+        const inDb = await prisma.cartItem.findUnique({
+          where: { id: item.id },
+        });
+        expect(inDb).toBeNull();
+      },
+    );
+
+    it("tetap boleh menghapus item dari produk yang sudah soft-deleted", async () => {
+      const { accessTokenCookie, item, product } = await setupCartItem();
+
+      await prisma.product.update({
+        where: { id: product.id },
+        data: { deletedAt: new Date() },
+      });
+
+      const res = await request(app)
+        .delete(`/api/v1/cart/${item.id}`)
+        .set("Cookie", [accessTokenCookie]);
+
+      expect(res.status).toBe(200);
+      const inDb = await prisma.cartItem.findUnique({
+        where: { id: item.id },
+      });
+      expect(inDb).toBeNull();
+    });
+
+    it("tetap boleh menghapus item dari variant yang soft-deleted", async () => {
+      const { accessTokenCookie, item, variant } = await setupCartItem();
+
+      await prisma.productVariant.update({
+        where: { id: variant.id },
+        data: { deletedAt: new Date() },
       });
 
       const res = await request(app)

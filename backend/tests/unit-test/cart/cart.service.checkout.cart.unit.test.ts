@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   tx: {
     cart: { findUnique: vi.fn(), delete: vi.fn() },
     cartItem: { findMany: vi.fn(), deleteMany: vi.fn() },
-    productVariant: { updateMany: vi.fn(), findUnique: vi.fn() },
+    productVariant: { updateMany: vi.fn() },
     order: { findUnique: vi.fn(), create: vi.fn() },
     $queryRaw: vi.fn(),
   },
@@ -50,11 +50,10 @@ function buildCartItem(
     quantity?: number;
     stock?: number;
     priceAtAdd?: string;
-    basePrice?: string;
-    priceOverride?: string | null;
-    isVariantActive?: boolean;
-    productStatus?: string;
-    isDeleted?: boolean;
+    price?: string;
+    variantDeletedAt?: Date | null;
+    productStatus?: "DRAFT" | "ACTIVE" | "INACTIVE";
+    productDeletedAt?: Date | null;
   } = {},
 ) {
   const variantId = o.variantId ?? "variant-1";
@@ -68,16 +67,13 @@ function buildCartItem(
       id: variantId,
       sku: o.sku ?? "SKU-001",
       stock: o.stock ?? 10,
-      isActive: o.isVariantActive ?? true,
-      priceOverride: o.priceOverride
-        ? new Prisma.Decimal(o.priceOverride)
-        : null,
+      price: new Prisma.Decimal(o.price ?? "100000.00"),
+      deletedAt: o.variantDeletedAt ?? null,
       product: {
         id: "product-1",
         name: o.productName ?? "Oversized Tee",
-        basePrice: new Prisma.Decimal(o.basePrice ?? "100000.00"),
         status: o.productStatus ?? "ACTIVE",
-        isDeleted: o.isDeleted ?? false,
+        deletedAt: o.productDeletedAt ?? null,
       },
     },
   };
@@ -194,10 +190,10 @@ describe("checkoutService", () => {
 
   describe("validasi item (all-or-nothing)", () => {
     it.each([
-      ["produk isDeleted", { isDeleted: true }],
-      ["produk status DRAFT", { productStatus: "DRAFT" }],
-      ["produk status ARCHIVED", { productStatus: "ARCHIVED" }],
-      ["variant isActive false", { isVariantActive: false }],
+      ["produk soft-deleted", { productDeletedAt: new Date() }],
+      ["variant soft-deleted", { variantDeletedAt: new Date() }],
+      ["produk status DRAFT", { productStatus: "DRAFT" as const }],
+      ["produk status INACTIVE", { productStatus: "INACTIVE" as const }],
     ])("PRODUCT_NOT_AVAILABLE (400) kalau %s", async (_label, overrides) => {
       tx.cartItem.findMany.mockResolvedValue([buildCartItem(overrides)]);
 
@@ -246,7 +242,7 @@ describe("checkoutService", () => {
   describe("perubahan harga", () => {
     it("PRICE_CHANGED (409) kalau harga sekarang beda dari price_at_add dan belum dikonfirmasi", async () => {
       tx.cartItem.findMany.mockResolvedValue([
-        buildCartItem({ priceAtAdd: "100000.00", basePrice: "120000.00" }),
+        buildCartItem({ priceAtAdd: "100000.00", price: "120000.00" }),
       ]);
 
       await expect(checkoutService("user-1", input())).rejects.toMatchObject({
@@ -267,7 +263,7 @@ describe("checkoutService", () => {
         buildCartItem({
           quantity: 2,
           priceAtAdd: "100000.00",
-          basePrice: "120000.00",
+          price: "120000.00",
         }),
       ]);
 
@@ -279,13 +275,9 @@ describe("checkoutService", () => {
       expect(data.totalAmount.toFixed(2)).toBe("240000.00");
     });
 
-    it("priceOverride dipakai sebagai harga, bukan basePrice", async () => {
+    it("harga order diambil dari price variant saat checkout", async () => {
       tx.cartItem.findMany.mockResolvedValue([
-        buildCartItem({
-          basePrice: "120000.00",
-          priceOverride: "90000.00",
-          priceAtAdd: "90000.00",
-        }),
+        buildCartItem({ price: "90000.00", priceAtAdd: "90000.00" }),
       ]);
 
       await checkoutService("user-1", input());
@@ -297,9 +289,9 @@ describe("checkoutService", () => {
     it("item tidak tersedia dilaporkan DULU sebelum harga (PRODUCT_NOT_AVAILABLE, bukan PRICE_CHANGED)", async () => {
       tx.cartItem.findMany.mockResolvedValue([
         buildCartItem({
-          productStatus: "ARCHIVED",
+          productStatus: "INACTIVE",
           priceAtAdd: "100000.00",
-          basePrice: "120000.00",
+          price: "120000.00",
         }),
       ]);
 
@@ -335,14 +327,12 @@ describe("checkoutService", () => {
       expect(ids).toEqual(["variant-a", "variant-b"]);
     });
 
-    it("update kondisional kalah balapan (count 0) -> STOCK_INSUFFICIENT dengan stok terbaru, order tidak dibuat", async () => {
+    it("update kondisional kalah balapan (count 0) -> STOCK_INSUFFICIENT, order tidak dibuat", async () => {
       tx.productVariant.updateMany.mockResolvedValue({ count: 0 });
-      tx.productVariant.findUnique.mockResolvedValue({ stock: 1 });
 
       await expect(checkoutService("user-1", input())).rejects.toMatchObject({
         statusCode: 400,
         code: "STOCK_INSUFFICIENT",
-        message: "Insufficient stock",
       });
       expect(tx.order.create).not.toHaveBeenCalled();
       expect(tx.cartItem.deleteMany).not.toHaveBeenCalled();
@@ -376,12 +366,12 @@ describe("checkoutService", () => {
         buildCartItem({
           variantId: "variant-1",
           quantity: 2,
-          basePrice: "100000.00",
+          price: "100000.00",
         }),
         buildCartItem({
           variantId: "variant-2",
           quantity: 3,
-          basePrice: "50000.00",
+          price: "50000.00",
           priceAtAdd: "50000.00",
         }),
       ]);

@@ -9,7 +9,9 @@
     "start": "node dist/server.js",
     "test:integration:migrate": "dotenv -e .env.test -- prisma migrate deploy",
     "test:integration": "npm run test:integration:migrate && vitest run --config vitest.integration.config.ts",
-    "test:integration:watch": "vitest --config vitest.integration.config.ts"
+    "test:integration:watch": "vitest --config vitest.integration.config.ts",
+    "test:unit": "vitest run tests/unit-test --config vitest.config.ts",
+    "test:all": "npm run test:integration:migrate && vitest run --config vitest.config.ts"
   },
   "keywords": [],
   "author": "",

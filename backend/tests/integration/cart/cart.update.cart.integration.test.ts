@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import request from "supertest";
 import app from "../../../src/app"; // sesuaikan path dengan struktur tests/ kamui
-import { Prisma } from "../../../src/generated/prisma";
+import { Prisma, ProductStatus } from "../../../src/generated/prisma";
 import { getAccesTokenCookie } from "../helpers/auth"; // ASUMSI: nama fungsi sign token, satu modul dengan verifyAccessToken
 import { cleanCartDatabase } from "../helpers/database";
 import {
@@ -17,16 +17,19 @@ async function setupCartItem(
   opts: {
     quantity?: number;
     stock?: number;
+    price?: string;
     priceAtAdd?: string;
-    productStatus?: "ACTIVE" | "DRAFT" | "ARCHIVED";
+    productStatus?: ProductStatus;
   } = {},
 ) {
   const { user, accessTokenCookie } = await getAccesTokenCookie();
   const product = await seedProduct({
     status: opts.productStatus ?? "ACTIVE",
-    basePrice: "100000.00",
   });
-  const variant = await seedVariant(product.id, { stock: opts.stock ?? 10 });
+  const variant = await seedVariant(product.id, {
+    stock: opts.stock ?? 10,
+    price: opts.price ?? "100000.00",
+  });
   const cart = await seedCart(user.id);
   const item = await seedCartItem(cart.id, variant.id, {
     quantity: opts.quantity ?? 2,
@@ -183,28 +186,58 @@ describe("PATCH /api/v1/cart/:cartItemId (integration)", () => {
       expect(inDb?.quantity).toBe(2);
     });
 
-    it("balas 400 PRODUCT_NOT_AVAILABLE kalau produk sudah non-ACTIVE setelah masuk cart", async () => {
-      const { accessTokenCookie, item } = await setupCartItem({
-        productStatus: "ARCHIVED",
-      });
+    it.each([
+      [
+        "produk INACTIVE",
+        async (ctx: { product: { id: string }; variant: { id: string } }) => {
+          await prisma.product.update({
+            where: { id: ctx.product.id },
+            data: { status: "INACTIVE" },
+          });
+        },
+      ],
+      [
+        "produk soft-deleted",
+        async (ctx: { product: { id: string }; variant: { id: string } }) => {
+          await prisma.product.update({
+            where: { id: ctx.product.id },
+            data: { deletedAt: new Date() },
+          });
+        },
+      ],
+      [
+        "variant soft-deleted",
+        async (ctx: { product: { id: string }; variant: { id: string } }) => {
+          await prisma.productVariant.update({
+            where: { id: ctx.variant.id },
+            data: { deletedAt: new Date() },
+          });
+        },
+      ],
+    ])(
+      "balas 400 PRODUCT_NOT_AVAILABLE kalau %s setelah masuk cart",
+      async (_label, makeUnavailable) => {
+        const ctx = await setupCartItem();
+        await makeUnavailable(ctx);
 
-      const res = await request(app)
-        .patch(`/api/v1/cart/${item.id}`)
-        .set("Cookie", [accessTokenCookie])
-        .send({ quantity: 3 });
+        const res = await request(app)
+          .patch(`/api/v1/cart/${ctx.item.id}`)
+          .set("Cookie", [ctx.accessTokenCookie])
+          .send({ quantity: 3 });
 
-      expect(res.status).toBe(400);
-      expect(res.body.code).toBe("PRODUCT_NOT_AVAILABLE");
-    });
+        expect(res.status).toBe(400);
+        expect(res.body.code).toBe("PRODUCT_NOT_AVAILABLE");
+      },
+    );
 
     it("priceAtAdd di database TIDAK berubah walau harga sudah naik dan quantity diupdate", async () => {
-      const { accessTokenCookie, product, item } = await setupCartItem({
+      const { accessTokenCookie, variant, item } = await setupCartItem({
         priceAtAdd: "100000.00",
       });
 
-      await prisma.product.update({
-        where: { id: product.id },
-        data: { basePrice: new Prisma.Decimal("150000.00") },
+      await prisma.productVariant.update({
+        where: { id: variant.id },
+        data: { price: new Prisma.Decimal("150000.00") },
       });
 
       const res = await request(app)
@@ -241,7 +274,7 @@ describe("PATCH /api/v1/cart/:cartItemId (integration)", () => {
 
     it("tetap boleh delete walau produk sudah ARCHIVED (beda dari update quantity > 0)", async () => {
       const { accessTokenCookie, item } = await setupCartItem({
-        productStatus: "ARCHIVED",
+        productStatus: "INACTIVE",
       });
 
       const res = await request(app)
