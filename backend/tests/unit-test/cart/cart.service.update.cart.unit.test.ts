@@ -41,9 +41,9 @@ function buildOwnedItem(
   overrides: {
     id?: string;
     stock?: number;
-    isVariantActive?: boolean;
-    productStatus?: string;
-    isDeleted?: boolean;
+    variantDeletedAt?: Date | null;
+    productStatus?: "DRAFT" | "ACTIVE" | "INACTIVE";
+    productDeletedAt?: Date | null;
   } = {},
 ) {
   return {
@@ -52,11 +52,11 @@ function buildOwnedItem(
     productVariant: {
       id: "variant-1",
       stock: overrides.stock ?? 10,
-      isActive: overrides.isVariantActive ?? true,
+      deletedAt: overrides.variantDeletedAt ?? null,
       product: {
         id: "product-1",
         status: overrides.productStatus ?? "ACTIVE",
-        isDeleted: overrides.isDeleted ?? false,
+        deletedAt: overrides.productDeletedAt ?? null,
       },
     },
   };
@@ -160,10 +160,10 @@ describe("updateCartItemService", () => {
 
   describe("quantity > 0 (update)", () => {
     it.each([
-      ["produk isDeleted", { isDeleted: true }],
-      ["produk status DRAFT", { productStatus: "DRAFT" }],
-      ["produk status ARCHIVED", { productStatus: "ARCHIVED" }],
-      ["variant isActive false", { isVariantActive: false }],
+      ["produk soft-deleted", { productDeletedAt: new Date() }],
+      ["variant soft-deleted", { variantDeletedAt: new Date() }],
+      ["produk status DRAFT", { productStatus: "DRAFT" as const }],
+      ["produk status INACTIVE", { productStatus: "INACTIVE" as const }],
     ])("melempar PRODUCT_NOT_AVAILABLE kalau %s", async (_label, overrides) => {
       mockFindFirst.mockResolvedValue(buildOwnedItem(overrides));
 

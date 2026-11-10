@@ -6,14 +6,6 @@ import { Prisma } from "../../generated/prisma";
 
 export type Money = Prisma.Decimal;
 
-/** Harga efektif variant: priceOverride kalau ada, kalau tidak pakai basePrice produk. */
-export function getEffectivePrice(
-  product: { basePrice: Money },
-  variant: { priceOverride: Money | null },
-): Money {
-  return variant.priceOverride ?? product.basePrice;
-}
-
 export function subtotal(unitPrice: Money, quantity: number): Money {
   return unitPrice.mul(quantity);
 }

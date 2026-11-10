@@ -10,15 +10,10 @@ export default defineConfig({
   test: {
     environment: "node",
 
-    include: ["tests/integration/**/*.test.ts"],
+    include: ["tests/unit-test/**/*.test.ts", "tests/integration/**/*.test.ts"],
 
-    /*
-     * Untuk sekarang test menggunakan
-     * satu database bersama.
-     *
-     * Jalankan test files secara serial
-     * agar cleanup antar file tidak bentrok.
-     */
+    // Database digunakan bersama.
+    // Jalankan setiap test file secara serial.
     fileParallelism: false,
 
     clearMocks: true,
