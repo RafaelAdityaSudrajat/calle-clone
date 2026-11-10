@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import request from "supertest";
 import app from "../../../src/app";
-import { Prisma } from "../../../src/generated/prisma";
+import { Prisma, ProductStatus } from "../../../src/generated/prisma";
 import { getAccesTokenCookie } from "../helpers/auth";
 import { cleanCartDatabase } from "../helpers/database";
 import {
@@ -42,12 +42,11 @@ type OrderItemInsertFailureTrigger = {
 type SeedItem = {
   quantity?: number;
   stock?: number;
-  priceAtAdd?: string;
-  basePrice?: string;
-  priceOverride?: string;
-  productStatus?: "ACTIVE" | "DRAFT" | "ARCHIVED";
-  productIsDeleted?: boolean;
-  variantIsActive?: boolean;
+  price?: string; // harga variant saat ini
+  priceAtAdd?: string; // snapshot harga di CartItem
+  productStatus?: ProductStatus;
+  productDeletedAt?: Date | null;
+  variantDeletedAt?: Date | null;
 };
 
 /** Siapkan user + cart + 1 atau lebih cart item. Return semua yang dibutuhkan test. */
@@ -64,17 +63,16 @@ async function setupCartWithItems(items: SeedItem[] = [{}]) {
   for (const o of items) {
     const product = await seedProduct({
       status: o.productStatus ?? "ACTIVE",
-      basePrice: o.basePrice ?? "100000.00",
-      isDeleted: o.productIsDeleted ?? false,
+      deletedAt: o.productDeletedAt ?? null,
     });
     const variant = await seedVariant(product.id, {
       stock: o.stock ?? 10,
-      isActive: o.variantIsActive ?? true,
-      ...(o.priceOverride ? { priceOverride: o.priceOverride } : {}),
+      price: o.price ?? "100000.00",
+      deletedAt: o.variantDeletedAt ?? null,
     });
     const item = await seedCartItem(cart.id, variant.id, {
       quantity: o.quantity ?? 2,
-      priceAtAdd: o.priceAtAdd ?? o.basePrice ?? "100000.00",
+      priceAtAdd: o.priceAtAdd ?? o.price ?? "100000.00",
     });
     seeded.push({ product, variant, item });
   }
@@ -220,7 +218,7 @@ describe("POST /api/v1/cart/checkout (integration)", () => {
   });
 
   // ------------------------------------------------------------------
-  // Checkout sukses
+  // Cart kosong
   // ------------------------------------------------------------------
   describe("cart kosong", () => {
     it("balas 400 CART_EMPTY kalau user belum punya cart sama sekali", async () => {
@@ -254,13 +252,13 @@ describe("POST /api/v1/cart/checkout (integration)", () => {
     });
   });
 
-  //   // ------------------------------------------------------------------
-  //   // Checkout sukses
-  //   // ------------------------------------------------------------------
+  // ------------------------------------------------------------------
+  // Checkout sukses
+  // ------------------------------------------------------------------
   describe("checkout sukses", () => {
     it("balas 201, order dibuat, cart dikosongkan, stok berkurang, cart row tetap ada", async () => {
       const { accessTokenCookie, cart, items } = await setupCartWithItems([
-        { quantity: 2, stock: 10, basePrice: "100000.00" },
+        { quantity: 2, stock: 10, price: "100000.00" },
       ]);
       const { variant } = items[0];
 
@@ -304,8 +302,8 @@ describe("POST /api/v1/cart/checkout (integration)", () => {
 
     it("total_amount = jumlah subtotal semua item", async () => {
       const { accessTokenCookie } = await setupCartWithItems([
-        { quantity: 2, basePrice: "100000.00" },
-        { quantity: 3, basePrice: "50000.00" },
+        { quantity: 2, price: "100000.00" },
+        { quantity: 3, price: "50000.00" },
       ]);
 
       const res = await request(app)
@@ -319,14 +317,9 @@ describe("POST /api/v1/cart/checkout (integration)", () => {
       expect(res.body.data.items).toHaveLength(2);
     });
 
-    it("priceOverride dipakai sebagai harga, bukan basePrice", async () => {
+    it("harga order diambil dari price variant", async () => {
       const { accessTokenCookie } = await setupCartWithItems([
-        {
-          quantity: 2,
-          basePrice: "120000.00",
-          priceOverride: "90000.00",
-          priceAtAdd: "90000.00",
-        },
+        { quantity: 2, price: "90000.00" },
       ]);
 
       const res = await request(app)
@@ -342,7 +335,7 @@ describe("POST /api/v1/cart/checkout (integration)", () => {
 
     it("DTO response sesuai kontrak", async () => {
       const { accessTokenCookie } = await setupCartWithItems([
-        { quantity: 2, basePrice: "100000.00" },
+        { quantity: 2, price: "100000.00" },
       ]);
 
       const res = await request(app)
@@ -447,27 +440,6 @@ describe("POST /api/v1/cart/checkout (integration)", () => {
   // Produk tidak tersedia / stok
   // ------------------------------------------------------------------
   describe("produk tidak tersedia & stok", () => {
-    it("balas 400 PRODUCT_NOT_AVAILABLE kalau produk sudah ARCHIVED, cart tetap utuh", async () => {
-      const { accessTokenCookie, cart } = await setupCartWithItems([
-        { productStatus: "ARCHIVED" },
-      ]);
-
-      const res = await request(app)
-        .post(checkoutEndpoint)
-        .set("Cookie", [accessTokenCookie])
-        .set("Idempotency-Key", KEY)
-        .send(body());
-
-      expect(res.status).toBe(400);
-      expect(res.body.code).toBe("PRODUCT_NOT_AVAILABLE");
-
-      expect(await prisma.order.count()).toBe(0);
-      const remaining = await prisma.cartItem.findMany({
-        where: { cartId: cart.id },
-      });
-      expect(remaining).toHaveLength(1);
-    });
-
     it("balas 400 STOCK_INSUFFICIENT kalau quantity > stock, tidak ada order terbentuk dan stok tidak berubah", async () => {
       const { accessTokenCookie, items } = await setupCartWithItems([
         { quantity: 5, stock: 3 },
@@ -512,25 +484,21 @@ describe("POST /api/v1/cart/checkout (integration)", () => {
       expect(healthy?.stock).toBe(10); // utuh
     });
 
-    it.each([
+    const unavailableCases: Array<{ label: string; overrides: SeedItem }> = [
       {
-        label: "produk soft-delete",
-        overrides: { productIsDeleted: true },
+        label: "produk soft-deleted",
+        overrides: { productDeletedAt: new Date() },
       },
       {
-        label: "variant tidak aktif",
-        overrides: { variantIsActive: false },
+        label: "variant soft-deleted",
+        overrides: { variantDeletedAt: new Date() },
       },
-      {
-        label: "produk DRAFT",
-        overrides: { productStatus: "DRAFT" as const },
-      },
-      {
-        label: "produk ARCHIVED",
-        overrides: { productStatus: "ARCHIVED" as const },
-      },
-    ])(
-      "balas PRODUCT_NOT_AVAILABLE untuk $label dan mempertahankan cart",
+      { label: "produk DRAFT", overrides: { productStatus: "DRAFT" } },
+      { label: "produk INACTIVE", overrides: { productStatus: "INACTIVE" } },
+    ];
+
+    it.each(unavailableCases)(
+      "balas 400 PRODUCT_NOT_AVAILABLE untuk $label dan mempertahankan cart",
       async ({ overrides }) => {
         const { user, accessTokenCookie, cart, items } =
           await setupCartWithItems([
@@ -581,20 +549,15 @@ describe("POST /api/v1/cart/checkout (integration)", () => {
   // ------------------------------------------------------------------
   describe("perubahan harga", () => {
     it("balas 409 PRICE_CHANGED kalau harga naik dan belum dikonfirmasi, cart tetap utuh", async () => {
-      const { accessTokenCookie, cart } = await setupCartWithItems([
-        { priceAtAdd: "100000.00" },
+      const { accessTokenCookie, cart, items } = await setupCartWithItems([
+        { price: "100000.00", priceAtAdd: "100000.00" },
       ]);
+      const { variant, item } = items[0];
 
-      // Naikkan harga produk setelah item masuk cart
-      const cartItem = await prisma.cartItem.findFirst({
-        where: { cartId: cart.id },
-      });
-      const variant = await prisma.productVariant.findUnique({
-        where: { id: cartItem!.productVariantId },
-      });
-      await prisma.product.update({
-        where: { id: variant!.productId },
-        data: { basePrice: new Prisma.Decimal("120000.00") },
+      // Naikkan harga variant setelah item masuk cart
+      await prisma.productVariant.update({
+        where: { id: variant.id },
+        data: { price: new Prisma.Decimal("120000.00") },
       });
 
       const res = await request(app)
@@ -609,7 +572,7 @@ describe("POST /api/v1/cart/checkout (integration)", () => {
       expect(res.body.data).toMatchObject({
         price_changes: [
           {
-            cart_item_id: cartItem!.id,
+            cart_item_id: item.id,
             old_price: "100000.00",
             new_price: "120000.00",
           },
@@ -625,19 +588,13 @@ describe("POST /api/v1/cart/checkout (integration)", () => {
     });
 
     it("confirm_price_change=true -> lanjut, order memakai harga TERBARU (freeze)", async () => {
-      const { accessTokenCookie, cart } = await setupCartWithItems([
-        { quantity: 2, priceAtAdd: "100000.00" },
+      const { accessTokenCookie, items } = await setupCartWithItems([
+        { quantity: 2, price: "100000.00", priceAtAdd: "100000.00" },
       ]);
 
-      const cartItem = await prisma.cartItem.findFirst({
-        where: { cartId: cart.id },
-      });
-      const variant = await prisma.productVariant.findUnique({
-        where: { id: cartItem!.productVariantId },
-      });
-      await prisma.product.update({
-        where: { id: variant!.productId },
-        data: { basePrice: new Prisma.Decimal("120000.00") },
+      await prisma.productVariant.update({
+        where: { id: items[0].variant.id },
+        data: { price: new Prisma.Decimal("120000.00") },
       });
 
       const res = await request(app)
@@ -686,6 +643,8 @@ describe("POST /api/v1/cart/checkout (integration)", () => {
 
     it("snapshot nama produk & SKU tetap utuh walau produk di-rename setelah order", async () => {
       const { accessTokenCookie, items } = await setupCartWithItems();
+      const originalName = items[0].product.name;
+      const originalSku = items[0].variant.sku;
 
       const res = await request(app)
         .post(checkoutEndpoint)
@@ -708,8 +667,8 @@ describe("POST /api/v1/cart/checkout (integration)", () => {
       const orderItem = await prisma.orderItem.findFirst({
         where: { orderId },
       });
-      expect(orderItem?.productName).not.toBe("Nama Baru");
-      expect(orderItem?.variantSku).not.toBe("SKU-BARU");
+      expect(orderItem?.productName).toBe(originalName);
+      expect(orderItem?.variantSku).toBe(originalSku);
     });
   });
 

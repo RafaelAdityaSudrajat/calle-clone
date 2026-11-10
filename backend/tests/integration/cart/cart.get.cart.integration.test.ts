@@ -3,11 +3,7 @@ import request from "supertest";
 import { cleanCartDatabase } from "../helpers/database";
 import { prisma } from "../../../src/lib/prisma";
 import app from "../../../src/app";
-import {
-  createTestUser,
-  getAccesTokenCookie,
-  loginTestUser,
-} from "../helpers/auth";
+import { createTestUser, getAccesTokenCookie } from "../helpers/auth";
 import {
   seedCart,
   seedCartItem,
