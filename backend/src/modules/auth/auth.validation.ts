@@ -7,6 +7,13 @@ const passwordSchema = z
   .regex(/[A-Za-z]/, "Password harus mengandung minimal satu huruf")
   .regex(/[0-9]/, "Password harus mengandung minimal satu angka");
 
+const emailSchema = z
+  .string()
+  .trim()
+  .max(254, "Email terlalu panjang")
+  .email("Format email tidak valid")
+  .transform((email) => email.toLowerCase());
+
 const currentPasswordSchema = z
   .string()
   .min(1, "Password saat ini wajib diisi")
@@ -14,12 +21,7 @@ const currentPasswordSchema = z
 
 export const registerBuyerBodySchema = z
   .object({
-    email: z
-      .string()
-      .trim()
-      .max(254, "Email terlalu panjang")
-      .email("Format email tidak valid")
-      .transform((email) => email.toLowerCase()),
+    email: emailSchema,
 
     password: passwordSchema,
   })
@@ -36,12 +38,7 @@ export const verifyEmailBodySchema = z
 
 export const loginBodySchema = z
   .object({
-    email: z
-      .string()
-      .trim()
-      .max(254, "Email terlalu panjang")
-      .email("Format email tidak valid")
-      .transform((email) => email.toLowerCase()),
+    email: emailSchema,
 
     password: currentPasswordSchema,
   })
@@ -49,12 +46,7 @@ export const loginBodySchema = z
 
 export const forgotPasswordBodySchema = z
   .object({
-    email: z
-      .string()
-      .trim()
-      .max(254, "Email terlalu panjang")
-      .email("Format email tidak valid")
-      .transform((email) => email.toLowerCase()),
+    email: emailSchema,
   })
   .strict();
 

@@ -1,19 +1,51 @@
-import { Router } from 'express';
-import { authenticate } from '../../middlewares/authenticate';
+import { Router } from "express";
+import { authenticate } from "../../middlewares/authenticate";
 import {
-  createCategory,
-  getCategories,
-  getCategoryById,
-  updateCategory,
-  deleteCategory,
-} from './category.controller';
+  createCategoryController,
+  getCategoryController,
+  getCategoryByIdController,
+  updateCategoryController,
+  deleteCategoryController,
+} from "./category.controller";
+import { requireAdmin } from "../../middlewares/requireAdmin";
+import { validate } from "../../middlewares/validate";
+import {
+  categoryIdParamsConfig,
+  createCategoryConfig,
+  updateCategoryConfig,
+} from "./category.schema";
 
 const router = Router();
 
-router.get('/', getCategories);
-router.get("/:id", getCategoryById)
-router.post('/', authenticate, createCategory);
-router.patch('/:id', authenticate, updateCategory);
-router.delete('/:id', authenticate, deleteCategory);
+router.get("/", authenticate, requireAdmin, getCategoryController);
+router.get(
+  "/:id",
+  authenticate,
+  requireAdmin,
+  validate(categoryIdParamsConfig),
+  getCategoryByIdController,
+);
+router.post(
+  "/",
+  authenticate,
+  requireAdmin,
+  validate(createCategoryConfig),
+  createCategoryController,
+);
+router.patch(
+  "/:id",
+  authenticate,
+  requireAdmin,
+  validate(categoryIdParamsConfig),
+  validate(updateCategoryConfig),
+  updateCategoryController,
+);
+router.delete(
+  "/:id",
+  authenticate,
+  requireAdmin,
+  validate(categoryIdParamsConfig),
+  deleteCategoryController,
+);
 
 export default router;
