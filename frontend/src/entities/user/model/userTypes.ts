@@ -16,8 +16,7 @@ export interface AuthResponse {
 }
 
 export interface AuthState {
-  user: User | null;
   isAuthenticated: boolean;
-  setUser: (user: User) => void;
+  setUser: () => void;
   clearUser: () => void;
 }

@@ -1,4 +1,4 @@
-import type { RegisterResponse } from "../model/register.type";
+import type { RegisterResponse } from "../../auth.response.interface";
 import type { RegisterInput } from "../model/RegisterSchema";
 import { axiosInstance } from "@/shared/api/axios.instance";
 

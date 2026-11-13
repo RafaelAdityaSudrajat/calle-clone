@@ -4,7 +4,7 @@ import { AxiosError } from "axios";
 import { registerSchema } from "./RegisterSchema";
 import type { RegisterInput } from "./RegisterSchema";
 import { toast } from "sonner";
-import { registerApi } from "../api/Register.api";
+import { registerApi } from "../api/register.api";
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -25,7 +25,7 @@ export function useRegister() {
       });
     },
     onError: (error) => {
-      console.log(error);
+      toast.error(error.message);
     },
   });
 
@@ -39,8 +39,8 @@ export function useRegister() {
       if (error.response?.status === 409)
         return serverMessage ?? "Email atau username sudah digunakan.";
 
-      if (error.response?.status === 422)
-        return serverMessage ?? "Data yang dikirim tidak valid.";
+      if (error.response?.status === 400)
+        return serverMessage ?? "Validation failed";
 
       if (!error.response)
         return "Tidak dapat terhubung ke server. Periksa koneksi kamu.";

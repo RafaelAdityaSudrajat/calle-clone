@@ -57,7 +57,6 @@ export const updateCategoryService = async (
   id: string,
   input: CreateCategoryInput,
 ) => {
-  console.log(id);
   const category = await prisma.category.findUnique({ where: { id } });
 
   if (!category) {

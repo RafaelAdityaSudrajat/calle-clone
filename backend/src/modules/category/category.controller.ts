@@ -29,7 +29,7 @@ export const createCategoryController = catchAsync(
 
     res.status(201).json({
       success: true,
-      message: "Product created successfully",
+      message: "Category created successfully",
       data,
     });
   },

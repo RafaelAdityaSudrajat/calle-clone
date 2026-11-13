@@ -1,6 +1,9 @@
 import PopupAuthCardLayout from "../../features/auth/ui/PopupAuthCardLayout";
 import { useForm } from "react-hook-form";
-import { registerSchema, type RegisterInput } from "../../features/auth/register/model/RegisterSchema";
+import {
+  registerSchema,
+  type RegisterInput,
+} from "../../features/auth/register/model/RegisterSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useAuthModal } from "../../features/auth/ui/AuthModalContext";
@@ -8,7 +11,7 @@ import HeaderPopupAuth from "../../features/auth/ui/HeaderPopupAuth";
 import FormRegister from "../../features/auth/register/ui/FormRegister";
 import { useRegister } from "@/features/auth/register/model/use-register"; // ← tambah ini
 
-const PopupRegister = () => {
+const RegisterModal = () => {
   const [showPassword, setShowPassword] = useState<boolean>(false);
 
   const { handleActiveAuthPopup } = useAuthModal();
@@ -69,4 +72,4 @@ const PopupRegister = () => {
   );
 };
 
-export default PopupRegister;
+export default RegisterModal;

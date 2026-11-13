@@ -1,5 +1,8 @@
 import PopupAuthCardLayout from "../../features/auth/ui/PopupAuthCardLayout";
-import { loginSchema, type LoginInput } from "../../features/auth/login/model/LoginScema";
+import {
+  loginSchema,
+  type LoginInput,
+} from "../../features/auth/login/model/LoginScema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
@@ -9,7 +12,7 @@ import HeaderPopupAuth from "../../features/auth/ui/HeaderPopupAuth";
 import FormLogin from "../../features/auth/login/ui/FormLogin";
 import { useLogin } from "../../features/auth/login/model/use-login";
 
-const PopupLogin = () => {
+const LoginModal = () => {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const { handleActiveAuthPopup } = useAuthModal();
   const { login, isLoading, error } = useLogin();
@@ -74,4 +77,4 @@ const PopupLogin = () => {
   );
 };
 
-export default PopupLogin;
+export default LoginModal;

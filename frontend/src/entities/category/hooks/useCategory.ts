@@ -1,9 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCategoryKeys } from "./category.query-keys";
 import { categoryApi } from "../api/categoryApi";
-import type { CreateCategoryFormValues, UpdateCategoryFormValues } from "../model/category.schema";
-import type { CreateCategoryResponse, DeleteCategoryByIdResponse, UpdateCategoryResponse } from "../model/category.types";
+import type {
+  CreateCategoryFormValues,
+  UpdateCategoryFormValues,
+} from "../model/category.schema";
+import type {
+  DeleteCategoryByIdResponse,
+  UpdateCategoryResponse,
+} from "../model/category.types";
 import { toast } from "sonner";
+import type { Category } from "../model/types";
 
 export function useGetCategory() {
   return useQuery({
@@ -16,8 +23,8 @@ export function useGetCategory() {
 export const useCreateCategory = () => {
   const queryClient = useQueryClient();
 
-  return useMutation<CreateCategoryResponse, Error, CreateCategoryFormValues>({
-    mutationFn: categoryApi.createCategory,
+  return useMutation<Category, Error, CreateCategoryFormValues>({
+    mutationFn: categoryApi.create,
     onSuccess: (response) => {
       queryClient.invalidateQueries({
         queryKey: getCategoryKeys(),

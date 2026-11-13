@@ -1,9 +1,9 @@
-import type { AuthResponse } from "@/entities/user/model/userTypes";
-import type { LoginOutput } from "../model/LoginScema";
+import type { LoginInput } from "../model/LoginScema";
 import { axiosInstance } from "@/shared/api/axios.instance";
+import type { LoginResponse } from "../../auth.response.interface";
 
-export const loginApi = async (payload: LoginOutput): Promise<AuthResponse> => {
-  const { data } = await axiosInstance.post<AuthResponse>(
+export const loginApi = async (payload: LoginInput): Promise<LoginResponse> => {
+  const { data } = await axiosInstance.post<LoginResponse>(
     "/auth/login",
     payload,
   );

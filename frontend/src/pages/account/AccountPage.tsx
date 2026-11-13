@@ -1,11 +1,11 @@
 import LayoutSecondary from "@/widgets/layout/LayoutSecondary";
 import AccountAction from "../../widgets/account/AccountAction";
-import TabsCard from "../../widgets/account/Tabs";
-import PopupLogin from "@/widgets/auth/PopupLogin";
-import PopupRegister from "@/widgets/auth/PopupRegister";
+import TabsCard from "../../widgets/account/TabsCard";
+import LoginModal from "@/widgets/auth/LoginModal";
+import RegisterModal from "@/widgets/auth/RegisterModal";
 import { useAuthModal } from "@/features/auth/ui/AuthModalContext";
 
-export default function Account() {
+export default function AccountPage() {
   const { activeAuthPopup } = useAuthModal();
 
   return (
@@ -41,10 +41,10 @@ export default function Account() {
 
       {/* login modal pop up */}
 
-      {activeAuthPopup === "login" && <PopupLogin />}
+      {activeAuthPopup === "login" && <LoginModal />}
 
       {/* Register modal pop up */}
-      {activeAuthPopup === "register" && <PopupRegister />}
+      {activeAuthPopup === "register" && <RegisterModal />}
     </LayoutSecondary>
   );
 }

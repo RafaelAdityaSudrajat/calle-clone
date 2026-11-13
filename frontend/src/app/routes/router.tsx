@@ -6,7 +6,7 @@ import Archives from "@/pages/archives/Archives";
 import About from "@/pages/about/About";
 import Products from "@/pages/products/Products";
 import Test from "@/pages/test/Test";
-import Account from "@/pages/account/Account";
+import AccountPage from "@/pages/account/AccountPage";
 import { AuthModalProvider } from "@/features/auth/ui/AuthModalContext";
 import DashboardHome from "@/pages/dashboard/pages/home-page/DashboardHome";
 import Checkout from "@/pages/checkout/Checkout";
@@ -42,7 +42,7 @@ export function AppRouter() {
           path="/account"
           element={
             <AuthModalProvider>
-              <Account />
+              <AccountPage />
             </AuthModalProvider>
           }
         />

@@ -1,29 +1,32 @@
 import { axiosInstance } from "@/shared/api/axios.instance";
 import type {
-  CategoryResponse,
-  CreateCategoryResponse,
   DeleteCategoryByIdResponse,
   UpdateCategoryResponse,
 } from "../model/category.types";
-import type {
-  CreateCategoryFormValues,
-  UpdateCategoryFormValues,
-} from "../model/category.schema";
+import type { UpdateCategoryFormValues } from "../model/category.schema";
+import {
+  createCategoryPayloadSchema,
+  createCategoryResponseSchema,
+  getCategoriesResponseSchema,
+  type CreateCategoryPayload,
+} from "./schema";
+import type { Category } from "../model/types";
+import { mapCategory } from "../lib/mapper";
 
 export const categoryApi = {
-  getAll: async (): Promise<CategoryResponse> => {
-    const { data } = await axiosInstance.get<CategoryResponse>("/category");
-    return data;
+  getAll: async (): Promise<Category[]> => {
+    const { data } = await axiosInstance.get<unknown>("/category");
+    const parsed = getCategoriesResponseSchema.parse(data);
+    return parsed.data.map(mapCategory);
   },
 
-  createCategory: async (
-    payload: CreateCategoryFormValues,
-  ): Promise<CreateCategoryResponse> => {
-    const { data } = await axiosInstance.post<CreateCategoryResponse>(
-      "/category",
-      payload,
-    );
-    return data;
+  create: async (payload: CreateCategoryPayload): Promise<Category> => {
+    const body = createCategoryPayloadSchema.parse(payload);
+
+    const { data } = await axiosInstance.post<unknown>("/category", body);
+    const parsed = createCategoryResponseSchema.parse(data);
+
+    return mapCategory(parsed.data);
   },
 
   deleteCategoryById: async (
