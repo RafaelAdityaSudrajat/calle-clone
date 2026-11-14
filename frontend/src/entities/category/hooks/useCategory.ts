@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCategoryKeys } from "./category.query-keys";
-import { categoryApi } from "../api/categoryApi";
+import { categoryApi } from "../api/category.api";
 import type {
   CreateCategoryFormValues,
   UpdateCategoryFormValues,

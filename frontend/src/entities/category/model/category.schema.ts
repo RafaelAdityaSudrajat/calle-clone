@@ -1,16 +1,19 @@
 import { z } from "zod";
 
-
-// create category schema
-export const createCategorySchema = z.object({
-  name: z.string().min(3, "Name must be at least 3 characters"),
+// Bentuk data dari backend
+export const categorySchema = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  slug: z.string(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
 });
+export type Category = z.infer<typeof categorySchema>;
 
-// update category schema
-export const updateCategorySchema = z.object({
-  name: z.string().min(3, "Name must be at least 3 characters"),
-  id: z.string()
+export const categoryListSchema = z.array(categorySchema);
+
+// Input form. Create dan update sama-sama hanya `name` (selaras backend).
+export const categoryFormSchema = z.object({
+  name: z.string().trim().min(3, "Nama kategori minimal 3 karakter"),
 });
-
-export type CreateCategoryFormValues = z.infer<typeof createCategorySchema>;
-export type UpdateCategoryFormValues = z.infer<typeof updateCategorySchema>;
+export type CategoryFormValues = z.infer<typeof categoryFormSchema>;
