@@ -1,17 +1,17 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { AxiosError } from "axios";
 import { loginSchema } from "./LoginScema";
 import type { LoginInput } from "./LoginScema";
 import { useAuthStore } from "@/entities/user/store/auth.store";
 import { loginApi } from "../api/login.api";
+import { toast } from "sonner";
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useLogin() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const setUser = useAuthStore((state) => state.setUser);
+  const { setUser } = useAuthStore();
 
   const { mutateAsync, isPending, error } = useMutation({
     mutationFn: (input: LoginInput) => {
@@ -19,13 +19,14 @@ export function useLogin() {
       return loginApi(validatedPayload);
     },
 
-    onSuccess: (data) => {
-      setUser(data.data);
-      queryClient.setQueryData(["auth", "me"], data);
+    onSuccess: (response) => {
+      toast.success(response.message);
+      setUser();
 
-      navigate("/", {
-        state: { message: "login berhasil" },
-      });
+      navigate("/");
+    },
+    onError: (error) => {
+      toast.error(error.message);
     },
   });
 
@@ -36,16 +37,17 @@ export function useLogin() {
     if (error instanceof AxiosError) {
       const serverMessage = error.response?.data?.message;
 
-      if (error.response?.status === 401)
-        return serverMessage ?? "Email atau password salah.";
+      if (error.response?.status === 401) return serverMessage;
 
-      // 403 = akun dinonaktifkan / banned
-      if (error.response?.status === 403)
-        return serverMessage ?? "Akun kamu tidak aktif. Hubungi support.";
+      if (error.response?.status === 400)
+        return serverMessage ?? "Validation failed";
 
       // 429 = terlalu banyak percobaan login (rate limiting)
-      if (error.response?.status === 429)
-        return serverMessage ?? "Terlalu banyak percobaan. Coba lagi nanti.";
+      if (error.response?.status === 409)
+        return (
+          serverMessage ??
+          "Terlalu banyak percobaan login. Silakan coba lagi nanti."
+        );
 
       if (!error.response)
         return "Tidak dapat terhubung ke server. Periksa koneksi kamu.";

@@ -1,7 +1,7 @@
 import VerifyEmailSuccess from "@/widgets/verify-email/VerifyEmailSuccess";
 import VerifyEmailFailed from "@/widgets/verify-email/VerifyEmailFailed";
 import VerifyEmailLoading from "@/widgets/verify-email/VerifyEmailLoading";
-import useVerifyEmail from "@/features/auth/verify-email/hooks/useVerifyEmail";
+import useVerifyEmail from "@/features/auth/verify-email/hooks/use-verify-email";
 
 export default function VerifyEmailPage() {
   const { status } = useVerifyEmail();

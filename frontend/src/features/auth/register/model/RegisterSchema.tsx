@@ -4,15 +4,17 @@ import { z } from "zod";
 
 const emailSchema = z
   .string()
-  .email("Format email tidak valid.")
-  .max(254, "Email terlalu panjang.")
-  .trim();
+  .trim()
+  .max(254, "Email terlalu panjang")
+  .email("Format email tidak valid")
+  .transform((email) => email.toLowerCase());
 
 const passwordSchema = z
   .string()
   .min(8, "Password minimal 8 karakter")
-  .regex(/[A-Za-z]/, "Password harus memiliki minimal 1 huruf")
-  .regex(/[0-9]/, "Password harus memiliki minimal 1 angka");
+  .max(72, "Password terlalu panjang")
+  .regex(/[A-Za-z]/, "Password harus mengandung minimal satu huruf")
+  .regex(/[0-9]/, "Password harus mengandung minimal satu angka");
 // ─── Register Schema ──────────────────────────────────────────────────────────
 
 export const registerSchema = z.object({

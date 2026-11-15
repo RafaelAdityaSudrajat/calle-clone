@@ -12,9 +12,11 @@
   "dependencies": {
     "@headlessui/react": "^2.2.9",
     "@hookform/resolvers": "^5.2.2",
+    "@radix-ui/react-dialog": "^1.3.1",
     "@tanstack/react-query": "^5.95.2",
     "@tanstack/react-query-devtools": "^5.100.6",
     "axios": "^1.15.2",
+    "clsx": "^2.1.1",
     "lucide-react": "^0.564.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -23,6 +25,7 @@
     "react-number-format": "^5.4.5",
     "react-router-dom": "^7.11.0",
     "sonner": "^2.0.7",
+    "tailwind-merge": "^3.7.0",
     "tailwind-scrollbar-hide": "^4.0.0",
     "zod": "^4.3.6",
     "zustand": "^5.0.11"

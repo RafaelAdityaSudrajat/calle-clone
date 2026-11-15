@@ -1,5 +1,5 @@
 import { prisma } from "../../lib/prisma";
-import { CreateCategoryInput } from "./category.validation";
+import { CreateCategoryInput } from "./category.schema";
 import { ConflictError, NotFoundError } from "../../lib/errors";
 
 const generateSlug = async (name: string): Promise<string> => {
@@ -37,7 +37,7 @@ export const createCategoryService = async (input: CreateCategoryInput) => {
   });
 };
 
-export const getCategoriesService = async () => {
+export const getCategoryService = async () => {
   return prisma.category.findMany({
     orderBy: { createdAt: "desc" },
   });

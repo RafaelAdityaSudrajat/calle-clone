@@ -1,103 +1,112 @@
 import { Request, Response, NextFunction } from "express";
 import { AuthRequest } from "../../middlewares/authenticate";
-import { createCategorySchema } from "./category.validation";
+import {
+  CategoryIdParamsInput,
+  CreateCategoryInput,
+  createCategorySchema,
+  UpdateCategoryInput,
+} from "./category.schema";
 import {
   createCategoryService,
-  getCategoriesService,
   getCategoryByIdService,
   updateCategoryService,
   deleteCategoryService,
+  getCategoryService,
 } from "./category.service";
-import { ValidationError } from "../../lib/errors";
+import { UnauthorizedError, ValidationError } from "../../lib/errors";
+import catchAsync from "../../lib/catchAsync";
 
-export const createCategory = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  try {
-    const parsed = createCategorySchema.safeParse(req.body);
+export const createCategoryController = catchAsync(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    const userId = req.auth?.userId;
+    const input = req.body as CreateCategoryInput;
 
-    if (!parsed.success) {
-      const message = parsed.error.issues[0].message;
-      throw new ValidationError(message);
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
     }
 
-    const result = await createCategoryService(parsed.data);
+    const data = await createCategoryService(input);
 
     res.status(201).json({
-      status: "success",
+      success: true,
       message: "Category created successfully",
-      data: result,
+      data,
     });
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
 
-export const getCategories = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  try {
-    const result = await getCategoriesService();
-    res.status(200).json({ status: "success", data: result });
-  } catch (error) {
-    next(error);
-  }
-};
+export const getCategoryController = catchAsync(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    const userId = req.auth?.userId;
 
-export const getCategoryById = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  try {
-    const result = await getCategoryByIdService(req.params.id);
-    res.status(200).json({ status: "success", data: result });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const updateCategory = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  try {
-    const parsed = createCategorySchema.safeParse(req.body);
-
-    console.log(req.params.id)
-
-    if (!parsed.success) {
-      const message = parsed.error.issues[0].message;
-      throw new ValidationError(message);
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
     }
 
-    await updateCategoryService(req.params.id, parsed.data);
-    res.status(200).json({
-      status: "success",
-      message: "Category updated successfully",
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+    const data = await getCategoryService();
 
-export const deleteCategory = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  try {
-    await deleteCategoryService(req.params.id);
     res.status(200).json({
-      status: "success",
-      message: "Category deleted successfully",
+      success: true,
+      message: "Categorys retrieved successfully",
+      data,
     });
-  } catch (error) {
-    next(error);
-  }
-};
+  },
+);
+
+export const getCategoryByIdController = catchAsync(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    const userId = req.auth?.userId;
+    const { id } = req.params as unknown as CategoryIdParamsInput;
+
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
+
+    const data = await getCategoryByIdService(id);
+
+    res.status(200).json({
+      success: true,
+      message: "Category retrieved successfully",
+      data,
+    });
+  },
+);
+
+export const updateCategoryController = catchAsync(
+  async (req: AuthRequest, res: Response, _next: NextFunction) => {
+    const userId = req.auth?.userId;
+    const input = req.body as UpdateCategoryInput;
+    const { id } = req.params as unknown as CategoryIdParamsInput;
+
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
+
+    const data = await updateCategoryService(id, input);
+
+    res.status(200).json({
+      success: true,
+      message: "Category updated successfully",
+      data,
+    });
+  },
+);
+
+export const deleteCategoryController = catchAsync(
+  async (req: AuthRequest, res: Response) => {
+    const { id } = req.params as unknown as CategoryIdParamsInput;
+    const userId = req.auth?.userId;
+
+    if (!userId) {
+      throw new UnauthorizedError("Silakan login terlebih dahulu");
+    }
+
+    await deleteCategoryService(id);
+
+    res.status(200).json({
+      success: true,
+      message: "Category deleted successfully",
+      data: null,
+    });
+  },
+);

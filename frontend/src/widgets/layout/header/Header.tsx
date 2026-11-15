@@ -27,7 +27,7 @@ function Header() {
           </button>
 
           <Link to={"/"} className="w-28" aria-label="CALLE home">
-            <img src={logo} alt="logo_primary class" />
+            {/* <img src={logo} alt="logo_primary class" /> */}
           </Link>
         </div>
 
