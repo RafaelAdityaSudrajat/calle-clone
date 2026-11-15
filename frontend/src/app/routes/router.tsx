@@ -12,10 +12,10 @@ import DashboardHome from "@/pages/dashboard/pages/home-page/DashboardHome";
 import Checkout from "@/pages/checkout/Checkout";
 import DashboardAddProduct from "@/pages/dashboard/pages/add-product-page/DashboardAddProduct";
 import ProtectedRoute from "./ProtectedRoute";
-import DashboardAddCategory from "@/pages/dashboard/pages/add-category-page/DashboardAddCategory";
 import ProductDetailPage from "@/pages/productDetail/ProductDetailPage";
 import VerifyEmailPage from "@/pages/verify-email/VerifyEmail";
 import ResetPassword from "@/pages/reset-password/ResetPassword";
+import AdminAddCategory from "@/pages/dashboard/add-category-page/AdminCategoriesPage";
 
 export function AppRouter() {
   return (
@@ -36,8 +36,9 @@ export function AppRouter() {
         <Route path="/products/:id" element={<ProductDetailPage />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/dashboard" element={<DashboardHome />} />
-        <Route path="/dashboard/product" element={<DashboardAddProduct />} />
-        <Route path="/dashboard/category" element={<DashboardAddCategory />} />
+        {/* <Route path="/dashboard/product" element={<DashboardAddProduct />} /> */}
+        <Route path="/dashboard/category" element={<AdminAddCategory />} />
+
         <Route
           path="/account"
           element={

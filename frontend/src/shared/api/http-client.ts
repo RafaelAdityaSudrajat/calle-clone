@@ -14,9 +14,8 @@ const REFRESH_URL = "/auth/refresh";
 
 export const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
-  withCredentials: true, // wajib agar cookie httpOnly ikut terkirim
+  withCredentials: true,
   timeout: 15_000,
-  headers: { "Content-Type": "application/json" },
 });
 
 // Callback dari layer app (hapus state sesi, redirect ke login, dll.)
@@ -31,7 +30,7 @@ let refreshPromise: Promise<void> | null = null;
 const refreshSession = (): Promise<void> => {
   if (!refreshPromise) {
     refreshPromise = http
-      .post(REFRESH_URL, null, { skipAuthRefresh: true })
+      .post(REFRESH_URL, {}, { skipAuthRefresh: true })
       .then(() => undefined)
       .catch((error: unknown) => {
         // Logout hanya jika refresh benar-benar ditolak, bukan karena jaringan putus.

@@ -11,7 +11,7 @@ export const useDeleteCategory = () => {
     onSuccess: async (_data, id) => {
       queryClient.removeQueries({ queryKey: categoryKeys.detail(id) });
       await queryClient.invalidateQueries({ queryKey: categoryKeys.lists() });
-      toast.success("Kategori berhasil dihapus");
+      toast.success("Category berhasil dihapus");
     },
     onError: (error) => {
       toast.error(getErrorMessage(error));

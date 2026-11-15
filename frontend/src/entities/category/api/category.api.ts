@@ -7,7 +7,7 @@ import {
   type CategoryFormValues,
 } from "../model/category.schema";
 
-const BASE = "/categories";
+const BASE = "/category";
 
 // Respons divalidasi saat runtime, jadi perubahan kontrak backend langsung ketahuan.
 export const getCategories = async (
