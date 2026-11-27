@@ -1,0 +1,1 @@
+export { useArchiveProduct } from "./model/use-archive-product";

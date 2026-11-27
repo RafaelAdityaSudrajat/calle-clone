@@ -1,10 +1,10 @@
 import { isAxiosError } from "axios";
 
 interface ApiErrorBody {
-  success?: false;
+  status?: "error";
   message?: string;
   code?: string;
-  details?: unknown;
+  data?: unknown; // AppError.details dikirim backend di field ini
 }
 
 export interface ApiError {
@@ -45,7 +45,7 @@ export const apiErrorFrom = (error: unknown): ApiError => {
         data?.message ?? "Terjadi kesalahan pada server",
         status,
         data?.code,
-        data?.details,
+        data?.data,
       );
     }
     if (error.code === "ECONNABORTED") {

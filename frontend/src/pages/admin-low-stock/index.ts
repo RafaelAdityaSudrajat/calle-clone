@@ -1,0 +1,1 @@
+export { AdminLowStockPage } from "./ui/admin-low-stock-page";

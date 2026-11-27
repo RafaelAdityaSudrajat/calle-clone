@@ -17,9 +17,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       icon: HiOutlineViewGrid,
       label: "Dashboard",
       active: true,
-      href: "/dashboard",
+      href: "/admin/products",
     },
-    { icon: FiPlus, label: "Add Product", href: "/dashboard/product" },
+    { icon: FiPlus, label: "Add Product", href: "/admin/products/create" },
     { icon: FiPlus, label: "Add Category", href: "/dashboard/category" },
   ];
 

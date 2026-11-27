@@ -572,10 +572,12 @@ describe("PATCH /api/v1/admin/products_v2/:id/variants/:variantId/stock", () => 
         .send({ stock: 7 });
 
       // Update SKU via PUT (tanpa menyentuh stock).
-      await request(app)
+      const putRes = await request(app)
         .put(`${baseEndpoint}/${product.id}/variants/${v.id}`)
         .set("Cookie", [accessTokenCookie])
         .send({ sku: "NEW-SKU" });
+
+      expect(putRes.status).toBe(200);
 
       // Stock tetap 7 (bukan reset ke 10).
       const stored = await prisma.productVariant.findUnique({

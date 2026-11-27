@@ -258,11 +258,22 @@ const priceField = () =>
 const stockField = () => numberField("stock").int("stock must be an integer");
 
 // ─── POST /products/:id/variants — Create Variant (FR-PM-09) ──────────────
+const normalizeOptionalUpper = (v: string | null | undefined): string | null =>
+  v == null || v === "" ? null : v.toUpperCase();
+
+const normalizeOptionalUpperKeepUndefined = (
+  v: string | null | undefined,
+): string | null | undefined =>
+  v === undefined ? undefined : v === null || v === "" ? null : v.toUpperCase();
 
 export const createVariantBodySchema = z.object({
-  sku: requiredText("sku", MAX_SKU),
-  size: trimmedText("size", MAX_SIZE).nullish().transform(emptyToNull),
-  color: trimmedText("color", MAX_COLOR).nullish().transform(emptyToNull),
+  sku: requiredText("sku", MAX_SKU).transform((s) => s.toUpperCase()),
+  size: trimmedText("size", MAX_SIZE)
+    .nullish()
+    .transform(normalizeOptionalUpper),
+  color: trimmedText("color", MAX_COLOR)
+    .nullish()
+    .transform(normalizeOptionalUpper),
   price: priceField(),
   stock: stockField(),
 });
@@ -305,13 +316,15 @@ export type ListVariantsQuery = z.infer<typeof listVariantsQuerySchema>;
  */
 export const updateVariantBodySchema = z
   .object({
-    sku: requiredText("sku", MAX_SKU).optional(),
+    sku: requiredText("sku", MAX_SKU)
+      .transform((s) => s.toUpperCase())
+      .optional(),
     size: trimmedText("size", MAX_SIZE)
       .nullish()
-      .transform(emptyToNullKeepUndefined),
+      .transform(normalizeOptionalUpperKeepUndefined),
     color: trimmedText("color", MAX_COLOR)
       .nullish()
-      .transform(emptyToNullKeepUndefined),
+      .transform(normalizeOptionalUpperKeepUndefined),
     price: priceField().optional(),
     stock: stockField().optional(),
   })
@@ -337,13 +350,7 @@ export const updateVariantBodyConfig = {
 
 export type UpdateVariantParams = z.infer<typeof updateVariantParamsSchema>;
 // export type UpdateVariantBodyInput = z.infer<typeof updateVariantBodySchema>;
-export type UpdateVariantBodyInput = {
-  sku?: string;
-  size?: string | null;
-  color?: string | null;
-  price?: number;
-  stock?: number;
-};
+export type UpdateVariantBodyInput = z.infer<typeof updateVariantBodySchema>;
 
 // src/modules/product_v2/product_v2.schema.ts (tambahan)
 
