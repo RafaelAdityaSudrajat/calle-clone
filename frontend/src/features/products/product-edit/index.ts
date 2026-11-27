@@ -1,0 +1,1 @@
+export { useUpdateProductForm } from "./model/use-update-product-form";

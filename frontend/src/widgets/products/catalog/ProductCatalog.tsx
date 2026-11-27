@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { FaSortAmountDown } from "react-icons/fa";
 import { IoFilterSharp } from "react-icons/io5";
 
-import { ProductCard } from "@/entities/product";
+// import { ProductCard } from "@/entities/product";
 import useProductCatalog from "@/features/products/catalog/model/useProductCatalog";
 import ProductFilterPanel from "@/widgets/products/ProductFilterPanel";
 import ProductSearchInput from "@/features/products/catalog/ui/ProductSearchInput";
@@ -135,9 +135,9 @@ const ProductCatalog = () => {
           <div className="w-full">
             {filteredProducts.length > 0 ? (
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                {filteredProducts.map((product) => (
+                {/* {filteredProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />
-                ))}
+                ))} */}
               </div>
             ) : (
               <div className="py-16 text-center border rounded-lg border-zinc-200">

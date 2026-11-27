@@ -21,7 +21,11 @@ ALTER TABLE "ProductVariant"
 -- dengan size NULL & color "Hitam" akan lolos tanpa COALESCE).
 -- WHERE deleted_at IS NULL: varian soft-deleted boleh punya kombinasi sama.
 CREATE UNIQUE INDEX "ProductVariant_product_size_color_active_key"
-  ON "ProductVariant" ("product_id", COALESCE("size", ''), COALESCE("color", ''))
+  ON "ProductVariant" (
+  "product_id",
+  UPPER(BTRIM(COALESCE("size",  ''))),
+  UPPER(BTRIM(COALESCE("color", '')))
+)
   WHERE "deleted_at" IS NULL;
 
 -- ---------- ProductImage: maksimal 1 primary per produk (BR-18, NFR-PM-02) ----------

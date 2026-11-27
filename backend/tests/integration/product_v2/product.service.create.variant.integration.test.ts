@@ -139,7 +139,7 @@ describe("POST /api/v1/admin/products_v2/:id/variants", () => {
       expect(res.body.data).toMatchObject({
         sku: "KAOS-L-HTM",
         size: "L",
-        color: "Hitam",
+        color: "HITAM",
         price: 100000,
         stock: 10,
         low_stock: false,
@@ -182,7 +182,7 @@ describe("POST /api/v1/admin/products_v2/:id/variants", () => {
 
       expect(res.status).toBe(201);
       expect(res.body.data.size).toBeNull();
-      expect(res.body.data.color).toBe("Navy");
+      expect(res.body.data.color).toBe("NAVY");
     });
 
     it("201 — size & color string kosong dinormalisasi ke null (edge) + attribute other terisi", async () => {
@@ -203,7 +203,7 @@ describe("POST /api/v1/admin/products_v2/:id/variants", () => {
 
       expect(res.status).toBe(201);
       expect(res.body.data.size).toBeNull();
-      expect(res.body.data.color).toBe("Merah");
+      expect(res.body.data.color).toBe("MERAH");
     });
 
     it("201 — low_stock=true saat stock < 5", async () => {
@@ -426,7 +426,7 @@ describe("POST /api/v1/admin/products_v2/:id/variants", () => {
       expect(res.status).toBe(201);
       expect(res.body.data.sku).toBe("NEW-L-HTM");
       expect(res.body.data.size).toBe("L");
-      expect(res.body.data.color).toBe("Hitam");
+      expect(res.body.data.color).toBe("HITAM");
     });
 
     it("201 — kombinasi sama (size,color) di PRODUK BERBEDA → sukses (uniqueness per produk)", async () => {
@@ -692,7 +692,7 @@ describe("POST /api/v1/admin/products_v2/:id/variants", () => {
         where: {
           productId: product.id,
           size: "L",
-          color: "Hitam",
+          color: "HITAM",
           deletedAt: null,
         },
       });

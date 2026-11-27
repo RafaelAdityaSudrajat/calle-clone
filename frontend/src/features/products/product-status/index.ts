@@ -1,0 +1,1 @@
+export { useChangeProductStatus, type StatusAction } from "./model/use-change-product-status";

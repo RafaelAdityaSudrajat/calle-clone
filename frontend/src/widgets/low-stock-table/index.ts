@@ -1,0 +1,1 @@
+export { LowStockTable } from "./ui/low-stock-table";

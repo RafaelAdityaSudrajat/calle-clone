@@ -16,6 +16,10 @@ import ProductDetailPage from "@/pages/productDetail/ProductDetailPage";
 import VerifyEmailPage from "@/pages/verify-email/VerifyEmail";
 import ResetPassword from "@/pages/reset-password/ResetPassword";
 import AdminAddCategory from "@/pages/dashboard/add-category-page/AdminCategoriesPage";
+import { AdminProductsPage } from "@/pages/admin-products";
+import { AdminProductDetailPage } from "@/pages/admin-product-detail";
+import { AdminProductCreatePage } from "@/pages/admin-product-create";
+import { AdminLowStockPage } from "@/pages/admin-low-stock";
 
 export function AppRouter() {
   return (
@@ -38,7 +42,19 @@ export function AppRouter() {
         <Route path="/dashboard" element={<DashboardHome />} />
         {/* <Route path="/dashboard/product" element={<DashboardAddProduct />} /> */}
         <Route path="/dashboard/category" element={<AdminAddCategory />} />
-
+        <Route path="/admin/products" element={<AdminProductsPage />} />
+        <Route
+          path="/admin/products/create"
+          element={<AdminProductCreatePage />}
+        />
+        <Route
+          path="/admin/products/:id"
+          element={<AdminProductDetailPage />}
+        />{" "}
+        <Route
+          path="/admin/products/low-stock"
+          element={<AdminLowStockPage />}
+        />
         <Route
           path="/account"
           element={
@@ -50,7 +66,6 @@ export function AppRouter() {
         <Route path="/test" element={<Test />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-
         {/* fallback jika route tidak ditemukan */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
