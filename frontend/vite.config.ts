@@ -1,13 +1,17 @@
-import { defineConfig } from "vite";
+/// <reference types="vitest/config" />
+import path from "node:path";
 import react from "@vitejs/plugin-react-swc";
-import path from "path";
+import { defineConfig } from "vite";
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src"),
+      "@": path.resolve(__dirname, "./src"),
     },
+  },
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
   },
 });
